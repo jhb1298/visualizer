@@ -7,12 +7,35 @@ class Code extends React.Component {
         this.state = {
             showHeaderSelect: false,
             showDataTypes: false,
+            showMainOptions: false,
             selectedHeader: "",
             cheaders: ["stdio.h"],
             definations: [],
-            gVariables: []
+            gVariables: [],
+            insideMain: [],
+            functionKey: 1,
+            functions: [
+                {
+                    key: 1,
+                    name: "sum",
+                    returnType: "int",
+                    params: [
+                        {
+                            type: "int",
+                            name: "a",
+                            value: null
+                        },
+                        {
+                            type: "float",
+                            name: "b",
+                            value: null
+                        }
+                    ]
+                },
+            ]
         };
     }
+
 
     toggleHeaderSelect = () => {
         this.setState((prevState) => ({
@@ -40,7 +63,6 @@ class Code extends React.Component {
         this.setState((prevState) => ({
             gVariables: [...prevState.gVariables, event.target.value]
         }));
-        console.log("jkdhkjsah" + this.state.gVariables)
     };
 
     adjustInputWidth = () => {
@@ -48,7 +70,7 @@ class Code extends React.Component {
 
         for (let i = 0; i < inputs.length; i++) {
             const input = inputs[i];
-            input.style.width = '40px'; // Reset width to 'auto' to get the natural width
+            input.style.width = '20px'; // Reset width to 'auto' to get the natural width
             input.style.width = input.scrollWidth + 10 + 'px';
         }
     }
@@ -78,7 +100,7 @@ class Code extends React.Component {
         }
     }
 
-    value = (event) => {
+    floatValue = (event) => {
         const input = event.target;
         const inputValue = input.value;
 
@@ -99,12 +121,125 @@ class Code extends React.Component {
         }
     }
 
+    intValue = (event) => {
+        const input = event.target;
+        const inputValue = input.value;
+
+        // Check if the input matches an integer value
+        const isIntegerValue = /^[-+]?\d+$/.test(inputValue);
+
+        if (!isIntegerValue) {
+            alert("Invalid integer value");
+
+            // Remove the last character from the input value
+            input.value = inputValue.slice(0, -1);
+
+            // Highlight the input as invalid
+            input.classList.add('invalid-input');
+        } else {
+            // If the input is valid, remove any previous invalid styling
+            input.classList.remove('invalid-input');
+        }
+    }
+
+    charValue = (event) => {
+        const input = event.target;
+        const inputValue = input.value;
+
+        // Check if the input matches a single character surrounded by single quotes
+        const isCharacterValue = /^.$/.test(inputValue);
+
+        if (!isCharacterValue) {
+            alert("Input must be a single character surrounded by single quotes (e.g., 'a')");
+
+            // Remove the last character from the input value
+            input.value = inputValue.slice(0, -1);
+
+            // Highlight the input as invalid
+            input.classList.add('invalid-input');
+        } else {
+            // If the input is valid, remove any previous invalid styling
+            input.classList.remove('invalid-input');
+        }
+    }
+
+
+
+
+
+
 
     addDefination = () => {
         this.setState((prevState) => ({
             definations: [...prevState.definations, { "": 0 }]
         }));
     }
+
+    addInsideMain = (e) => {
+        const val = (e.target.value === "func") ? e.target.key : e.target.value;
+
+        this.setState((prevState) => ({
+            insideMain: [...prevState.insideMain, val],
+            showMainOptions: !prevState.showMainOptions
+        }));
+    }
+
+    addFunction = () => {
+        this.setState((prevState) => ({
+            functions: [
+                ...prevState.functions,
+                {
+                    key: this.state.functionKey + 1,
+                    name: " ",
+                    returnType: "int",
+                    params: [
+
+                    ]
+                }
+            ],
+            functionKey: prevState.functionKey + 1
+        }));
+    };
+
+    addParameter = (key) => {
+        let flag = false
+        console.log("Addparams is called")
+        this.setState((prevState) => {
+
+            if (flag === false) {
+                flag = true
+                const updatedFunctions = [...prevState.functions];
+                const index = updatedFunctions.findIndex((obj) => obj.key === key);
+
+                if (index !== -1) {
+                    // Create a new parameters array with a single parameter
+
+                }
+                const newParameter = {
+                    type: "int",
+                    name: "c",
+                    value: null,
+                };
+                updatedFunctions[index].params = [...updatedFunctions[index].params, newParameter];
+                console.log(updatedFunctions)
+
+                return {
+                    functions: updatedFunctions,
+                };
+            }
+        });
+    };
+    setParamType = (key, i, e) => {
+        this.state.functions.find((obj) => obj.key === key).params[i].type = e.target.value;
+
+    }
+    setFuncName = (key, e) => {
+        this.state.functions.find((obj => obj.key === key)).name = e.target.value;
+    }
+
+
+
+
 
 
 
@@ -114,10 +249,199 @@ class Code extends React.Component {
         const headers = ["stdio.h", "math.h", "string.h"];
         const dataTypes = ["int", "char", "float"]
 
+        const int = (<div>
+            int
+            <input
+                onChange={(e) => {
+                    this.variableName(e);
+                    this.adjustInputWidth(e);
+                }}
+                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+            />
+            =
+            <input
+                onChange={(e) => {
+                    this.intValue(e);
+                    this.adjustInputWidth(e);
+                }}
+                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+            />;
+        </div>)
+
+        const float = (<div>
+            float
+            <input
+                onChange={(e) => {
+                    this.variableName(e);
+                    this.adjustInputWidth(e);
+                }}
+                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+            />
+            =
+            <input
+                onChange={(e) => {
+                    this.floatValue(e);
+                    this.adjustInputWidth(e);
+                }}
+                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+            />;
+        </div>)
+
+        const char = (<div>
+            char
+            <input
+                onChange={(e) => {
+                    this.variableName(e);
+                    this.adjustInputWidth(e);
+                }}
+                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+            />
+            = '
+            <input
+                onChange={(e) => {
+                    this.charValue(e);
+                    this.adjustInputWidth(e);
+                }}
+                className="w-5 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+            />' ;
+        </div>)
+
+        const func = (functionName) => {
+            const selectedFunction = this.state.functions.find(func => func.name === functionName);
+
+            if (!selectedFunction) {
+                return null;
+            }
+
+            return (
+                <div>
+                    {functionName} (
+                    {selectedFunction.params.map((p, i) => (
+                        <span key={i}>
+                            {i !== 0 && <span>,</span>}
+                            <input
+                                onChange={(e) => {
+                                    this.floatValue(e);
+                                    this.adjustInputWidth();
+                                }}
+                                className="w-5 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                            />
+                        </span>
+                    ))}
+                    );
+                </div>
+            );
+        };
+
+        const subP = (key) => {
+            const obj = this.state.functions.find((obj) => obj.key === key);
+
+            return (
+                <div>
+                    <code>
+                        <select className="appearance-none" defaultValue={obj.returnType}>
+                            <option>int</option>
+                            <option>bool</option>
+                        </select>
+                        <input
+                            className="w-20 bg-transparent outline-none border-2 autoAdjust"
+                            defaultValue={obj.name}
+                            onChange={(e) => {
+                                this.setFuncName(key, e);
+                                this.adjustInputWidth();
+                            }}
+                        ></input>
+                        {"("}
+                        {obj.params && obj.params.map((p, i) => (
+                            <div key={i} className="items-center inline-flex">
+                                {i !== 0 && <p>,</p>}
+                                <select className="appearance-none mr-2" defaultValue={p.type} onChange={(e) => this.setParamType(key, i, e)}>
+                                    <option>int</option>
+                                    <option>bool</option>
+                                </select>
+                                <input
+                                    className="w-20 bg-transparent outline-none border-2 autoAdjust"
+                                    defaultValue={p.name}
+                                    onChange={(e) => {
+                                        this.adjustInputWidth();
+                                    }}
+                                />
+
+                            </div>
+                        ))}
+                        <button className="font-bold text-cyan-800 text-xl" onClick={() => this.addParameter(key)}> + </button>
+                        {") {"}
+
+                        <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                        <p>{"}"}</p>
+                    </code>
+                </div>
+            );
+        };
+
+
+        const inc = (
+            <div>
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                ++;
+            </div>
+        )
+
+        const dec = (
+            <div>
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                --;
+            </div>
+        )
+
+        const cif = (
+            <div>
+                if(
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                <select className="appearance-none">
+                    <option>==</option>
+                    <option>{'<='}</option>
+                    <option>{'>='}</option>
+                    <option>{'<'}</option>
+                    <option>{'>'}</option>
+                    <option>{'!='}</option>             
+                </select>
+                <input
+                    onChange={(e) => {
+                        this.intValue(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                ){"{"}
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                {"}"}
+            </div>
+        )
+
         return (
             <div className="bg-slate-700">
                 <div className="space-y-4 p-10 m-20 mt-0 mb-0 bg-gray-100">
                     <p className="font-bold text-2xl">Main.c</p>
+
                     <div className="bg-slate-300 p-4 rounded-lg">
                         <p className="text-right">Documentation section</p>
                         <pre className="bg-white p-2 rounded-md">
@@ -175,7 +499,7 @@ class Code extends React.Component {
                                 }} className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2" />
 
                                 <input onChange={(e) => {
-                                    this.value(e);
+                                    this.floatValue(e);
                                     this.adjustInputWidth(e)
                                 }} className=" w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2" />;
                                 {this.state.definations.map((d, index) => (
@@ -191,7 +515,7 @@ class Code extends React.Component {
                                             />
                                             <input
                                                 onChange={(e) => {
-                                                    this.value(e);
+                                                    this.floatValue(e);
                                                     this.adjustInputWidth(e);
                                                 }}
                                                 className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
@@ -222,39 +546,25 @@ class Code extends React.Component {
                         <p className="text-right">Global variable section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                <select className="appearance-none">
-                                    <option>int</option>
-                                    <option>bool</option>
-                                </select>
+                                int
                                 <input onChange={(e) => {
                                     this.variableName(e);
                                     this.adjustInputWidth(e)
                                 }} className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2" />
-
+                                =
                                 <input onChange={(e) => {
-                                    this.value(e);
+                                    this.intValue(e);
                                     this.adjustInputWidth(e)
                                 }} className=" w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2" />;
 
-                                {this.state.gVariables.map((v, i) => (
-                                    <div key={i}>
-                                        {v}
-                                        <input
-                                            onChange={(e) => {
-                                                this.variableName(e);
-                                                this.adjustInputWidth(e);
-                                            }}
-                                            className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                                        />
-                                        <input
-                                            onChange={(e) => {
-                                                this.value(e);
-                                                this.adjustInputWidth(e);
-                                            }}
-                                            className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                                        />;
-                                    </div>
-                                ))}
+                                {this.state.gVariables.map((v, i) => {
+                                    switch (v) {
+                                        case "int": return <div>{int}</div>;
+                                        case "float": return <div>{float}</div>;
+                                        case "char": return <div>{char}</div>
+                                        default: return null;
+                                    }
+                                })}
 
                             </code>
                         </pre>
@@ -267,7 +577,7 @@ class Code extends React.Component {
                             <select
                                 id="datatypeSelect"
                                 className="outline-none"
-                                onChange={(e)=>this.dataTypeSelect(e)}
+                                onChange={(e) => this.dataTypeSelect(e)}
                             /*value={this.state.selectedHeader}*/
                             >
                                 {dataTypes.map((t, index) => (
@@ -286,9 +596,74 @@ class Code extends React.Component {
                         <pre className="bg-white p-2 rounded-md">
                             <code>
                                 <p>int main() {"{"}</p>
-                                <button className="font-bold text-cyan-800 text-xl block">
+                                {this.state.insideMain.map((im, i) => {
+                                    switch (im) {
+                                        case "int":
+                                            return <div>{int}</div>;
+                                        case "float":
+                                            return <div>{float}</div>;
+                                        case "char":
+                                            return <div>{char}</div>;
+                                        case "inc":
+                                            return <div>{inc}</div>;
+                                        case "dec":
+                                            return <div>{dec}</div>;
+                                        case "cif":
+                                            return <div>{cif}</div>
+                                        default:
+                                            if (im.startsWith("1")) {
+                                                const funcName = im.slice(1);
+                                                return (
+                                                    <div key={i}>
+                                                        {func(funcName)}
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                    }
+                                })}
+                                <button
+                                    className="font-bold text-cyan-800 text-xl block"
+                                    onClick={(e) => {
+                                        this.setState({
+                                            showMainOptions: !this.state.showMainOptions
+                                        });
+                                    }}
+                                >
                                     +
                                 </button>
+                                {this.state.showMainOptions && (
+                                    <select
+                                        className="outline-none border-2 w-max"
+                                        onChange={this.addInsideMain}
+                                    >
+                                        <option>Choose an option</option>
+                                        <option value="int">Declare an int variable</option>
+                                        <option value="float">Declare a float variable</option>
+                                        <option value="char">Declare a char variable</option>
+                                        <option value="asign">Assignment operation</option>
+                                        <option value="cif">if</option>
+                                        <option value="inc">Increment operation</option>
+                                        <option value="dec">Decrement operation</option>
+                                        {this.state.functions.map((f, i) => (
+                                            <option value={"1" + f.name} key={f.name}>
+                                                Call: {f.returnType} {f.name} ({f.params.map((p, i) => (
+                                                    (i === 0) ? (
+                                                        <span key={i}>{p.type}</span>
+                                                    ) :
+                                                        (
+                                                            <span key={i}>, {p.type}</span>
+                                                        )
+                                                ))})
+                                            </option>
+                                        ))}
+
+
+                                    </select>
+                                )}
+
+
+
                                 <p>{"}"}</p>
                             </code>
                         </pre>
@@ -298,32 +673,15 @@ class Code extends React.Component {
 
                     <div className="bg-purple-100 p-4 rounded-lg">
                         <p className="text-right">Subprogram section</p>
+
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                <select className="appearance-none">
-                                    <option>int</option>
-                                    <option>bool</option>
-                                </select>
-                                <input
-                                    className="w-20 bg-transparent outline-none border-2"
-                                ></input>
-                                (
-                                <select className="appearance-none">
-                                    <option>int</option>
-                                    <option>bool</option>
-                                </select>
-                                <input
-                                    className="w-20 bg-transparent outline-none border-2"
-                                ></input>
-                                <button className="font-bold text-cyan-800 text-xl"> + </button>
-                                ) {"{"}
-                                <button className="font-bold text-cyan-800 text-xl block">
-                                    +
-                                </button>
-                                <p>{"}"}</p>
+                                {this.state.functions.map((f, index) => (
+                                    <p key={f.key}>{subP(f.key)}</p>
+                                ))}
                             </code>
                         </pre>
-                        <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                        <button className="font-bold text-cyan-800 text-xl block" onClick={this.addFunction}> + </button>
                     </div>
                 </div>
                 <div className="flex justify-center">
