@@ -422,7 +422,7 @@ class Code extends React.Component {
                     <option>{'>='}</option>
                     <option>{'<'}</option>
                     <option>{'>'}</option>
-                    <option>{'!='}</option>             
+                    <option>{'!='}</option>
                 </select>
                 <input
                     onChange={(e) => {
@@ -434,6 +434,241 @@ class Code extends React.Component {
                 ){"{"}
                 <button className="font-bold text-cyan-800 text-xl block"> + </button>
                 {"}"}
+            </div>
+        )
+
+        const cifElse= (
+            <div>
+                if(
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                <select className="appearance-none">
+                    <option>==</option>
+                    <option>{'<='}</option>
+                    <option>{'>='}</option>
+                    <option>{'<'}</option>
+                    <option>{'>'}</option>
+                    <option>{'!='}</option>
+                </select>
+                <input
+                    onChange={(e) => {
+                        this.intValue(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                ){"{"}
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                {"}"}
+                else{'{'}
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                {'}'}
+            </div>
+        )
+
+        const celseIf= (
+            <div>
+                if(
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                <select className="appearance-none">
+                    <option>==</option>
+                    <option>{'<='}</option>
+                    <option>{'>='}</option>
+                    <option>{'<'}</option>
+                    <option>{'>'}</option>
+                    <option>{'!='}</option>
+                </select>
+                <input
+                    onChange={(e) => {
+                        this.intValue(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                ){"{"}
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                {"}"}
+                <br/>
+                else if(
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                <select className="appearance-none">
+                    <option>==</option>
+                    <option>{'<='}</option>
+                    <option>{'>='}</option>
+                    <option>{'<'}</option>
+                    <option>{'>'}</option>
+                    <option>{'!='}</option>
+                </select>
+                <input
+                    onChange={(e) => {
+                        this.intValue(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                ){"{"}
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                {"}"}
+
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+
+                else{'{'}
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                {'}'}
+            </div>
+        )
+
+        const cfor = (
+            <div>
+                for(
+                <input
+                    onChange={(e) => {
+                        //this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                =
+                <input
+                    onChange={(e) => {
+                        //this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                ;
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                <select className="appearance-none">
+                    <option>==</option>
+                    <option>{'<='}</option>
+                    <option>{'>='}</option>
+                    <option>{'<'}</option>
+                    <option>{'>'}</option>
+                    <option>{'!='}</option>
+                </select>
+                <input
+                    onChange={(e) => {
+                        this.intValue(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                ;
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                <select className="appearance-none">
+                    <option>==</option>
+                    <option>{'+='}</option>
+                    <option>{'-='}</option>
+                    <option>{'*='}</option>
+                    <option>{'/='}</option>
+                    <option>{'%='}</option>
+                    <option>{'++'}</option>
+                    <option>{'++'}</option>
+                    <option>{'--'}</option>
+                </select>
+                <input
+                    onChange={(e) => {
+                        this.intValue(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                ){'{'}
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                {'}'}
+            </div>
+        )
+
+        const cwhile = (
+            <div>
+                while(
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                <select className="appearance-none">
+                    <option>==</option>
+                    <option>{'<='}</option>
+                    <option>{'>='}</option>
+                    <option>{'<'}</option>
+                    <option>{'>'}</option>
+                    <option>{'!='}</option>
+                </select>
+                <input
+                    onChange={(e) => {
+                        this.intValue(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                ){'{'}
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                {'}'}
+            </div>
+        )
+
+        const cdoWhile=(
+            <div>
+                do{'{'}
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                {'}'}
+                <br/>
+                while(
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                <select className="appearance-none">
+                    <option>==</option>
+                    <option>{'<='}</option>
+                    <option>{'>='}</option>
+                    <option>{'<'}</option>
+                    <option>{'>'}</option>
+                    <option>{'!='}</option>
+                </select>
+                <input
+                    onChange={(e) => {
+                        this.intValue(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                );
             </div>
         )
 
@@ -609,7 +844,13 @@ class Code extends React.Component {
                                         case "dec":
                                             return <div>{dec}</div>;
                                         case "cif":
-                                            return <div>{cif}</div>
+                                            return <div>{cif}</div>;
+                                        case "cfor":
+                                            return <div>{cfor}</div>;
+                                        case "cwhile":
+                                            return <div>{cwhile}</div>;
+                                        case "cdoWhile":
+                                            return <div>{cdoWhile}</div>
                                         default:
                                             if (im.startsWith("1")) {
                                                 const funcName = im.slice(1);
@@ -643,6 +884,11 @@ class Code extends React.Component {
                                         <option value="char">Declare a char variable</option>
                                         <option value="asign">Assignment operation</option>
                                         <option value="cif">if</option>
+                                        <option value="cifElse">if else</option>
+                                        <option value="celseIf">else if</option>
+                                        <option value="cfor">For</option>
+                                        <option value="cwhile">While</option>
+                                        <option value="cdoWhile">Do-While</option>
                                         <option value="inc">Increment operation</option>
                                         <option value="dec">Decrement operation</option>
                                         {this.state.functions.map((f, i) => (
