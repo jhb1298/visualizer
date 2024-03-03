@@ -24,4 +24,8 @@ code {
   max-width: fit-content;
 }
 
+.no-scrollbar::-webkit-scrollbar { 
+  display: none; 
+} 
+
 

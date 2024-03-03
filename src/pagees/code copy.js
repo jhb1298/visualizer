@@ -5,13 +5,11 @@ class Code extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            id: 0,
             showHeaderSelect: false,
             showDataTypes: false,
             showParamTypes: false,
             showFunctionTypes: false,
-            //showMainOptions: false,
-            showAssignmentOptions: true,
+            showMainOptions: false,
             selectedHeader: "",
             cheaders: ["stdio.h"],
             definations: [],
@@ -20,20 +18,6 @@ class Code extends React.Component {
             functionKey: 1,
             functions: [
                 {
-                    showParamTypes: false,
-                    showOptions: false,
-                    key: 0,
-                    name: "main",
-                    returnType: "int",
-                    params: [
-
-                    ],
-                    inside: [
-
-                    ]
-                },
-                {
-                    showParamTypes: false,
                     showOptions: false,
                     key: 1,
                     name: "sum",
@@ -197,92 +181,14 @@ class Code extends React.Component {
     }
 
     addInsideMain = (e) => {
-        //const type = (e.target.value === "func") ? e.target.key : e.target.value;
-        const type = e.target.value;
-        let data = {}
-        switch (type) {
-            case ("int"): data = { id: this.state.id, type: type, var: null, value: 0 }
-                break;
-            case ("float"): data = { id: this.state.id, type: type, var: null, value: 0.0 }
-                break;
-            case ("char"): data = { id: this.state.id, type: type, var: null, value: '' }
-                break;
-            case ("asign"): data = { id: this.state.id, type: type, showAssignmentOptions: true, value: "" }
-                break;
-            case ("cif"): data = { id: this.state.id, type: type, showOptions: false, l: null, sign: "==", r: null, insideIf: [] }
-                break;
-            case ("cifElse"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideIf: [], insideElse: [] }
-                break;
-            case ("celseIf"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null }
-                break;
-            case ("cfor"): data = { id: this.state.id, type: type, lVar: null, lVal: null, mVar: null, mSign: "<", mVal: null, rVar: null, rSigh: "+=", rVal: null, insideFor: [] }
-                break;
-            case ("cwhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideWhile: [] }
-                break;
-            case ("cdoWhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideDo: [] }
-                break;
-            case ("inc"): data = { id: this.state.id, type: type, var: null }
-                break;
-            case ("dec"): data = { id: this.state.id, type: type, var: null }
-                break;
-            default: data = { id: this.state.id, type: type.slice(1), params: [] }
-                break;
-        }
+        const val = (e.target.value === "func") ? e.target.key : e.target.value;
+
         this.setState((prevState) => ({
-            insideMain: [...prevState.insideMain, data],
-            showMainOptions: !prevState.showMainOptions,
-            id: prevState.id + 1
+            insideMain: [...prevState.insideMain, val],
+            showMainOptions: !prevState.showMainOptions
         }));
     }
 
-    addInsideFunction = (key, e) => {
-        const updatedFunctions = this.state.functions.map((f) => {
-            if (f.key === key) {
-                const type = e.target.value
-                let data = {}
-                switch (type) {
-                    case ("int"): data = { id: this.state.id, type: type, var: null, value: 0 }
-                        break;
-                    case ("float"): data = { id: this.state.id, type: type, var: null, value: 0.0 }
-                        break;
-                    case ("char"): data = { id: this.state.id, type: type, var: null, value: '' }
-                        break;
-                    case ("asign"): data = { id: this.state.id, type: type, showAssignmentOptions: true, value: "" }
-                        break;
-                    case ("cif"): data = { id: this.state.id, type: type, showOptions: false, l: null, sign: "==", r: null, insideIf: [] }
-                        break;
-                    case ("cifElse"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideIf: [], insideElse: [] }
-                        break;
-                    case ("celseIf"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null }
-                        break;
-                    case ("cfor"): data = { id: this.state.id, type: type, lVar: null, lVal: null, mVar: null, mSign: "<", mVal: null, rVar: null, rSigh: "+=", rVal: null }
-                        break;
-                    case ("cwhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideWhile: [] }
-                        break;
-                    case ("cdoWhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideDo: [] }
-                        break;
-                    case ("inc"): data = { id: this.state.id, type: type, var: null }
-                        break;
-                    case ("dec"): data = { id: this.state.id, type: type, var: null }
-                        break;
-                    default: data = { id: this.state.id, type: type.slice(1), params: [] }
-                        break;
-                }
-                return {
-                    ...f,
-                    inside: [...f.inside, data],
-                    showOptions: !f.showOptions
-                };
-            }
-            return f;
-        });
-
-        this.setState({
-            functions: updatedFunctions
-        });
-    };
-
-    commment = () => {/*
     addInsideFunction = (key, e) => {
         const updatedFunctions = this.state.functions.map((f) => {
             if (f.key === key) {
@@ -301,7 +207,6 @@ class Code extends React.Component {
             functions: updatedFunctions
         });
     };
-    */}
 
 
     addFunction = (e) => {
@@ -365,7 +270,6 @@ class Code extends React.Component {
 
 
     render() {
-
         const headers = ["stdio.h", "math.h", "string.h"];
         const dataTypes = ["int", "char", "float"]
 
@@ -428,46 +332,27 @@ class Code extends React.Component {
         </div>)
 
 
-        const asign = (key, i) => {
-            const inside = this.state.functions.find(fn => fn.key === key).inside[i];
-
-            const handleChange = (e) => {
-                const { value } = e.target;
-                this.setState(prevState => {
-                    const updatedFunctions = prevState.functions.map(fn => {
-                        if (fn.key === key) {
-                            const updatedInside = [...fn.inside];
-                            updatedInside[i] = {
-                                ...updatedInside[i],
-                                value: value,
-                                showAssignmentOptions: false
-                            };
-                            return {
-                                ...fn,
-                                inside: updatedInside
-                            };
-                        }
-                        return fn;
-                    });
-                    return { functions: updatedFunctions };
-                }, () => {
-                    console.log("Value:", value);
-                });
-            };
+        const asign = () => {
+            let show = true;
+            let val = "";
+            console.log("Inside assiegn")
 
             return (
                 <code>
                     <input
                         className="w-20 bg-transparent outline-none border-2 autoAdjust"
                         onChange={() => {
+                            // Assuming adjustInputWidth is a method of your class
                             this.adjustInputWidth();
                         }}
                     />
                     =
-                    {inside.showAssignmentOptions && (
+                    {show && (
                         <select
-                            onChange={handleChange}
-                            value={inside.value} // Set the value attribute to ensure proper initial value
+                            onChange={(e) => {
+                                val = e.target.value;
+                                show = false;
+                            }}
                         >
                             <option value="">Choose an option</option>
                             <option value="exp">Expression</option>
@@ -482,20 +367,20 @@ class Code extends React.Component {
                             )}
                         </select>
                     )}
-
-                    {inside.value === "exp" ? (
+                    {val === "exp" ? (
                         <input
                             className="w-20 bg-transparent outline-none border-2 autoAdjust"
                             onChange={() => {
+                                // Assuming adjustInputWidth is a method of your class
                                 this.adjustInputWidth();
                             }}
                         />
                     ) :
-                        inside.value === "" ? null : (
-                            this.state.functions.map((f, index) => {
+                        val === "" ? null : (
+                            this.state.functions.map((f, i) => {
                                 const funcName = f.name;
                                 return (
-                                    <div key={index} className="inline-block">
+                                    <div key={i}>
                                         {func(funcName)}
                                     </div>
                                 );
@@ -508,8 +393,6 @@ class Code extends React.Component {
 
 
 
-
-
         const func = (functionName) => {
             const selectedFunction = this.state.functions.find(func => func.name === functionName);
 
@@ -518,7 +401,7 @@ class Code extends React.Component {
             }
 
             return (
-                <div className="inline-block">
+                <div>
                     {functionName} (
                     {selectedFunction.params.map((p, i) => (
                         <span key={i}>
@@ -544,7 +427,7 @@ class Code extends React.Component {
                     <code>
                         {obj.returnType}
                         <input
-                            className="w-20 bg-transparent outline-none border-2 autoAdjust ml-5"
+                            className="w-20 bg-transparent outline-none border-2 autoAdjust"
                             defaultValue={obj.name}
                             onChange={(e) => {
                                 this.setFuncName(key, e);
@@ -567,23 +450,11 @@ class Code extends React.Component {
                             </div>
                         ))}
                         <button className="font-bold text-cyan-800 text-xl" onClick={() => {
-                            this.setState((prevState) => {
-                                const updated = prevState.functions.map((f) => {
-                                    if (f.key === key) {
-                                        return {
-                                            ...f,
-                                            showParamTypes: !f.showParamTypes
-                                        };
-                                    } else {
-                                        return f;
-                                    }
-                                });
-
-                                return { functions: updated };
-                            });
+                            this.setState((prevState) => ({
+                                showParamTypes: !prevState.showParamTypes
+                            }))
                         }}> + </button>
-
-                        {obj.showParamTypes && (
+                        {this.state.showParamTypes && (
                             <select onChange={(e) => { this.addParameter(key, e) }}>
                                 <option value="">Type</option>
                                 <option value="int">int</option>
@@ -598,7 +469,7 @@ class Code extends React.Component {
 
 
                         {obj.inside && obj.inside.map((im, i) => {
-                            switch (im.type) {
+                            switch (im) {
                                 case "int":
                                     return <div >{int}</div>;
                                 case "float":
@@ -610,27 +481,29 @@ class Code extends React.Component {
                                 case "dec":
                                     return <div>{dec}</div>;
                                 case "asign":
-                                    return <div>{asign(key, i)}</div>;
+                                    return <div>{asign}</div>;
                                 case "cif":
-                                    return <div className="my-2 p-2 bg-blue-300">{cif(im.id)}</div>;
+                                    return <div className="my-2 p-2 bg-blue-300">{cif}</div>;
                                 case "cifElse":
                                     return <div className="my-2 p-2 bg-blue-300">{cifElse}</div>;
                                 case "celseIf":
                                     return <div className="my-2 p-2 bg-blue-300">{celseIf}</div>
                                 case "cfor":
-                                    return <div className="my-2 p-2 bg-amber-600">{cfor(im)}</div>;
+                                    return <div className="my-2 p-2 bg-amber-600">{cfor}</div>;
                                 case "cwhile":
                                     return <div className="my-2 p-2 bg-amber-600">{cwhile}</div>;
                                 case "cdoWhile":
                                     return <div className="my-2 p-2 bg-amber-600">{cdoWhile}</div>
                                 default:
-                                    return (
-                                        <div key={i}>
-                                            {func(im.type)}
-                                        </div>
-                                    );
-
-
+                                    if (im.startsWith("1")) {
+                                        const funcName = im.slice(1);
+                                        return (
+                                            <div key={i}>
+                                                {func(funcName)}
+                                            </div>
+                                        );
+                                    }
+                                    return null;
                             }
                         })}
                         <button
@@ -721,75 +594,36 @@ class Code extends React.Component {
             </div>
         )
 
-        const cif = (obj) => {
-
-            return (
-                <div>
-                    if(
-                    <input
-                        onChange={(e) => {
-                            this.variableName(e);
-                            this.adjustInputWidth(e);
-                        }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    <select className="appearance-none">
-                        <option>{'=='}</option>
-                        <option>{'<='}</option>
-                        <option>{'>='}</option>
-                        <option>{'<'}</option>
-                        <option>{'>'}</option>
-                        <option>{'!='}</option>
-                    </select>
-                    <input
-                        onChange={(e) => {
-                            this.intValue(e);
-                            this.adjustInputWidth(e);
-                        }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    ){"{"}
-                    <button className="font-bold text-cyan-800 text-xl block" onClick={(e) => {
-                        //obj.showOptions = true
-                        obj.setState({ showOptions: true })
-                        console.log("Iddd:", obj.id)
-                    }}> + </button>
-                    {obj.showOptions && (
-                        <select
-                            className="outline-none border-2 w-max"
-                            onChange={(e) => { }}
-                        >
-                            <option>Choose an option</option>
-                            <option value="int">Declare an int variable</option>
-                            <option value="float">Declare a float variable</option>
-                            <option value="char">Declare a char variable</option>
-                            <option value="asign">Assignment operation</option>
-                            <option value="cif">if</option>
-                            <option value="cifElse">if else</option>
-                            <option value="celseIf">else if</option>
-                            <option value="cfor">For</option>
-                            <option value="cwhile">While</option>
-                            <option value="cdoWhile">Do-While</option>
-                            <option value="inc">Increment operation</option>
-                            <option value="dec">Decrement operation</option>
-                            {this.state.functions.map((f, i) => (
-                                f.name === " " ? null : (
-                                    <option value={"1" + f.name} key={f.name}>
-                                        Call: {f.returnType} {f.name} ({f.params.map((p, i) => (
-                                            (i === 0) ? (
-                                                <span key={i}>{p.type}</span>
-                                            ) :
-                                                (
-                                                    <span key={i}>, {p.type}</span>
-                                                )
-                                        ))})
-                                    </option>)
-                            ))}
-                        </select>
-                    )}
-                    {"}"}
-                </div>)
-        }
+        const cif = (
+            <div>
+                if(
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                <select className="appearance-none">
+                    <option>==</option>
+                    <option>{'<='}</option>
+                    <option>{'>='}</option>
+                    <option>{'<'}</option>
+                    <option>{'>'}</option>
+                    <option>{'!='}</option>
+                </select>
+                <input
+                    onChange={(e) => {
+                        this.intValue(e);
+                        this.adjustInputWidth(e);
+                    }}
+                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                />
+                ){"{"}
+                <button className="font-bold text-cyan-800 text-xl block"> + </button>
+                {"}"}
+            </div>
+        )
 
         const cifElse = (
             <div>
@@ -889,7 +723,7 @@ class Code extends React.Component {
             </div>
         )
 
-        const cfor = (obj) => {
+        const cfor = (
             <div>
                 for(
                 <input
@@ -957,15 +791,10 @@ class Code extends React.Component {
                     className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
                 />
                 ){'{'}
-                {
-                    obj.inside.map((f,i)=>{
-                        cfor(f);
-                    })
-                }
                 <button className="font-bold text-cyan-800 text-xl block"> + </button>
                 {'}'}
             </div>
-        }
+        )
 
         const cwhile = (
             <div>
@@ -1033,7 +862,7 @@ class Code extends React.Component {
 
         return (
             <div className="bg-slate-700  flex">
-                <div className="space-y-4 p-10 m-10 mt-0 mb-0 bg-slate-200 w-1/2 h-screen overflow-y-auto no-scrollbar">
+                <div className="space-y-4 p-10 m-10 mt-0 mb-0 bg-gray-100 w-1/2">
                     <p className="font-bold text-2xl border-b-2">Main.c</p>
 
                     <div className="bg-slate-300 p-4 rounded-lg">
@@ -1128,18 +957,17 @@ class Code extends React.Component {
                         <pre className="bg-white p-2 rounded-md">
                             <code>
                                 {this.state.functions.map((f, i) => (
-                                    i === 0 ? null :
-                                        f.name === " " ? null :
-                                            (<div>
-                                                {f.returnType} {f.name} ({f.params.map((p, i) => (
-                                                    (i === 0) ? (
-                                                        <span key={i}>{p.type}</span>
-                                                    ) :
-                                                        (
-                                                            <span key={i}>, {p.type}</span>
-                                                        )
-                                                ))});
-                                            </div>)
+                                    f.name === " " ? null :
+                                        (<div>
+                                            {f.returnType} {f.name} ({f.params.map((p, i) => (
+                                                (i === 0) ? (
+                                                    <span key={i}>{p.type}</span>
+                                                ) :
+                                                    (
+                                                        <span key={i}>, {p.type}</span>
+                                                    )
+                                            ))});
+                                        </div>)
                                 ))}
                             </code>
                         </pre>
@@ -1194,15 +1022,14 @@ class Code extends React.Component {
                         )}
                     </div>
 
-                    {
-                    /*
+
                     <div className="bg-green-200 p-4 rounded-lg">
                         <p className="text-right">Main section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
                                 <p>int main() {"{"}</p>
                                 {this.state.insideMain.map((im, i) => {
-                                    switch (im.type) {
+                                    switch (im) {
                                         case "int":
                                             return <div >{int}</div>;
                                         case "float":
@@ -1214,9 +1041,9 @@ class Code extends React.Component {
                                         case "dec":
                                             return <div>{dec}</div>;
                                         case "asign":
-                                            return <div>{asign(i)}</div>;
+                                            return <div>{asign()}</div>;
                                         case "cif":
-                                            return <div className="my-2 p-2 bg-blue-300">{cif(im)}</div>;
+                                            return <div className="my-2 p-2 bg-blue-300">{cif}</div>;
                                         case "cifElse":
                                             return <div className="my-2 p-2 bg-blue-300">{cifElse}</div>;
                                         case "celseIf":
@@ -1228,20 +1055,15 @@ class Code extends React.Component {
                                         case "cdoWhile":
                                             return <div className="my-2 p-2 bg-amber-600">{cdoWhile}</div>
                                         default:
-                                            {
-                                                const funcName = im.type;
-                                                if (funcName !== "") {
-                                                    return (
-                                                        <div key={i}>
-                                                            {func(funcName)}
-                                                        </div>
-                                                    );
-                                                }
-                                                else {
-                                                    return null;
-                                                }
-
+                                            if (im.startsWith("1")) {
+                                                const funcName = im.slice(1);
+                                                return (
+                                                    <div key={i}>
+                                                        {func(funcName)}
+                                                    </div>
+                                                );
                                             }
+                                            return null;
                                     }
                                 })}
                                 <button
@@ -1254,8 +1076,6 @@ class Code extends React.Component {
                                 >
                                     +
                                 </button>
-
-
                                 {this.state.showMainOptions && (
                                     <select
                                         className="outline-none border-2 w-max"
@@ -1293,15 +1113,6 @@ class Code extends React.Component {
                             </code>
                         </pre>
                     </div>
-                    */}
-                    <div className="bg-green-200 p-4 rounded-lg">
-                        <p className="text-right">Main section</p>
-                        <pre className="bg-white p-2 rounded-md">
-                            <code>
-                                <p key={this.state.functions[0].key}>{subP(this.state.functions[0].key)}</p>
-                            </code>
-                        </pre>
-                    </div>
 
 
                     <div className="bg-purple-100 p-4 rounded-lg">
@@ -1310,8 +1121,7 @@ class Code extends React.Component {
                         <pre className="bg-white p-2 rounded-md">
                             <code>
                                 {this.state.functions.map((f, index) => (
-                                    index === 0 ? null :
-                                        <p key={f.key}>{subP(f.key)}</p>
+                                    <p key={f.key}>{subP(f.key)}</p>
                                 ))}
                             </code>
                         </pre>
@@ -1337,178 +1147,32 @@ class Code extends React.Component {
                     </div>
                 </div>
 
-                <div id="memory" className="space-y-4 p-10 pb-20  m-10 mt-0 mb-0 bg-slate-200 w-1/2 h-screen">
+                <div className="space-y-4 p-10 m-10 mt-0 mb-0 bg-gray-100 w-1/2 h-screen">
                     <p className="font-bold text-2xl border-b-2">Memory</p>
-                    <div className="flex h-full">
-                        <div className="w-1/2 mx-5 mb-10 p-2 h-full bg-cyan-200 rounded-md">
+                    <div className="flex">
+                        <div className="w-1/2 mx-5 mb-10 overflow-y-auto max-h-1/4">
                             <p className="font-bold text-lg align-middle">data</p>
-                            <div className="overflow-y-auto  max-h-[calc(100%-2rem-2.5rem)] no-scrollbar">
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-
+                            <div className="flex justify-end">
+                                <label>vnbh</label>
+                                <input className="border-2 w-3/4"></input>
+                            </div>
+                            <div className="flex justify-end">
+                                <label>gvjhjh</label>
+                                <input className="border-2 w-3/4"></input>
                             </div>
                         </div>
 
                         <div className="w-1 bg-slate-500"></div>
 
-                        <div className="w-1/2 mx-5 mb-10 p-2 h-full bg-blue-300 rounded-md">
+                        <div className="w-1/2 mx-5 mb-10">
                             <p className="font-bold text-lg align-middle">stack</p>
-                            <div id="stack" className="overflow-y-auto max-h-[calc(100%-2rem-2.5rem)] no-scrollbar">
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-
-
-
-                            </div>
+                            <input className="border-2"></input>
+                            <input className="border-2"></input>
                         </div>
                     </div>
                 </div>
+
+
             </div>
         );
     }
