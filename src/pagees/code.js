@@ -4,10 +4,16 @@ import ReactTextareaAutosize from "react-textarea-autosize";
 const cloneDeep = require('lodash/cloneDeep');
 
 class Code extends React.Component {
+
+
     constructor(props) {
         super(props);
         this.state = {
-            id: 0,
+            id: 2,
+
+            divs: [],
+            objs: [],
+            sortableDivsRef: [],
 
             showDeclareVariable: false,
             showConditionals: false,
@@ -22,51 +28,54 @@ class Code extends React.Component {
             showDataTypes: false,
             showParamTypes: false,
             showFunctionTypes: false,
-            //showMainOptions: false,
-            showAssignmentOptions: true,
             selectedHeader: "",
             cheaders: ["stdio.h"],
             definations: [],
             gVariables: [],
             insideMain: [],
-            functionKey: 1,
-            functions: [
-                {
-                    showParamTypes: false,
-                    showOptions: false,
-                    key: 0,
-                    type: "main",
-                    returnType: "int",
-                    params: [
 
-                    ],
-                    inside: [
+            functions: {
+                inside: [
+                    {
+                        showParamTypes: false,
+                        showOptions: false,
+                        id: 0,
+                        type: "main",
+                        returnType: "int",
+                        params: [
 
-                    ]
-                },
-                {
-                    showParamTypes: false,
-                    showOptions: false,
-                    key: 1,
-                    type: "sum",
-                    returnType: "int",
-                    params: [
-                        {
-                            type: "int",
-                            name: "a",
-                            value: null
-                        },
-                        {
-                            type: "float",
-                            name: "b",
-                            value: null
-                        }
-                    ],
-                    inside: [
+                        ],
+                        inside: [
 
-                    ]
-                },
-            ]
+
+                        ]
+                    },
+                    {
+                        showParamTypes: false,
+                        showOptions: false,
+                        id: 1,
+                        type: "sum",
+                        returnType: "int",
+                        params: [
+                            {
+                                type: "int",
+                                name: "a",
+                                value: null
+                            },
+                            {
+                                type: "float",
+                                name: "b",
+                                value: null
+                            }
+                        ],
+                        inside: [
+
+
+                        ]
+                    },
+                ]
+            }
+
         };
     }
 
@@ -214,9 +223,9 @@ class Code extends React.Component {
                 break;
             case ("cfor"): data = { id: this.state.id, type: type, lVar: null, lVal: null, mVar: null, mSign: "<", mVal: null, rVar: null, rSigh: "+=", rVal: null, inside: [] }
                 break;
-            case ("cwhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
+            case ("cwhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [], indicator: false }
                 break;
-            case ("cdoWhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
+            case ("cdoWhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [], indicator: false }
                 break;
             case ("inc"): data = { id: this.state.id, type: type, var: null }
                 break;
@@ -239,9 +248,9 @@ class Code extends React.Component {
         return data
     }
 
-    findIndices = (obj, indexF) => {
+    findIndices = (obj) => {
         let indices = [];
-        let func = this.state.functions[indexF];
+        let func = this.state.functions
         let flag = false
 
         const searchInside = (s) => {
@@ -269,36 +278,51 @@ class Code extends React.Component {
         return indices;
     };
 
-    insertItem = (obj, indexF, data) => {
-        if (this.state.value != null) {
+    insertItem = (obj, indexF, data, position, dnd, empty) => {
+        if (data != null) {
             let indices = this.findIndices(obj, indexF);
-
+            let parent = null
+            console.log("dndvalue:", obj, indexF, data, position, dnd, indices)
             this.setState(prevState => {
-                const updatedFunc = cloneDeep(prevState.functions)
-                const updated = updatedFunc[indexF]
+                const updatedFunc = cloneDeep(prevState.functions);
                 let x = 0;
+
                 const update = (updated) => {
                     if (x < indices.length) {
                         x++;
-                        update(updated.inside[indices[x - 1]])
+                        parent = updated.inside
+                        update(updated.inside[indices[x - 1]]);
+                    } else {
+                        if (dnd) {
+                            if (empty) {
+                                updated.inside.splice(0, 0, data)
+                                return
+                            }
+                            if (position === "top") {
+                                parent.splice(indices[x - 1], 0, data);
+                            } else {
+                                parent.splice(indices[x - 1] + 1, 0, data);
+                            }
+                            console.log("Upppppppppppp:", updated)
+                        } else {
+                            updated.inside.push(data);
+                        }
                     }
-                    else {
-                        updated.inside.push(data)
-                    }
-                }
-                update(updated)
+                };
+
+                update(updatedFunc);
 
                 return { functions: updatedFunc };
             }, () => {
-                console.log("Value:", this.state.functions);
+                //console.log("Value:", this.state.functions.inside);
             });
-
-
         }
-    }
-    //----------------------------------------
-    handleonDragStart = () => {
+    };
 
+    
+    //----------------------------------------
+    handleonDragStart = (value) => {
+        this.setState({ value: value })
     }
     handleOnDrag = () => {
 
@@ -312,15 +336,65 @@ class Code extends React.Component {
     handleOnDragEnter = () => {
 
     }
-    handleOnDragOver = () => {
 
-    }
-    handleOnDragLeave = () => {
+    handleOnDragOver = (e, divRef) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const div = divRef.current;
+        const mouseY = e.clientY;
+        const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
+
+        if (div.offsetHeight > 20) {
+            if (mouseY - objectCenterY < 0) {
+                div.style.borderTop = '5px solid red';
+                div.style.borderBottom = 'none';
+            } else {
+                div.style.borderBottom = '5px solid red';
+                div.style.borderTop = 'none';
+            }
+        }
+        else {
+            div.style.backgroundColor = "rgba(200,200,200,1)"
+        }
+
+
+
+    };
+
+
+    handleOnDragLeave = (e, divRef) => {
+        const div = divRef.current
+
+        if (div.offsetHeight > 20) {
+            div.style.borderTop = 'none';
+            div.style.borderBottom = 'none';
+        }
+        else {
+            div.style.backgroundColor = "rgba(226,232,240,1)";
+        }
 
     }
     //---------------------------------------------
-    handleOnDrop = () => {
-
+    handleOnDrop = (e, obj, indexF, divRef, empty) => {
+        let divs = document.querySelectorAll("div.sortable")
+        divs.forEach((item) => {
+            item.style.borderBottom = 'none'
+            item.style.borderTop = 'none'
+        })
+        e.stopPropagation();
+        let data = this.createItem(this.state.value)
+        let position = ""
+        let dnd = 1
+        const div = divRef.current;
+        const mouseY = e.clientY;
+        const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
+        if (mouseY - objectCenterY < 0) {
+            position = "top"
+        } else {
+            position = "bottom"
+        }
+        console.log("Dropping with:", obj, indexF, data, position, dnd)
+        this.insertItem(obj, indexF, data, position, dnd, empty)
     }
     //------------------------------------------
 
@@ -330,92 +404,8 @@ class Code extends React.Component {
         }));
     }
 
-    addInsideMain = (e) => {
-        //const type = (e.target.value === "func") ? e.target.key : e.target.value;
-        const type = e.target.value;
-        let data = {}
-        switch (type) {
-            case ("int"): data = { id: this.state.id, type: type, var: null, value: 0 }
-                break;
-            case ("float"): data = { id: this.state.id, type: type, var: null, value: 0.0 }
-                break;
-            case ("char"): data = { id: this.state.id, type: type, var: null, value: '' }
-                break;
-            case ("asign"): data = { id: this.state.id, type: type, showAssignmentOptions: true, value: "" }
-                break;
-            case ("cif"): data = { id: this.state.id, type: type, showOptions: false, l: null, sign: "==", r: null, insideIf: [] }
-                break;
-            case ("celse"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideIf: [], insideElse: [] }
-                break;
-            case ("celseIf"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null }
-                break;
-            case ("cfor"): data = { id: this.state.id, type: type, lVar: null, lVal: null, mVar: null, mSign: "<", mVal: null, rVar: null, rSigh: "+=", rVal: null, inside: [] }
-                break;
-            case ("cwhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideWhile: [] }
-                break;
-            case ("cdoWhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideDo: [] }
-                break;
-            case ("inc"): data = { id: this.state.id, type: type, var: null }
-                break;
-            case ("dec"): data = { id: this.state.id, type: type, var: null }
-                break;
-            default: data = { id: this.state.id, type: type.slice(1), params: [] }
-                break;
-        }
-        this.setState((prevState) => ({
-            insideMain: [...prevState.insideMain, data],
-            showMainOptions: !prevState.showMainOptions,
-            id: prevState.id + 1
-        }));
-    }
 
-    addInsideFunction = (key, value) => {
-        const updatedFunctions = this.state.functions.map((f) => {
-            if (f.key === key) {
-                const type = value
-                let data = {}
-                switch (type) {
-                    case ("int"): data = { id: this.state.id, type: type, var: null, value: 0 }
-                        break;
-                    case ("float"): data = { id: this.state.id, type: type, var: null, value: 0.0 }
-                        break;
-                    case ("char"): data = { id: this.state.id, type: type, var: null, value: '' }
-                        break;
-                    case ("asign"): data = { id: this.state.id, type: type, showAssignmentOptions: true, value: "", inside: [] }
-                        break;
-                    case ("cif"): data = { id: this.state.id, type: type, showOptions: false, l: null, sign: "==", r: null, inside: [] }
-                        break;
-                    case ("celse"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
-                        break;
-                    case ("cfor"): data = { id: this.state.id, type: type, lVar: null, lVal: null, mVar: null, mSign: "<", mVal: null, rVar: null, rSigh: "+=", rVal: null, inside: [] }
-                        break;
-                    case ("cwhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
-                        break;
-                    case ("cdoWhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
-                        break;
-                    case ("inc"): data = { id: this.state.id, type: type, var: null }
-                        break;
-                    case ("dec"): data = { id: this.state.id, type: type, var: null }
-                        break;
-                    default: data = { id: this.state.id, type: type.slice(1), params: [] }
-                        break;
-                }
-                this.setState((prevState) => ({
-                    id: prevState.id + 1
-                }));
-                return {
-                    ...f,
-                    inside: [...f.inside, data],
-                    showOptions: !f.showOptions
-                };
-            }
-            return f;
-        });
 
-        this.setState({
-            functions: updatedFunctions
-        });
-    };
 
 
 
@@ -426,7 +416,7 @@ class Code extends React.Component {
                 ...prevState.functions,
                 {
                     showOptions: false,
-                    key: this.state.functionKey + 1,
+                    id: this.state.id + 1,
                     name: " ",
                     returnType: e.target.value,
                     params: [
@@ -435,21 +425,21 @@ class Code extends React.Component {
                     inside: []
                 }
             ],
-            functionKey: prevState.functionKey + 1
+            id: prevState.id + 1
         }));
         this.setState((prevState) => ({
             showFunctionTypes: false
         }))
     };
 
-    addParameter = (key, e) => {
+    addParameter = (id, e) => {
         let flag = false
         this.setState((prevState) => {
 
             if (flag === false) {
                 flag = true
                 const updatedFunctions = [...prevState.functions];
-                const index = updatedFunctions.findIndex((obj) => obj.key === key);
+                const index = updatedFunctions.findIndex((obj) => obj.id === id);
 
                 if (index !== -1) {
                     // Create a new parameters array with a single parameter
@@ -471,12 +461,12 @@ class Code extends React.Component {
             showParamTypes: false
         }))
     };
-    setParamType = (key, i, e) => {
-        this.state.functions.find((obj) => obj.key === key).params[i].type = e.target.value;
+    setParamType = (id, i, e) => {
+        this.state.functions.inside.find((obj) => obj.id === id).params[i].type = e.target.value;
 
     }
-    setFuncName = (key, e) => {
-        this.state.functions.find((obj => obj.key === key)).name = e.target.value;
+    setFuncName = (id, e) => {
+        this.state.functions.inside.find((obj => obj.id === id)).name = e.target.value;
     }
 
 
@@ -543,7 +533,10 @@ class Code extends React.Component {
             />' ;
         </div>)
 
+
+
         const showInside = (obj, indexF) => {
+            const divRef = React.createRef();
             return obj.inside && obj.inside.map((im, i) => {
                 switch (im.type) {
                     case "int":
@@ -559,18 +552,61 @@ class Code extends React.Component {
                     case "asign":
                         return <div>{asign(obj, i)}</div>;
                     case "cif":
-                        return <div className="my-2 p-2 bg-blue-300">{cif(im, indexF)}</div>;
+                        return <div className=" p-2 bg-blue-300">{cif(im, indexF)}</div>;
                     case "celse":
-                        return <div className="my-2 p-2 bg-blue-300">{celse(im, indexF)}</div>;
+                        return <div className=" p-2 bg-blue-300">{celse(im, indexF)}</div>;
                     case "cfor":
-                        return <div className="my-2 p-2 bg-amber-600">{cfor(im, indexF)}</div>;
+                        return <div
+                            ref={divRef}
+                            className=" p-2 bg-amber-600 sortable"
+                            onDragOver={(e) => {
+                                this.handleOnDragOver(e, divRef)
+                            }}
+                            onDrop={(e) => {
+                                this.handleOnDrop(e, im, indexF, divRef)
+                            }}
+                            onDragLeave={(e) => {
+                                this.handleOnDragLeave(e, divRef)
+                            }}
+                        >
+                            {cfor(im, indexF)}
+                        </div>;
                     case "cwhile":
-                        return <div className="my-2 p-2 bg-amber-600">{cwhile(im, indexF)}</div>;
+                        return <div
+                            ref={divRef}
+                            className=" p-2 bg-amber-600 sortable"
+                            onDragOver={(e) => {
+                                this.handleOnDragOver(e, divRef)
+                            }}
+                            onDrop={(e) => {
+                                this.handleOnDrop(e, im, indexF, divRef)
+                            }}
+                            onDragLeave={(e) => {
+                                this.handleOnDragLeave(e, divRef)
+                            }}
+                        >
+                            {cwhile(im, indexF)}
+                        </div>;
+
                     case "cdoWhile":
-                        return <div className="my-2 p-2 bg-amber-600">{cdoWhile(im, indexF)}</div>
+                        return <div
+                            ref={divRef}
+                            className=" p-2 bg-orange-800 sortable"
+                            onDragOver={(e) => {
+                                this.handleOnDragOver(e, divRef)
+                            }}
+                            onDrop={(e) => {
+                                this.handleOnDrop(e, im, indexF, divRef)
+                            }}
+                            onDragLeave={(e) => {
+                                this.handleOnDragLeave(e, divRef)
+                            }}
+                        >
+                            {cdoWhile(im, indexF)}
+                        </div>
                     default:
                         return (
-                            <div key={i}>
+                            <div id={i}>
                                 {func(im.type)}
                             </div>
                         );
@@ -578,82 +614,7 @@ class Code extends React.Component {
             })
         }
 
-        /*const asign = (key, i) => {
-            const inside = this.state.functions.find(fn => fn.key === key).inside[i];
 
-            const handleChange = (e) => {
-                const { value } = e.target;
-                this.setState(prevState => {
-                    const updatedFunctions = prevState.functions.map(fn => {
-                        if (fn.key === key) {
-                            const updatedInside = [...fn.inside];
-                            updatedInside[i] = {
-                                ...updatedInside[i],
-                                value: value,
-                                showAssignmentOptions: false
-                            };
-                            return {
-                                ...fn,
-                                inside: updatedInside
-                            };
-                        }
-                        return fn;
-                    });
-                    return { functions: updatedFunctions };
-                }, () => {
-                    console.log("Value:", value);
-                });
-            };
-
-            return (
-                <code>
-                    <input
-                        className="w-20 bg-transparent outline-none border-2 autoAdjust"
-                        onChange={() => {
-                            this.adjustInputWidth();
-                        }}
-                    />
-                    =
-                    {inside.showAssignmentOptions && (
-                        <select
-                            onChange={handleChange}
-                            value={inside.value} // Set the value attribute to ensure proper initial value
-                        >
-                            <option value="">Choose an option</option>
-                            <option value="exp">Expression</option>
-                            {this.state.functions.map((f) =>
-                                f.name !== " " && (
-                                    <option value={f.key} key={f.name}>
-                                        Call: {f.returnType} {f.name} ({f.params.map((p, i) =>
-                                            i === 0 ? <span key={i}>{p.type}</span> : <span key={i}>, {p.type}</span>
-                                        )})
-                                    </option>
-                                )
-                            )}
-                        </select>
-                    )}
-
-                    {inside.value === "exp" ? (
-                        <input
-                            className="w-20 bg-transparent outline-none border-2 autoAdjust"
-                            onChange={() => {
-                                this.adjustInputWidth();
-                            }}
-                        />
-                    ) :
-                        inside.value === "" ? null : (
-                            this.state.functions.map((f, index) => {
-                                const funcName = f.name;
-                                return (
-                                    <div key={index} className="inline-block">
-                                        {func(funcName)}
-                                    </div>
-                                );
-                            })
-                        )}
-                </code>
-            );
-        };*/
 
         const asign = (obj, i) => {
             //const inside = obj.inside[i];
@@ -681,10 +642,8 @@ class Code extends React.Component {
         };
 
 
-
-
         const func = (functionName) => {
-            const selectedFunction = this.state.functions.find(func => func.type === functionName);
+            const selectedFunction = this.state.functions.inside.find(func => func.type === functionName);
 
             if (!selectedFunction) {
                 return null;
@@ -694,7 +653,7 @@ class Code extends React.Component {
                 <div className="inline-block">
                     {functionName} (
                     {selectedFunction.params.map((p, i) => (
-                        <span key={i}>
+                        <span id={i}>
                             {i !== 0 && <span>,</span>}
                             <input
                                 onChange={(e) => {
@@ -710,24 +669,25 @@ class Code extends React.Component {
             );
         };
 
-        const subP = (key) => {
-            const obj = this.state.functions.find((obj) => obj.key === key);
-            const index = this.state.functions.indexOf(obj);
+        const subP = (id) => {
+            const obj = this.state.functions.inside.find((obj) => obj.id === id);
+            const index = this.state.functions.inside.indexOf(obj);
+            let divRef = React.createRef();
             return (
-                <div>
+                <div className=" p-2 bg-amber-600 sortable">
                     <code>
                         {obj.returnType}
                         <input
                             className="w-20 bg-transparent outline-none border-2 autoAdjust ml-5"
                             defaultValue={obj.type}
                             onChange={(e) => {
-                                this.setFuncName(key, e);
+                                this.setFuncName(id, e);
                                 this.adjustInputWidth();
                             }}
                         ></input>
                         {"("}
                         {obj.params && obj.params.map((p, i) => (
-                            <div key={i} className="items-center inline-flex">
+                            <div id={i} className="items-center inline-flex">
                                 {i !== 0 && <p>,</p>}
                                 {p.type}
                                 <input
@@ -740,84 +700,25 @@ class Code extends React.Component {
 
                             </div>
                         ))}
-                        <button className="font-bold text-cyan-800 text-xl" onClick={() => {
-                            this.setState((prevState) => {
-                                const updated = prevState.functions.map((f) => {
-                                    if (f.key === key) {
-                                        return {
-                                            ...f,
-                                            showParamTypes: !f.showParamTypes
-                                        };
-                                    } else {
-                                        return f;
-                                    }
-                                });
-
-                                return { functions: updated };
-                            });
-                        }}> + </button>
-
-                        {obj.showParamTypes && (
-                            <select onChange={(e) => { this.addParameter(key, e) }}>
-                                <option value="">Type</option>
-                                <option value="int">int</option>
-                                <option value="bool">bool</option>
-                                <option value="char">char</option>
-                            </select>
-                        )}
+                        
                         {") {"}
-
-
-
-
-
-                        {obj.inside && obj.inside.map((im, i) => {
-                            switch (im.type) {
-                                case "int":
-                                    return <div >{int}</div>;
-                                case "float":
-                                    return <div>{float}</div>;
-                                case "char":
-                                    return <div>{char}</div>;
-                                case "inc":
-                                    return <div>{inc}</div>;
-                                case "dec":
-                                    return <div>{dec}</div>;
-                                case "asign":
-                                    return <div>{asign(this.state.functions.find(fn => fn.key === key), i)}</div>;
-                                case "cif":
-                                    return <div className="my-2 p-2 bg-blue-300">{cif(im, index)}</div>;
-                                case "celse":
-                                    return <div className="my-2 p-2 bg-blue-300">{celse(im, index)}</div>;
-                                case "cfor":
-                                    return <div className="my-2 p-2 bg-amber-600">{cfor(im, index)}</div>;
-                                case "cwhile":
-                                    return <div className="my-2 p-2 bg-amber-600">{cwhile(im, index)}</div>;
-                                case "cdoWhile":
-                                    return <div className="my-2 p-2 bg-amber-600">{cdoWhile(im, index)}</div>
-                                default:
-                                    return (
-                                        <div key={i}>
-                                            {func(im.type)}
-                                        </div>
-                                    );
-
-
-                            }
-                        })}
-
-                        <button
-                            className="font-bold text-cyan-800 text-xl block"
-                            onClick={(e) => {
-                                if (this.state.value != null) {
-                                    this.addInsideFunction(key, this.state.value)
-                                }
-
+                        <div className="bg-slate-200 m-4  min-h-4"
+                            ref={divRef}
+                            onDragOver={(e) => {
+                                this.handleOnDragOver(e, divRef)
+                            }}
+                            onDrop={(e) => {
+                                this.handleOnDrop(e, obj, index, divRef, true)
+                            }}
+                            onDragLeave={(e) => {
+                                this.handleOnDragLeave(e, divRef)
                             }}
                         >
-                            +
-                        </button>
 
+                            {
+                                showInside(obj, index)    //show the elements inside subP
+                            }
+                        </div>
                         <p>{"}"}</p>
                     </code>
                 </div>
@@ -917,6 +818,7 @@ class Code extends React.Component {
 
 
         const cfor = (obj, indexF) => {
+            let divRef = React.createRef();
             return (
                 <div>
                     for(
@@ -986,17 +888,19 @@ class Code extends React.Component {
                     />
                     ){'{'}
 
-                    {showInside(obj, indexF)}
-
-                    <button
-                        className="font-bold text-cyan-800 text-xl block"
-                        onClick={(e) => {
-                            let data = this.createItem(this.state.value)     //create an item to be inserted
-                            this.insertItem(obj, indexF, data)
+                    <div className="bg-slate-200 m-4  min-h-4"
+                        ref={divRef}
+                        onDragOver={(e) => {
+                            this.handleOnDragOver(e, divRef)
                         }}
-                    >
-                        +
-                    </button>
+                        onDrop={(e) => {
+                            this.handleOnDrop(e, obj, indexF, divRef, true)
+                        }}
+                        onDragLeave={(e) => {
+                            this.handleOnDragLeave(e, divRef)
+                        }}>
+                        {showInside(obj, indexF)}
+                    </div>
                     {'}'}
                 </div>)
         }
@@ -1007,6 +911,7 @@ class Code extends React.Component {
 
 
         const cwhile = (obj, indexF) => {
+            let divRef = React.createRef();
             return (
                 <div>
                     while(
@@ -1033,37 +938,44 @@ class Code extends React.Component {
                         className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
                     />
                     ){'{'}
-                    {showInside(obj, indexF)}
-
-                    <button
-                        className="font-bold text-cyan-800 text-xl block"
-                        onClick={(e) => {
-                            let data = this.createItem(this.state.value)     //create an item to be inserted
-                            this.insertItem(obj, indexF, data)
+                    <div className="bg-slate-200 m-4  min-h-4"
+                        ref={divRef}
+                        onDragOver={(e) => {
+                            this.handleOnDragOver(e, divRef)
                         }}
-                    >
-                        +
-                    </button>
+                        onDrop={(e) => {
+                            this.handleOnDrop(e, obj, indexF, divRef, true)
+                        }}
+                        onDragLeave={(e) => {
+                            this.handleOnDragLeave(e, divRef)
+                        }}>
+                        {showInside(obj, indexF)}
+                    </div>
+                    
                     {'}'}
                 </div>
             )
         }
 
         const cdoWhile = (obj, indexF) => {
+            let divRef = React.createRef();
             return (
                 <div>
                     do{'{'}
-                    {showInside(obj, indexF)}
-
-                    <button
-                        className="font-bold text-cyan-800 text-xl block"
-                        onClick={(e) => {
-                            let data = this.createItem(this.state.value)     //create an item to be inserted
-                            this.insertItem(obj, indexF, data)
+                    <div className="bg-slate-200 m-4  min-h-4"
+                        ref={divRef}
+                        onDragOver={(e) => {
+                            this.handleOnDragOver(e, divRef)
                         }}
-                    >
-                        +
-                    </button>
+                        onDrop={(e) => {
+                            this.handleOnDrop(e, obj, indexF, divRef, true)
+                        }}
+                        onDragLeave={(e) => {
+                            this.handleOnDragLeave(e, divRef)
+                        }}>
+                        {showInside(obj, indexF)}
+                    </div>
+                   
                     {'}'}
                     <br />
                     while(
@@ -1117,7 +1029,7 @@ class Code extends React.Component {
                                 <div className="ml-4 flex-col declareVariable">
                                     <button draggable="true" onClick={() => { this.setState({ value: "int" }) }}>int</button>
                                     <button draggable="true" onClick={() => { this.setState({ value: "float" }) }}>float</button>
-                                    <button onClick={() => { this.setState({ value: "char" }) }}>char</button>
+                                    <button draggable="true" onClick={() => { this.setState({ value: "char" }) }}>char</button>
                                 </div>
                             )
                         }
@@ -1133,8 +1045,8 @@ class Code extends React.Component {
                         {
                             this.state.showConditionals && (
                                 <div className="ml-4 flex-col declareVariable">
-                                    <button onClick={() => { this.setState({ value: "cif" }) }}>if</button>
-                                    <button onClick={() => { this.setState({ value: "celse" }) }}>else</button>
+                                    <button draggable="true" onClick={() => { this.setState({ value: "cif" }) }}>if</button>
+                                    <button draggable="true" onClick={() => { this.setState({ value: "celse" }) }}>else</button>
                                 </div>
                             )
                         }
@@ -1150,13 +1062,10 @@ class Code extends React.Component {
                         {
                             this.state.showLoops && (
                                 <div className="ml-4 flex-col declareVariable">
-                                    <button draggable="true" onDragStart={() => { this.setState({ value: "cfor" }) }}
-                                        onDrag={() => {
-
-                                        }}
+                                    <button draggable="true" onDragStart={() => this.handleonDragStart("cfor")}
                                     >For</button>
-                                    <button onClick={() => { this.setState({ value: "cwhile" }) }}>While</button>
-                                    <button onClick={() => { this.setState({ value: "cdoWhile" }) }}>Do-While</button>
+                                    <button draggable="true" onDragStart={() => this.handleonDragStart("cwhile")}>While</button>
+                                    <button draggable="true" onDragStart={() => this.handleonDragStart("cdoWhile")}>Do-While</button>
                                 </div>
                             )
                         }
@@ -1172,15 +1081,15 @@ class Code extends React.Component {
                         {
                             this.state.showFunctions && (
                                 <div className="ml-4 flex-col declareVariable">
-                                    {this.state.functions.map((f, i) => (
+                                    {this.state.functions.inside.map((f, i) => (
                                         f.name === " " ? null : (
-                                            <button onClick={() => { this.setState({ value: "1" + f.type }) }} key={f.type}>
+                                            <button onClick={() => { this.setState({ value: "1" + f.type }) }} id={f.type}>
                                                 Call: {f.returnType} {f.type} ({f.params.map((p, i) => (
                                                     (i === 0) ? (
-                                                        <span key={i}>{p.type}</span>
+                                                        <span id={i}>{p.type}</span>
                                                     ) :
                                                         (
-                                                            <span key={i}>, {p.type}</span>
+                                                            <span id={i}>, {p.type}</span>
                                                         )
                                                 ))})
                                             </button>)
@@ -1232,7 +1141,7 @@ class Code extends React.Component {
                         <pre className="bg-white p-2 rounded-md">
                             <code>
                                 {this.state.cheaders.map((h, index) => (
-                                    <p key={index}>#include &lt;{h}&gt;</p>
+                                    <p id={index}>#include &lt;{h}&gt;</p>
                                 ))}
                             </code>
                         </pre>
@@ -1251,7 +1160,7 @@ class Code extends React.Component {
                                 value={this.state.selectedHeader}
                             >
                                 {headers.map((h, index) => (
-                                    <option key={index} value={h}>
+                                    <option id={index} value={h}>
                                         {h}
                                     </option>
                                 ))}
@@ -1275,7 +1184,7 @@ class Code extends React.Component {
                                     this.adjustInputWidth(e)
                                 }} className=" w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2" />;
                                 {this.state.definations.map((d, index) => (
-                                    <div key={index}>
+                                    <div id={index}>
                                         <code>
                                             #define
                                             <input
@@ -1307,16 +1216,16 @@ class Code extends React.Component {
                         <p className="text-right">Function declaration section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                {this.state.functions.map((f, i) => (
+                                {this.state.functions.inside.map((f, i) => (
                                     i === 0 ? null :
                                         f.name === " " ? null :
                                             (<div>
                                                 {f.returnType} {f.name} ({f.params.map((p, i) => (
                                                     (i === 0) ? (
-                                                        <span key={i}>{p.type}</span>
+                                                        <span id={i}>{p.type}</span>
                                                     ) :
                                                         (
-                                                            <span key={i}>, {p.type}</span>
+                                                            <span id={i}>, {p.type}</span>
                                                         )
                                                 ))});
                                             </div>)
@@ -1366,7 +1275,7 @@ class Code extends React.Component {
                             /*value={this.state.selectedHeader}*/
                             >
                                 {dataTypes.map((t, index) => (
-                                    <option key={index} value={t}>
+                                    <option id={index} value={t}>
                                         {t}
                                     </option>
                                 ))}
@@ -1374,111 +1283,13 @@ class Code extends React.Component {
                         )}
                     </div>
 
-                    {
-                    /*
+
+
                     <div className="bg-green-200 p-4 rounded-lg">
                         <p className="text-right">Main section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                <p>int main() {"{"}</p>
-                                {this.state.insideMain.map((im, i) => {
-                                    switch (im.type) {
-                                        case "int":
-                                            return <div >{int}</div>;
-                                        case "float":
-                                            return <div>{float}</div>;
-                                        case "char":
-                                            return <div>{char}</div>;
-                                        case "inc":
-                                            return <div>{inc}</div>;
-                                        case "dec":
-                                            return <div>{dec}</div>;
-                                        case "asign":
-                                            return <div>{asign(i)}</div>;
-                                        case "cif":
-                                            return <div className="my-2 p-2 bg-blue-300">{cif(im)}</div>;
-                                        case "celse":
-                                            return <div className="my-2 p-2 bg-blue-300">"celse}</div>;
-                                        case "celseIf":
-                                            return <div className="my-2 p-2 bg-blue-300">{celseIf}</div>
-                                        case "cfor":
-                                            return <div className="my-2 p-2 bg-amber-600">{cfor}</div>;
-                                        case "cwhile":
-                                            return <div className="my-2 p-2 bg-amber-600">{cwhile}</div>;
-                                        case "cdoWhile":
-                                            return <div className="my-2 p-2 bg-amber-600">{cdoWhile}</div>
-                                        default:
-                                            {
-                                                const funcName = im.type;
-                                                if (funcName !== "") {
-                                                    return (
-                                                        <div key={i}>
-                                                            {func(funcName)}
-                                                        </div>
-                                                    );
-                                                }
-                                                else {
-                                                    return null;
-                                                }
-
-                                            }
-                                    }
-                                })}
-                                <button
-                                    className="font-bold text-cyan-800 text-xl block"
-                                    onClick={(e) => {
-                                        this.setState({
-                                            showMainOptions: !this.state.showMainOptions
-                                        });
-                                    }}
-                                >
-                                    +
-                                </button>
-
-
-                                {this.state.showMainOptions && (
-                                    <select
-                                        className="outline-none border-2 w-max"
-                                        onChange={this.addInsideMain}
-                                    >
-                                        <option>Choose an option</option>
-                                        <option value="int">Declare an int variable</option>
-                                        <option value="float">Declare a float variable</option>
-                                        <option value="char">Declare a char variable</option>
-                                        <option value="asign">Assignment operation</option>
-                                        <option value="cif">if</option>
-                                        <option value="celse">else</option>
-                                        <option value="celseIf">else if</option>
-                                        <option value="cfor">For</option>
-                                        <option value="cwhile">While</option>
-                                        <option value="cdoWhile">Do-While</option>
-                                        <option value="inc">Increment operation</option>
-                                        <option value="dec">Decrement operation</option>
-                                        {this.state.functions.map((f, i) => (
-                                            f.name === " " ? null : (
-                                                <option value={"1" + f.name} key={f.name}>
-                                                    Call: {f.returnType} {f.name} ({f.params.map((p, i) => (
-                                                        (i === 0) ? (
-                                                            <span key={i}>{p.type}</span>
-                                                        ) :
-                                                            (
-                                                                <span key={i}>, {p.type}</span>
-                                                            )
-                                                    ))})
-                                                </option>)
-                                        ))}
-                                    </select>
-                                )}
-                                <p>{"}"}</p>
-                            </code>
-                        </pre>
-                    </div>
-                    */}
-                    <div className="bg-green-200 p-4 rounded-lg">
-                        <p className="text-right">Main section</p>
-                        <pre className="bg-white p-2 rounded-md">
-                            <code>
-                                <p key={this.state.functions[0].key}>{subP(this.state.functions[0].key)}</p>
+                                <p id={this.state.functions.inside[0].id}>{subP(this.state.functions.inside[0].id)}</p>
                             </code>
                         </pre>
                     </div>
@@ -1489,12 +1300,13 @@ class Code extends React.Component {
 
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                {this.state.functions.map((f, index) => (
+                                {this.state.functions.inside.map((f, index) => (
                                     index === 0 ? null :
-                                        <p key={f.key}>{subP(f.key)}</p>
+                                        <p id={f.id}>{subP(f.id)}</p>
                                 ))}
                             </code>
                         </pre>
+                        {/*
                         <button className="font-bold text-cyan-800 text-xl block" onClick={(e) => {
                             this.setState((prevState) => ({
                                 showFunctionTypes: !prevState.showFunctionTypes
@@ -1507,7 +1319,7 @@ class Code extends React.Component {
                                 <option value="bool">bool</option>
                                 <option value="char">char</option>
                             </select>
-                        )}
+                        )}*/}
                     </div>
 
                     <div className="flex justify-center">
