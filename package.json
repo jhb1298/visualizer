@@ -39,6 +39,7 @@
     ]
   },
   "devDependencies": {
+    "emscripten": "^0.0.2-beta",
     "tailwindcss": "^3.4.1"
   }
 }

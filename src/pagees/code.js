@@ -11,7 +11,7 @@ class Code extends React.Component {
         this.state = {
             id: 10,
 
-
+            tmp: [],
 
 
             //for sidebar
@@ -32,7 +32,7 @@ class Code extends React.Component {
             headers: ["stdio.h", "math.h", "string.h"],
             cheaders: [],
             defines: [],
-            gVariables: [],
+            gVariables: { inside: [] },
 
             functions: {
                 inside: [
@@ -56,9 +56,10 @@ class Code extends React.Component {
                         type: "1printf",
                         returnType: "void",
                         defination: false,
-                        NumberOfParams: 1,
+                        NumberOfParams: 2,
                         inside: [
-                            { id: 3, dataType: "char[]", type: 'var' + 3, value: null, inside: [{}], indicator: false, elementType: "param" }
+                            { id: 3, dataType: "char[]", type: 'var' + 3, value: null, inside: [{}], indicator: false, elementType: "param" },
+                            { id: 4, dataType: "any", type: 'var' + 4, value: null, inside: [{}], indicator: false, elementType: "param" }
                         ]
                     },
                     {
@@ -70,8 +71,8 @@ class Code extends React.Component {
                         defination: false,
                         NumberOfParams: 2,
                         inside: [
-                            { id: 4, dataType: "char[]", type: 'var' + 4, value: null, inside: [{}], indicator: false, elementType: "param" },
-                            { id: 5, dataType: "any", type: 'var' + 5, value: null, inside: [{}], indicator: false, elementType: "param" }
+                            { id: 5, dataType: "char[]", type: 'var' + 5, value: null, inside: [{}], indicator: false, elementType: "param" },
+                            { id: 6, dataType: "any", type: 'var' + 6, value: null, inside: [{}], indicator: false, elementType: "param" }
                         ]
                     }
                 ]
@@ -82,6 +83,8 @@ class Code extends React.Component {
 
 
 
+    
+      
 
 
     adjustInputWidth = () => {
@@ -216,14 +219,19 @@ class Code extends React.Component {
 
     findObjectWithID = (id, indexF) => {
         let object = null
-        this.state.gVariables.forEach((element) => {
+        /*
+        this.state.gVariables.inside.forEach((element) => {
             if (element.id === id) {
                 object = cloneDeep(element)
                 return object
             }
-        })
+            else if(element.hasOwnProperty("inside")){
+
+            }
+        })*/
         const findObj = (obj) => {
-            if (obj.hasOwnProperty("inside")) {
+            console.log("Pssed Object:",obj)
+            if (obj && obj.hasOwnProperty("inside")) {
                 for (let i = 0; i < obj.inside.length; i++) {
                     if (obj.inside[i].id === id) {
                         object = obj.inside[i]
@@ -234,6 +242,8 @@ class Code extends React.Component {
                 }
             }
         };
+
+        findObj(this.state.gVariables)
 
         if (indexF) {
             findObj(this.state.functions.inside[indexF])
@@ -254,6 +264,7 @@ class Code extends React.Component {
             this.setState(prevState => {
                 const updatedFunc = cloneDeep(prevState.functions);
                 let x = 0;
+                let addPos = 0
 
                 const update = (updated) => {
                     if (x < indices.length) {
@@ -263,15 +274,35 @@ class Code extends React.Component {
                     } else {
 
                         if (empty) {
-                            updated.inside.splice(updated.inside.length, 0, data)
+                            if (data.type !== "celse") {
+                                updated.inside.splice(updated.inside.length, 0, data)
+                            }
                             return
                         }
                         if (position === "top") {
-                            parent.splice(indices[x - 1], 0, data);
+                            addPos = 0
                         } else {
-                            parent.splice(indices[x - 1] + 1, 0, data);
+                            addPos = 1
+
                         }
 
+                        if (data.type === "celse") {
+                            if (parent[indices[x - 1]].type === "cif") {
+                                if (parent.length > indices[x - 1] + 1) {
+                                    if (parent[indices[x - 1] + 1].type !== "celse") {
+                                        parent.splice(indices[x - 1] + addPos, 0, data);
+                                    }
+                                }
+                                else {
+                                    parent.splice(indices[x - 1] + addPos, 0, data);
+                                }
+                            }
+                        }
+                        else {
+                            parent.splice(indices[x - 1] + addPos, 0, data);
+                        }
+
+                        /* parent.splice(indices[x - 1] + 1, 0, data);*/
                     }
                 };
                 update(updatedFunc);
@@ -403,7 +434,11 @@ class Code extends React.Component {
         })
         if (empty) {
             this.setState((prevState) => {
-                return { gVariables: [...prevState.gVariables, data] }
+                let g = cloneDeep(prevState.gVariables)
+
+                g.inside.push(data)
+
+                return { gVariables: g }
             })
         }
 
@@ -418,9 +453,11 @@ class Code extends React.Component {
                 position = 1
             }
             this.setState((prevState) => {
-                const g = [...prevState.gVariables]
-                g.splice(index + position, 0, data)
+                const g = cloneDeep(prevState.gVariables)
+                g.inside.splice(index + position, 0, data)
                 return { gVariables: g }
+            },()=>{
+                console.log("State After dropping GVAr:",this.state)
             })
 
         }
@@ -512,21 +549,9 @@ class Code extends React.Component {
         })
         e.stopPropagation();
 
-        let data = {
-            showParamTypes: false,
-            showOptions: false,
-            id: this.state.id,
-            type: "1func" + this.state.id,
-            returnType: "void",
-            defination: true,
-            NumberOfParams: 0,
-            inside: [
-
-
-            ]
-        }
+        let data = this.state.value
         this.setState((prevState) => {
-            return { id: prevState.id + 1 }
+            return { id: prevState.id + prevState.inc }
         })
         let position = 0
         if (empty) {
@@ -595,26 +620,44 @@ class Code extends React.Component {
         const indices = this.findIndices(obj)
 
 
-        this.setState(prevState => {
-            const updatedFunc = cloneDeep(prevState.functions);
-            let x = 0;
+
+        if (indices.length !== 0) {
+            this.setState(prevState => {
+                const updatedFunc = cloneDeep(prevState.functions);
+                let x = 0;
 
 
-            const update = (updated) => {
-                if (x < indices.length) {
-                    x++;
-                    update(updated.inside[indices[x - 1]]);
-                } else {
-                    updated.inside[index] = data
-                }
-            };
-            update(updatedFunc);
+                const update = (updated) => {
+                    if (x < indices.length) {
+                        x++;
+                        update(updated.inside[indices[x - 1]]);
+                    } else {
+                        updated.inside[index] = data
+                    }
+                };
+                update(updatedFunc);
 
 
-            return { functions: updatedFunc };
-        }, () => {
-            console.log("Value:", this.state.functions.inside);
-        });
+                return { functions: updatedFunc };
+            }, () => {
+                console.log("Value:", this.state.functions.inside);
+            });
+        }
+        else {
+            this.setState((prevState) => {
+                const updatedGVars = cloneDeep(prevState.gVariables)
+                const i = updatedGVars.inside.findIndex((v) => {
+                    return v.id === obj.id
+                })
+
+                updatedGVars.inside[i].inside[index] = data
+
+                return { gVariables: updatedGVars }
+            }, () => {
+                console.log("Gvar updated :", this.state)
+            })
+        }
+
 
     }
     //------------------------------------------
@@ -696,7 +739,7 @@ class Code extends React.Component {
 
     }
 
-    updateVariablesValue = (obj, indexF, e) => {
+    updateVariablesValue = (obj, indexF, val, dimention, d) => {
 
         let indices = this.findIndices(obj, indexF);
         this.setState(prevState => {
@@ -708,7 +751,15 @@ class Code extends React.Component {
                     x++;
                     update(updated.inside[indices[x - 1]]);
                 } else {
-                    updated.value = e.target.value
+                    switch (dimention) {
+                        case (1): updated.value[d[0]] = val
+                            break
+                        case (2): updated.value[d[0]][d[1]] = val
+                            break
+                        default: updated.value = val
+                    }
+
+
                 }
             };
             update(updatedFunc);
@@ -719,6 +770,8 @@ class Code extends React.Component {
         });
 
     }
+
+
 
     updateDefinesName = (e, index) => {
         this.setState((prevState) => {
@@ -733,54 +786,177 @@ class Code extends React.Component {
             const defs = cloneDeep(prevState.defines)
             defs[index].value = e.target.value
             return { defines: defs }
+        }, () => {
+            console.log("After Updating Defines Value:", this.state)
         })
     }
 
     updateGVariablesName = (e, index) => {
         this.setState((prevState) => {
             const gVars = cloneDeep(prevState.gVariables)
-            gVars[index].type = e.target.value
+            gVars.inside[index].type = e.target.value
             return { gVariables: gVars }
         })
     }
 
-    updateGVariablesValue = (e, index) => {
+    updateGVariablesValue = (obj, val, dimension, d) => {
         this.setState((prevState) => {
-            const gVars = cloneDeep(prevState.gVariables)
-            gVars[index].value = e.target.value
+            
+            const recurance = (ob) => {
+                if (ob.hasOwnProperty("inside")) {
+                    for (let j = 0; j < ob.inside.length; j++) {
+                        if (ob.inside[j].id === obj.id) {
+                            switch (dimension) {
+                                case (1): ob.inside[j].value[d[0]] = val
+                                    break
+                                case (2): ob.inside[j].value[d[0]][d[1]] = val
+                                    break
+                                default: ob.inside[j].value = val
+                            }
+
+                            break
+                        }
+                        else {
+                            recurance(ob.inside[j])
+                        }
+                    }
+                }
+            }
+
+            let gVars = prevState.gVariables
+            recurance(gVars)
+
+            console.log("Gvarsssss:",gVars)
+
             return { gVariables: gVars }
+        }, () => {
+
+            console.log("After updating Gvariables Value:", this.state)
         })
     }
+
+
+    initializeArray = (obj, index, gVariables) => {
+
+        console.log("Object array to show:", obj)
+
+        let val = []
+        let row = null
+        let col = null
+
+        if (obj.inside.length === 2) {
+            row = obj.inside[1].refId === null ? this.findObjectWithID(obj.inside[1].id, index).value
+                : this.findObjectWithID(obj.inside[1].refId, index).value
+
+
+            for (let i = 0; i < row; i++) {
+                val.push(0)
+            }
+
+        }
+        else if (obj.inside.length === 3) {
+            row = obj.inside[1].refId === null ? this.findObjectWithID(obj.inside[1].id, index).value
+                : this.findObjectWithID(obj.inside[1].refId, index).value
+
+            col = obj.inside[2].refId === null ? this.findObjectWithID(obj.inside[2].id, index).value
+                : this.findObjectWithID(obj.inside[2].refId, index).value
+
+
+            for (let i = 0; i < row; i++) {
+                let tmp = []
+                for (let j = 0; j < col; j++) {
+                    tmp.push(0)
+                }
+                val.push(tmp)
+            }
+        }
+
+        if (gVariables) {
+            this.updateGVariablesValue(obj, val)
+        }
+        else {
+            this.updateVariablesValue(obj, index, val, 0)
+        }
+
+
+    }
+
+
+      /*compileAndRunCCode=async(cCode)=>{
+        // Load the Emscripten module
+        const Module = await require('path/to/your/emscripten/module.js');
+      
+        // Write the C code to a temporary file
+        Module.FS.writeFile('/tmp/code.c', cCode);
+      
+        // Compile the C code to WebAssembly
+        const wasmResult = Module.ccall('compileCCode', 'number', ['string'], ['/tmp/code.c']);
+      
+        // Execute the compiled WebAssembly module
+        const output = Module.ccall('runWasmModule', 'string', ['number'], [wasmResult]);
+      
+        // Return the output
+        return output;
+      }*/
+
 
 
     render() {
 
-
-        const showArray = (obj) => {
+        const showArray = (obj, index, gVariables) => {
             let items = []
             items.push("{")
-            for (let i = 0; i < obj.inside[0].value; i++) {
+
+            const val0 = obj.inside[1].refId === null ? obj.inside[1].value
+                : this.findObjectWithID(obj.inside[1].refId, index).value
+
+            for (let i = 0; i < val0; i++) {
                 if (i !== 0) {
                     items.push(",")
                 }
-                if (obj.inside.length === 2) {
+                if (obj.inside.length === 3) {
                     items.push("{")
-                    for (let j = 0; j < obj.inside[1].value; j++) {
+                    const val1 = obj.inside[2].refId === null ? obj.inside[2].value
+                        : this.findObjectWithID(obj.inside[2].refId, index).value
+
+                    for (let j = 0; j < val1; j++) {
                         if (j !== 0) {
                             items.push(",")
                         }
                         items.push(<input
-                            className="w-4 rounded-md"
+                            className="w-4 rounded-md autoAdjust"
+                            onChange={(e) => {
+                                this.adjustInputWidth()
+                                if (gVariables) {
+                                    this.updateGVariablesValue(obj,e.target.value,2,[i,j])
+                                }
+                                else {
+                                    this.updateVariablesValue(obj, index, e.target.value, 2, [i, j])
+                                }
+
+                            }}
+                            defaultValue={obj.value[i][j]}
                         />)
                     }
                     items.push("}")
                 }
                 else {
                     items.push(<input
-                        className="w-4 rounded-md"
+                        className="w-4 rounded-md autoAdjust"
+                        onChange={(e) => {
+                            this.adjustInputWidth()
+                            if (gVariables) {
+                                this.updateGVariablesValue(obj,e.target.value,1,[i])
+                            }
+                            else {
+                                this.updateVariablesValue(obj, index, e.target.value, 1, [i])
+                            }
+                        }}
+                        defaultValue={obj.value[i]}
                     />)
                 }
             }
+
             items.push("}")
             return items;
 
@@ -788,7 +964,7 @@ class Code extends React.Component {
 
 
         const variable = (obj, index, gVariables) => {
-            return (<div className="flex">
+            return (<div className="flex items-center">
                 {obj.dataType}
                 <input
                     onChange={(e) => {
@@ -812,72 +988,194 @@ class Code extends React.Component {
                 />
 
                 {obj.inside.map((l, i) => {
-                    const divRef = React.createRef();
-                    return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                        ref={divRef}
-                        onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                        onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
-                        onDrop={(e) => {
-                            const data = {
-                                id: this.state.id,
-                                refId: this.state.value.refId ?? null,
-                                type: this.state.value.type,
-                                inside: this.state.value.inside,
-                                value: this.state.value.value ?? null
-                            }
-                            this.setState((prevState) => {
-                                return { id: prevState.id + 1 }
-                            })
-                            this.dropOnSlot(e, obj, data, divRef, i)
-                        }}
-                    >
-
-
-                        {
-
-                            (() => {
-                                switch (obj.inside[i].type) {
-                                    case ("intInput"): return (
-                                        <input
-                                            className="w-5 bg-slate-200 autoAdjust"
-                                            onChange={(e) => {
-                                                this.adjustInputWidth()
-                                                this.updateVariablesValue(obj.inside[i], index, e)
-                                            }}
-                                        />)
-                                    case ("floatInput"): return (<input />)
-                                    case ("charInput"): return (<input />)
-                                    default: return obj.inside[i].hasOwnProperty("refId") ?
-                                        this.findObjectWithID(obj.inside[i].refId, index).type
-                                        : <p>{"   "}</p>
+                    if (i > 0) {
+                        const divRef = React.createRef();
+                        return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                            ref={divRef}
+                            onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                            onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                            onDrop={(e) => {
+                                const data = {
+                                    id: this.state.id,
+                                    refId: this.state.value.refId ?? null,
+                                    type: this.state.value.type,
+                                    inside: this.state.value.inside,
+                                    value: this.state.value.value ?? null
                                 }
-                            })()
-                        }
+                                this.setState((prevState) => {
+                                    return { id: prevState.id + 1 }
+                                })
+                                this.dropOnSlot(e, obj, data, divRef, i)
+                            }}
+                        >
 
-                    </div>
+
+                            {
+
+                                (() => {
+                                    switch (obj.inside[i].type) {
+                                        case ("intInput"): return (
+                                            <input
+                                                className="w-5 bg-slate-200 text-center autoAdjust"
+                                                onChange={(e) => {
+                                                    this.adjustInputWidth()
+                                                    if (gVariables) {
+                                                        this.updateGVariablesValue(obj.inside[i], e.target.value)
+
+                                                    }
+                                                    else {
+                                                        this.updateVariablesValue(obj.inside[i], index, e.target.value, 0)
+                                                    }
+                                                    this.setState((prevState) => {
+                                                        return null
+                                                    }, () => {
+                                                        this.initializeArray(obj, index, gVariables)
+                                                    })
+
+
+
+
+                                                }}
+                                            />)
+                                        case ("floatInput"): return (<input />)
+                                        case ("charInput"): return (<input />)
+                                        default: return obj.inside[i].hasOwnProperty("refId") ?
+                                            this.findObjectWithID(obj.inside[i].refId, index).type
+                                            : <p>{"   "}</p>
+                                    }
+                                })()
+                            }
+
+
+                        </div>
+                    }
+                    else {
+                        return null
+                    }
+
                 })}
 
                 =
-                {obj.inside.length === 0 ?
-                    <input
-                        onChange={(e) => {
-                            /*this.intValue(e);
-                            this.floatValue(e);
-                            this.charValue(e);*/
-                            this.adjustInputWidth(e);
-                            if (gVariables) {
-                                this.updateGVariablesValue(e, index)
-                            }
-                            else {
-                                this.updateVariablesValue(obj, index, e)
-                            }
-                        }}
-                        value={obj.value}
+                {obj.inside.length === 1 ?
+                    (() => {
+                        const divRef = React.createRef()
+                        return (
+                            <div className="bg-slate-200 flex w-max min-w-5  rounded-sm slot"
+                                ref={divRef}
+                                onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                                onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                onDrop={(e) => {
+                                    let data = null
+                                    this.state.value.type === "arithmatic" ?
+                                        data = this.state.value
+                                        :
+                                        data = {
+                                            id: this.state.id,
+                                            refId: this.state.value.refId ?? null,
+                                            type: this.state.value.type,
+                                            inside: this.state.value.inside,
+                                            value: this.state.value.value ?? null
+                                        }
+                                    this.setState((prevState) => {
+                                        return { id: prevState.id + 1 }
+                                    })
+                                    this.dropOnSlot(e, obj, data, divRef, 0)
+                                }}
+                            >
 
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
+                                {
+                                    (() => {
+                                        switch (obj.inside[0].type) {
+                                            case ("intInput"): return (
+                                                <input
+                                                    className="w-5 bg-slate-200 autoAdjust"
+                                                    onChange={(e) => {
+                                                        this.adjustInputWidth()
+                                                        if (gVariables) {
+                                                            this.updateGVariablesValue(obj, e.target.value)
+                                                        }
+                                                        else {
+                                                            this.updateVariablesValue(obj, index, e.target.value, 0)
+                                                        }
+                                                    }}
+                                                />)
+                                            case ("floatInput"): return (<input />)
+                                            case ("charInput"): return (<input />)
+                                            case ("arithmatic"): return (arithmatic(obj.inside[0]))
+                                            default: return obj.inside[0].hasOwnProperty("refId") ? (
+                                                () => {
+                                                    const tmp = []
+                                                    const elmnt = this.findObjectWithID(obj.inside[0].refId, index)
+                                                    tmp.push(elmnt.type)
+
+                                                    obj.inside[0].hasOwnProperty("inside") ?
+                                                        obj.inside[0].inside.map((l, i) => {
+                                                            if (i > 0) {
+                                                                const divRef = React.createRef();
+                                                                tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                                    ref={divRef}
+                                                                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                                                                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                                    onDrop={(e) => {
+                                                                        const data = {
+                                                                            id: this.state.id,
+                                                                            refId: this.state.value.refId ?? null,
+                                                                            type: this.state.value.type,
+                                                                            inside: this.state.value.inside,
+                                                                            value: this.state.value.value ?? null
+                                                                        }
+                                                                        this.setState((prevState) => {
+                                                                            return { id: prevState.id + 1 }
+                                                                        })
+                                                                        this.dropOnSlot(e, obj.inside[0], data, divRef, i)
+                                                                    }}
+                                                                >
+
+
+                                                                    {
+
+                                                                        (() => {
+                                                                            switch (obj.inside[0].inside[i].type) {
+                                                                                case ("intInput"): return (
+                                                                                    <input
+                                                                                        className="w-5 bg-slate-200 autoAdjust"
+                                                                                        onChange={(e) => {
+                                                                                            this.adjustInputWidth()
+                                                                                            this.updateVariablesValue(obj.inside[0].inside[i], index, e.target.value, 0)
+                                                                                        }}
+                                                                                    />)
+                                                                                case ("floatInput"): return (<input />)
+                                                                                case ("charInput"): return (<input />)
+                                                                                case ("arithmatic"): return (arithmatic(obj.inside[0].inside[i]))
+                                                                                default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                                                    this.findObjectWithID(obj.inside[0].inside[i].refId, index).type
+                                                                                    : <p>{"   "}</p>
+                                                                            }
+                                                                        })()
+                                                                    }
+
+                                                                </div>)
+                                                                return null
+                                                            }
+                                                            else {
+                                                                return null
+                                                            }
+
+                                                        }) : <p>{"   "}</p>
+
+                                                    return tmp
+                                                }
+                                            )()
+                                                : <p>{"   "}</p>
+                                        }
+                                    })()
+                                }
+
+
+                            </div>)
+                    })()
                     :
-                    showArray(obj)
+                    showArray(obj, index, gVariables)
                 }
 
                 ;
@@ -1051,71 +1349,7 @@ class Code extends React.Component {
             })
         }
 
-        /*
-        const func = (func, indexF) => {
-            if (!func) {
-                return null;
-            }
 
-            return (
-                <div className=" min-h-11 pt-2 flex">
-                    {func.type.slice(1)}(
-                    <div className="min-w-4">
-                        {console.log("Funcccc:", func)}
-                        {func.inside.map((p, i) => {
-                            if (i < func.NumberOfParams) {
-                                const divRef = React.createRef()
-
-                                return (<div className="flex">
-                                    <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                                        ref={divRef}
-                                        onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                        onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
-                                        onDrop={(e) => {
-                                            const data = {
-                                                id: this.state.id,
-                                                refId: this.state.value.refId ?? null,
-                                                type: this.state.value.value,
-                                                value: this.state.value.val ?? null
-                                            }
-                                            this.setState((prevState) => {
-                                                return { id: prevState.id + 1 }
-                                            })
-                                            this.dropOnSlot(e, p, data, divRef, 0)
-                                        }}
-                                    >
-                                        <p>{"sdfsdfdf"}</p>
-                                        {
-                                            (() => {
-                                                switch (p.inside[0].type) {
-                                                    case ("intInput"): return (
-                                                        <input
-                                                            className="w-5 bg-slate-200 autoAdjust"
-                                                            onChange={(e) => { this.adjustInputWidth() }}
-                                                        />)
-                                                    case ("floatInput"): return (<input />)
-                                                    case ("charInput"): return (<input />)
-                                                    case ("arithmatic"): return (arithmatic(p.inside[0]))
-                                                    default: return p.inside[0].hasOwnProperty("refId") ?
-                                                        this.findObjectWithID(p.inside[0].refId, indexF).type
-                                                        : <p>{"   "}</p>
-                                                }
-                                            })()
-                                        }
-                                    </div>
-                                </div>)
-                            }
-                            else {
-                                return null
-                            }
-
-                        })}
-                    </div>
-                    );
-                </div>
-            );
-        };
-*/
         const funcCall = (func, indexF) => {
             if (!func) {
                 return null;
@@ -1205,7 +1439,7 @@ class Code extends React.Component {
                 onDragLeave={(e) => {
                     this.handleOnDragLeave(e, divRef)
                 }}>
-                {this.state.gVariables.map((v, i) => {
+                {this.state.gVariables.inside.map((v, i) => {
                     const divRef = React.createRef();
                     return (<div
                         className="bg-blue-200 pl-2 rounded-lg my-1  border-gray-400 border-l-2 sortable"
@@ -1242,7 +1476,7 @@ class Code extends React.Component {
                 {this.state.cheaders.map((h, i) => {
                     const divRef = React.createRef();
                     return (<div
-                        className="bg-blue-200 pl-2 rounded-lg my-1 min-h-10  border-gray-400 border-l-2 sortable"
+                        className=" flex items-center bg-blue-200 pl-2 rounded-lg my-1 min-h-10  border-gray-400 border-l-2 sortable"
                         ref={divRef}
                         onDragOver={(e) => {
                             this.handleOnDragOver(e, divRef)
@@ -1361,6 +1595,7 @@ class Code extends React.Component {
 
         const subP = (id) => {
             const obj = this.state.functions.inside.find((obj) => obj.id === id);
+            console.log("function obj:", obj)
             const index = this.state.functions.inside.indexOf(obj);
             const divRef = React.createRef();
             return (
@@ -1392,6 +1627,7 @@ class Code extends React.Component {
                                 onDragLeave={(e) => {
                                     this.handleOnDragLeave(e, divRef)
                                 }}
+
                             >
                                 {obj.inside.map((p, i) => {
                                     const divRef = React.createRef()
@@ -1408,6 +1644,11 @@ class Code extends React.Component {
                                                 }}
                                                 onDragLeave={(e) => {
                                                     this.dragLeaveSortableLR(e, divRef)
+                                                }}
+                                                draggable="true"
+                                                onDragStart={() => {
+                                                    const data = { id: this.state.id, refId: p.id, dataType: p.dataType, type: p.type, value: p.value, inside: p.inside, indicator: false, elementType: "variable" }
+                                                    this.handleonDragStart(data, 1)
                                                 }}
                                             >
                                                 {i !== 0 && <p>,</p>}
@@ -1692,7 +1933,7 @@ class Code extends React.Component {
                                         className="w-5 bg-slate-200 autoAdjust"
                                         onChange={(e) => {
                                             this.adjustInputWidth()
-                                            this.updateVariablesValue(obj.inside[0], indexF, e)
+                                            this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
                                         }}
                                     />)
                                 case ("floatInput"): return (<input />)
@@ -1707,51 +1948,57 @@ class Code extends React.Component {
 
                                             obj.inside[0].hasOwnProperty("inside") ?
                                                 obj.inside[0].inside.map((l, i) => {
-                                                    const divRef = React.createRef();
-                                                    tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                        ref={divRef}
-                                                        onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                                        onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
-                                                        onDrop={(e) => {
-                                                            const data = {
-                                                                id: this.state.id,
-                                                                refId: this.state.value.refId ?? null,
-                                                                type: this.state.value.type,
-                                                                inside: this.state.value.inside,
-                                                                value: this.state.value.value ?? null
-                                                            }
-                                                            this.setState((prevState) => {
-                                                                return { id: prevState.id + 1 }
-                                                            })
-                                                            this.dropOnSlot(e, obj.inside[0], data, divRef, i)
-                                                        }}
-                                                    >
-
-
-                                                        {
-
-                                                            (() => {
-                                                                switch (obj.inside[0].inside[i].type) {
-                                                                    case ("intInput"): return (
-                                                                        <input
-                                                                            className="w-5 bg-slate-200 autoAdjust"
-                                                                            onChange={(e) => {
-                                                                                this.adjustInputWidth()
-                                                                                this.updateVariablesValue(obj.inside[0], indexF, e)
-                                                                            }}
-                                                                        />)
-                                                                    case ("floatInput"): return (<input />)
-                                                                    case ("charInput"): return (<input />)
-                                                                    case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
-                                                                    default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
-                                                                        this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
-                                                                        : <p>{"   "}</p>
+                                                    if (i > 0) {
+                                                        const divRef = React.createRef();
+                                                        tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                            ref={divRef}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                            onDrop={(e) => {
+                                                                const data = {
+                                                                    id: this.state.id,
+                                                                    refId: this.state.value.refId ?? null,
+                                                                    type: this.state.value.type,
+                                                                    inside: this.state.value.inside,
+                                                                    value: this.state.value.value ?? null
                                                                 }
-                                                            })()
-                                                        }
+                                                                this.setState((prevState) => {
+                                                                    return { id: prevState.id + 1 }
+                                                                })
+                                                                this.dropOnSlot(e, obj.inside[0], data, divRef, i)
+                                                            }}
+                                                        >
 
-                                                    </div>)
-                                                    return null
+
+                                                            {
+
+                                                                (() => {
+                                                                    switch (obj.inside[0].inside[i].type) {
+                                                                        case ("intInput"): return (
+                                                                            <input
+                                                                                className="w-5 bg-slate-200 autoAdjust"
+                                                                                onChange={(e) => {
+                                                                                    this.adjustInputWidth()
+                                                                                    this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
+                                                                                }}
+                                                                            />)
+                                                                        case ("floatInput"): return (<input />)
+                                                                        case ("charInput"): return (<input />)
+                                                                        case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
+                                                                        default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                                            this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
+                                                                            : <p>{"   "}</p>
+                                                                    }
+                                                                })()
+                                                            }
+
+                                                        </div>)
+                                                        return null
+                                                    }
+                                                    else {
+                                                        return null
+                                                    }
+
                                                 }) : <p>{"   "}</p>
 
                                             return tmp
@@ -1803,7 +2050,7 @@ class Code extends React.Component {
                                         className="w-5 bg-slate-200 autoAdjust"
                                         onChange={(e) => {
                                             this.adjustInputWidth()
-                                            this.updateVariablesValue(obj.inside[1], indexF, e)
+                                            this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)
                                         }}
                                     />)
                                 case ("floatInput"): return (<input />)
@@ -1817,51 +2064,57 @@ class Code extends React.Component {
 
                                         obj.inside[1].hasOwnProperty("inside") ?
                                             obj.inside[1].inside.map((l, i) => {
-                                                const divRef = React.createRef();
-                                                tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                    ref={divRef}
-                                                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
-                                                    onDrop={(e) => {
-                                                        const data = {
-                                                            id: this.state.id,
-                                                            refId: this.state.value.refId ?? null,
-                                                            type: this.state.value.type,
-                                                            inside: this.state.value.inside,
-                                                            value: this.state.value.value ?? null
-                                                        }
-                                                        this.setState((prevState) => {
-                                                            return { id: prevState.id + 1 }
-                                                        })
-                                                        this.dropOnSlot(e, obj.inside[1], data, divRef, i)
-                                                    }}
-                                                >
-
-
-                                                    {
-
-                                                        (() => {
-                                                            switch (obj.inside[1].inside[i].type) {
-                                                                case ("intInput"): return (
-                                                                    <input
-                                                                        className="w-5 bg-slate-200 autoAdjust"
-                                                                        onChange={(e) => {
-                                                                            this.adjustInputWidth()
-                                                                            this.updateVariablesValue(obj.inside[1], indexF, e)
-                                                                        }}
-                                                                    />)
-                                                                case ("floatInput"): return (<input />)
-                                                                case ("charInput"): return (<input />)
-                                                                case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
-                                                                default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
-                                                                    this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
-                                                                    : <p>{"   "}</p>
+                                                if (i > 0) {
+                                                    const divRef = React.createRef();
+                                                    tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                        ref={divRef}
+                                                        onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                                                        onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                        onDrop={(e) => {
+                                                            const data = {
+                                                                id: this.state.id,
+                                                                refId: this.state.value.refId ?? null,
+                                                                type: this.state.value.type,
+                                                                inside: this.state.value.inside,
+                                                                value: this.state.value.value ?? null
                                                             }
-                                                        })()
-                                                    }
+                                                            this.setState((prevState) => {
+                                                                return { id: prevState.id + 1 }
+                                                            })
+                                                            this.dropOnSlot(e, obj.inside[1], data, divRef, i)
+                                                        }}
+                                                    >
 
-                                                </div>)
-                                                return null
+
+                                                        {
+
+                                                            (() => {
+                                                                switch (obj.inside[1].inside[i].type) {
+                                                                    case ("intInput"): return (
+                                                                        <input
+                                                                            className="w-5 bg-slate-200 autoAdjust"
+                                                                            onChange={(e) => {
+                                                                                this.adjustInputWidth()
+                                                                                this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)
+                                                                            }}
+                                                                        />)
+                                                                    case ("floatInput"): return (<input />)
+                                                                    case ("charInput"): return (<input />)
+                                                                    case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
+                                                                    default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
+                                                                        this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
+                                                                        : <p>{"   "}</p>
+                                                                }
+                                                            })()
+                                                        }
+
+                                                    </div>)
+                                                    return null
+                                                }
+                                                else {
+                                                    return null
+                                                }
+
                                             }) : <p>{"   "}</p>
 
                                         return tmp
@@ -1887,14 +2140,23 @@ class Code extends React.Component {
                     onDragOver={(e) => this.handleOnDragOver(e, divRef)}
                     onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                     onDrop={(e) => {
+                        const ins = []
+                        let inc = 1
+
+                        this.state.value.inside.forEach(item => {
+
+                            ins.push({ id: this.state.id + inc })
+                            inc++;
+                        });
+
                         const data = {
                             id: this.state.id,
                             refId: this.state.value.refId,
                             type: this.state.value.type,
-                            inside: this.state.value.inside,
+                            inside: ins,
                             value: this.state.value.value
                         }
-                        this.setState((prevState) => ({ id: prevState.id + 1 }))
+                        this.setState((prevState) => ({ id: prevState.id + inc }))
                         this.dropOnSlot(e, obj, data, divRef, 0)
                     }}
                 >
@@ -1906,49 +2168,56 @@ class Code extends React.Component {
                     {
                         obj.inside[0].hasOwnProperty("inside") ?
                             obj.inside[0].inside.map((l, i) => {
-                                const divRef = React.createRef();
-                                return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                    ref={divRef}
-                                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
-                                    onDrop={(e) => {
-                                        const data = {
-                                            id: this.state.id,
-                                            refId: this.state.value.refId ?? null,
-                                            type: this.state.value.type,
-                                            inside: this.state.value.inside,
-                                            value: this.state.value.value ?? null
-                                        }
-                                        this.setState((prevState) => {
-                                            return { id: prevState.id + 1 }
-                                        })
-                                        this.dropOnSlot(e, obj.inside[0], data, divRef, i)
-                                    }}
-                                >
-
-
-                                    {
-
-                                        (() => {
-                                            switch (obj.inside[0].inside[i].type) {
-                                                case ("intInput"): return (
-                                                    <input
-                                                        className="w-5 bg-slate-200 autoAdjust"
-                                                        onChange={(e) => {
-                                                            this.adjustInputWidth()
-                                                            this.updateVariablesValue(obj.inside[0].inside[i], indexF, e)
-                                                        }}
-                                                    />)
-                                                case ("floatInput"): return (<input />)
-                                                case ("charInput"): return (<input />)
-                                                default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
-                                                    this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
-                                                    : <p>{"   "}</p>
+                                if (i > 0) {
+                                    const divRef = React.createRef();
+                                    return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                        ref={divRef}
+                                        onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                                        onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                        onDrop={(e) => {
+                                            const data = {
+                                                id: this.state.id,
+                                                refId: this.state.value.refId ?? null,
+                                                type: this.state.value.type,
+                                                inside: this.state.value.inside,
+                                                value: this.state.value.value ?? null
                                             }
-                                        })()
-                                    }
+                                            this.setState((prevState) => {
+                                                return { id: prevState.id + 1 }
+                                            })
+                                            this.dropOnSlot(e, obj.inside[0], data, divRef, i)
+                                        }}
+                                    >
 
-                                </div>
+
+                                        {
+
+                                            (() => {
+                                                switch (obj.inside[0].inside[i].type) {
+                                                    case ("intInput"): return (
+                                                        <input
+                                                            className="w-5 bg-slate-200 autoAdjust"
+                                                            onChange={(e) => {
+                                                                this.adjustInputWidth()
+                                                                this.updateVariablesValue(obj.inside[0].inside[i], indexF, e.target.value, 0)
+                                                            }}
+                                                        />)
+                                                    case ("floatInput"): return (<input />)
+                                                    case ("charInput"): return (<input />)
+                                                    default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                        this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
+                                                        : <p>{"   "}</p>
+                                                }
+                                            })()
+                                        }
+
+                                    </div>
+                                }
+                                else {
+                                    return null
+                                }
+
+
                             }) : <p>{"   "}</p>}
 
                 </div>
@@ -1992,7 +2261,7 @@ class Code extends React.Component {
                                         className="w-5 bg-slate-200 autoAdjust"
                                         onChange={(e) => {
                                             this.adjustInputWidth()
-                                            this.updateVariablesValue(obj.inside[1], indexF, e)
+                                            this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)
                                         }}
                                     />)
                                 case ("floatInput"): return (<input />)
@@ -2036,7 +2305,7 @@ class Code extends React.Component {
                                                                         className="w-5 bg-slate-200 autoAdjust"
                                                                         onChange={(e) => {
                                                                             this.adjustInputWidth()
-                                                                            this.updateVariablesValue(obj.inside[1].inside[i], indexF, e)
+                                                                            this.updateVariablesValue(obj.inside[1].inside[i], indexF, e.target.value, 0)
                                                                         }}
                                                                     />)
                                                                 case ("floatInput"): return (<input />)
@@ -2060,92 +2329,10 @@ class Code extends React.Component {
                             }
                         })()
                     }
-                    {/*
-                        obj.inside[1].hasOwnProperty("inside") ?
-                            obj.inside[1].inside.map((l, i) => {
-                                const divRef = React.createRef();
-                                return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                    ref={divRef}
-                                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
-                                    onDrop={(e) => {
-                                        const data = {
-                                            id: this.state.id,
-                                            refId: this.state.value.refId ?? null,
-                                            type: this.state.value.type,
-                                            inside: this.state.value.inside,
-                                            value: this.state.value.value ?? null
-                                        }
-                                        this.setState((prevState) => {
-                                            return { id: prevState.id + 1 }
-                                        })
-                                        this.dropOnSlot(e, obj.inside[1], data, divRef, i)
-                                    }}
-                                >
 
-
-                                    {
-
-                                        (() => {
-                                            switch (obj.inside[1].inside[i].type) {
-                                                case ("intInput"): return (
-                                                    <input
-                                                        className="w-5 bg-slate-200 autoAdjust"
-                                                        onChange={(e) => { this.adjustInputWidth() }}
-                                                    />)
-                                                case ("floatInput"): return (<input />)
-                                                case ("charInput"): return (<input />)
-                                                case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
-                                                default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
-                                                    this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
-                                                    : <p>{"   "}</p>
-                                            }
-                                        })()
-                                    }
-
-                                </div>
-                            }) : <p>{"   "}</p> */}
-
-
-                    {/*
-
-                        (() => {
-                            console.log("Input asssigbn:", obj)
-                            switch (obj.inside[1].type) {
-                                case ("intInput"): return (
-                                    <input
-                                        className="w-5 bg-slate-200 autoAdjust"
-                                        onChange={(e) => { this.adjustInputWidth() }}
-                                    />)
-                                case ("floatInput"): return (<input />)
-                                case ("charInput"): return (<input />)
-                                case ("arithmatic"): return (arithmatic(obj.inside[1]))
-                                default: return obj.inside[1].hasOwnProperty("refId") ? (
-                                    () => {
-                                        const tmp = []
-                                        const elmnt = this.findObjectWithID(obj.inside[1].refId, indexF)
-                                        tmp.push(elmnt.type)
-                                        elmnt.dimension.map((l, i) => {
-                                            tmp.push(<input
-                                                className="w-4 min-w-4  bg-slate-200 bg-opacity-50 rounded-md border-x-2 border-x-black autoAdjust"
-                                                onChange={(e) => {
-                                                    this.updateVariablesDimention(obj.inside[1], indexF, e, i)
-                                                    this.adjustInputWidth(e);
-                                                }}
-                                            />)
-                                            return null
-                                        })
-
-                                        return tmp
-                                    }
-                                )()
-                                    : <p>{"   "}</p>
-                            }
-                        })()
-                    */}
 
                 </div>
-                ;
+
             </div>)
         }
 
@@ -2339,9 +2526,11 @@ class Code extends React.Component {
                                 <div className="ml-4 flex flex-wrap declareVariable">
                                     {this.state.headers.map((h, i) => {
                                         const data = { id: this.state.id, type: h, inside: [], indicator: false, elementType: "header" }
-                                        return (<button draggable="true" onDragStart={() => {
-                                            this.handleonDragStart(data, 1)
-                                        }}>{h}</button>)
+                                        return (<button draggable="true"
+                                            className="bg-sky-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                this.handleonDragStart(data, 1)
+                                            }}>{h}</button>)
                                     })}
 
                                 </div>
@@ -2359,17 +2548,21 @@ class Code extends React.Component {
                         {
                             this.state.showDefineSection && (
                                 <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true" onDragStart={
-                                        () => {
-                                            const data = { id: this.state.id, type: "def" + this.state.id, value: null, inside: [], indicator: false, elementType: "defineBtn" }
-                                            this.handleonDragStart(data, 1)
-                                        }}>define</button>
+                                    <button draggable="true"
+                                        className="bg-cyan-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                        onDragStart={
+                                            () => {
+                                                const data = { id: this.state.id, type: "def" + this.state.id, value: null, inside: [], indicator: false, elementType: "defineBtn" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>define</button>
                                     {this.state.defines.map((d) =>
                                     (
-                                        <button draggable="true" onDragStart={() => {
-                                            const data = { id: this.state.id, type: d.type, value: d.value, inside: [], indicator: false, elementType: "define" }
-                                            this.handleonDragStart(data, 1)
-                                        }}>{d.type}</button>
+                                        <button draggable="true"
+                                            className="bg-cyan-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, type: d.type, value: d.value, inside: [], indicator: false, elementType: "define" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>{d.type}</button>
                                     )
                                     )}
                                 </div>
@@ -2386,52 +2579,67 @@ class Code extends React.Component {
                         </div>
                         {
                             this.state.showDeclareVariable && (
-                                <div className="ml-4 flex flex-wrap  declareVariable">
-                                    <button draggable="true"
-                                    className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
-                                    onDragStart={() => {
-                                        const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, dimension: [], value: null, inside: [], indicator: false, elementType: "variable" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>int</button>
-                                    <button draggable="true"
-                                    className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
-                                     onDragStart={() => {
-                                        const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variable" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>int</button>[]
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: null, inside: [{}, {}], indicator: false, elementType: "variable" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>int[][]</button>
-
-
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: null, inside: [], indicator: false, elementType: "variable" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>float</button>
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variable" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>float[]</button>
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: null, inside: [{}, {}], indicator: false, elementType: "variable" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>float[][]</button>
-
-
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: null, inside: [], indicator: false, elementType: "variable" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>char</button>
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variable" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>char[]</button>
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: null, inside: [{}, {}], indicator: false, elementType: "variable" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>char[][]</button>
-
+                                <div >
+                                    <div className="ml-4 flex declareVariable">
+                                        <button draggable="true"
+                                            className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variable" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>int</button>
+                                        <button draggable="true"
+                                            className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variable" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>int[]</button>
+                                        <button draggable="true"
+                                            className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variable" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>int[][]</button>
+                                    </div>
+                                    <div className="ml-4 flex declareVariable">
+                                        <button draggable="true"
+                                            className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variable" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>float</button>
+                                        <button draggable="true"
+                                            className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variable" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>float[]</button>
+                                        <button draggable="true"
+                                            className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variable" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>float[][]</button>
+                                    </div>
+                                    <div className="ml-4 flex declareVariable">
+                                        <button draggable="true"
+                                            className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variable" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>char</button>
+                                        <button draggable="true"
+                                            className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variable" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>char[]</button>
+                                        <button draggable="true"
+                                            className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variable" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>char[][]</button>
+                                    </div>
                                 </div>
                             )
                         }
@@ -2447,22 +2655,48 @@ class Code extends React.Component {
                         {
                             this.state.showInputFields && (
                                 <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, refId: null, dataType: "int", type: "intInput", value: null, inside: [], indicator: false, elementType: "inputField" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>int</button>
-
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, refId: null, dataType: "float", type: "floatInput", value: null, inside: [], indicator: false, elementType: "inputField" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>float</button>
-
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, refId: null, dataType: "char", type: "charInput", value: null, inside: [], indicator: false, elementType: "inputField" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>char</button>
+                                    <button draggable="true"
+                                        className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, refId: null, dataType: "int", type: "intInput", value: null, inside: [], indicator: false, elementType: "inputField" }
+                                            this.handleonDragStart(data, 1)
+                                        }}>input</button>
                                 </div>
                             )
+                        }
+                        {/*
+                            this.state.showInputFields && (
+                                <div className="ml-4 flex flex-wrap declareVariable">
+                                    <button draggable="true"
+                                        className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, refId: null, dataType: "int", type: "intInput", value: null, inside: [], indicator: false, elementType: "inputField" }
+                                            this.handleonDragStart(data, 1)
+                                        }}>int</button>
+
+                                    <button draggable="true"
+                                        className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, refId: null, dataType: "float", type: "floatInput", value: null, inside: [], indicator: false, elementType: "inputField" }
+                                            this.handleonDragStart(data, 1)
+                                        }}>float</button>
+
+                                    <button draggable="true"
+                                        className="bg-green-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, refId: null, dataType: "char", type: "charInput", value: null, inside: [], indicator: false, elementType: "inputField" }
+                                            this.handleonDragStart(data, 1)
+                                        }}>char</button>
+
+                                    <button draggable="true"
+                                        className="bg-green-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, refId: null, dataType: "char[]", type: "char[]Input", value: null, inside: [], indicator: false, elementType: "inputField" }
+                                            this.handleonDragStart(data, 1)
+                                        }}>char[]</button>
+
+                                </div>
+                            )*/
                         }
                     </div>
                     {/*Conditionals */}
@@ -2476,11 +2710,18 @@ class Code extends React.Component {
                         {
                             this.state.showConditionals && (
                                 <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, type: "cif", showOptions: false, inside: [condition(this.state.id + 1)], indicator: false, elementType: "conditional" }
-                                        this.handleonDragStart(data, 2)
-                                    }}>if</button>
-                                    <button draggable="true" onDragStart={() => { this.handleonDragStart("celse") }}>else</button>
+                                    <button draggable="true"
+                                        className="bg-lime-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, type: "cif", showOptions: false, inside: [condition(this.state.id + 1)], indicator: false, elementType: "conditional" }
+                                            this.handleonDragStart(data, 2)
+                                        }}>if</button>
+                                    <button draggable="true"
+                                        className="bg-lime-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, type: "celse", showOptions: false, inside: [], indicator: false, elementType: "conditional" }
+                                            this.handleonDragStart(data, 1)
+                                        }}>else</button>
                                 </div>
                             )
                         }
@@ -2496,20 +2737,26 @@ class Code extends React.Component {
                         {
                             this.state.showLoops && (
                                 <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, type: "cfor", inside: [assign(this.state.id + 1), condition(this.state.id + 2), assign(this.state.id + 3)], indicator: false, elementType: "loop" }
-                                        this.handleonDragStart(data, 4)
-                                    }}>For</button>
+                                    <button draggable="true"
+                                        className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, type: "cfor", inside: [assign(this.state.id + 1), condition(this.state.id + 2), assign(this.state.id + 3)], indicator: false, elementType: "loop" }
+                                            this.handleonDragStart(data, 4)
+                                        }}>For</button>
 
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, type: "cwhile", inside: [condition(this.state.id + 1)], indicator: false, elementType: "loop" }
-                                        this.handleonDragStart(data, 2)
-                                    }}>While</button>
+                                    <button draggable="true"
+                                        className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, type: "cwhile", inside: [condition(this.state.id + 1)], indicator: false, elementType: "loop" }
+                                            this.handleonDragStart(data, 2)
+                                        }}>While</button>
 
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, type: "cdoWhile", inside: [condition(this.state.id + 1)], indicator: false, elementType: "loop" }
-                                        this.handleonDragStart(data, 2)
-                                    }}>Do-While</button>
+                                    <button draggable="true"
+                                        className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, type: "cdoWhile", inside: [condition(this.state.id + 1)], indicator: false, elementType: "loop" }
+                                            this.handleonDragStart(data, 2)
+                                        }}>Do-While</button>
                                 </div>
                             )
                         }
@@ -2525,14 +2772,18 @@ class Code extends React.Component {
                         {
                             this.state.showOthers && (
                                 <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, type: "assignment", sign: "=", inside: [{}, {}], indicator: false, elementType: "expression" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>Assignment</button>
-                                    <button draggable="true" onDragStart={() => {
-                                        const data = { id: this.state.id, type: "arithmatic", sign: "+", inside: [{}, {}], indicator: false, elementType: "expression" }
-                                        this.handleonDragStart(data, 1)
-                                    }}>Arithmatic</button>
+                                    <button draggable="true"
+                                        className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, type: "assignment", sign: "=", inside: [{}, {}], indicator: false, elementType: "expression" }
+                                            this.handleonDragStart(data, 1)
+                                        }}>Assignment</button>
+                                    <button draggable="true"
+                                        className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                        onDragStart={() => {
+                                            const data = { id: this.state.id, type: "arithmatic", sign: "+", inside: [{}, {}], indicator: false, elementType: "expression" }
+                                            this.handleonDragStart(data, 1)
+                                        }}>Arithmatic</button>
                                 </div>
                             )
                         }
@@ -2553,12 +2804,13 @@ class Code extends React.Component {
                                 <div className="ml-4 flex flex-wrap declareVariable ">
                                     <button
                                         draggable="true"
+                                        className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                         onDragStart={() => {
                                             const data = {
                                                 id: this.state.id,
-                                                type: "func" + this.state.id,
+                                                type: 1 + "func" + this.state.id,
                                                 returnType: "void",
-                                                defination: false,
+                                                defination: true,
                                                 NumberOfParams: 0,
                                                 inside: [
 
@@ -2572,12 +2824,13 @@ class Code extends React.Component {
 
                                     <button
                                         draggable="true"
+                                        className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                         onDragStart={() => {
                                             const data = {
                                                 id: this.state.id,
-                                                type: "func" + this.state.id,
+                                                type: 1 + "func" + this.state.id,
                                                 returnType: "int",
-                                                defination: false,
+                                                defination: true,
                                                 NumberOfParams: 0,
                                                 inside: [
 
@@ -2591,12 +2844,13 @@ class Code extends React.Component {
 
                                     <button
                                         draggable="true"
+                                        className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                         onDragStart={() => {
                                             const data = {
                                                 id: this.state.id,
-                                                type: "func" + this.state.id,
+                                                type: 1 + "func" + this.state.id,
                                                 returnType: "float",
-                                                defination: false,
+                                                defination: true,
                                                 NumberOfParams: 0,
                                                 inside: [
 
@@ -2610,12 +2864,13 @@ class Code extends React.Component {
 
                                     <button
                                         draggable="true"
+                                        className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                         onDragStart={() => {
                                             const data = {
                                                 id: this.state.id,
-                                                type: "func" + this.state.id,
+                                                type: 1 + "func" + this.state.id,
                                                 returnType: "char",
-                                                defination: false,
+                                                defination: true,
                                                 NumberOfParams: 0,
                                                 inside: [
 
@@ -2632,6 +2887,7 @@ class Code extends React.Component {
                                             <button
                                                 id={f.type}
                                                 draggable="true"
+                                                className="bg-yellow-300 p-1 rounded-md border-2 flex border-slate-600 m-2px"
                                                 onDragStart={() => {
                                                     const data = {
                                                         id: this.state.id,
@@ -2644,7 +2900,7 @@ class Code extends React.Component {
                                                     }
                                                     this.handleonDragStart(data, 1)
                                                 }}
-                                                className="flex"
+
                                             >
                                                 {f.returnType} {f.type.slice(1)} ({f.inside.map((p, i) => {
                                                     if (i < f.NumberOfParams) {
@@ -2721,10 +2977,10 @@ class Code extends React.Component {
                                                     if (i < f.NumberOfParams) {
                                                         return (
                                                             (i === 0) ? (
-                                                                <span id={i}>{p.type}</span>
+                                                                <span id={i}>{p.dataType}</span>
                                                             ) :
                                                                 (
-                                                                    <span id={i}>, {p.type}</span>
+                                                                    <span id={i}>, {p.dataType}</span>
                                                                 ))
                                                     }
                                                     else {
