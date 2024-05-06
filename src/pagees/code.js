@@ -1,19 +1,26 @@
-//import { type } from "@testing-library/user-event/dist/type";
 import React from "react";
 import ReactTextareaAutosize from "react-textarea-autosize";
-const cloneDeep = require('lodash/cloneDeep');
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrash } from '@fortawesome/free-solid-svg-icons';
+import { debounce } from 'lodash';
+
+const cloneDeep = require('lodash/cloneDeep')
 
 class Code extends React.Component {
 
 
     constructor(props) {
+
         super(props);
         this.state = {
             id: 10,
 
             tmp: [],
 
+            code: "",
+            responseData: "",
 
+            showOutput: false,
             //for sidebar
             showHeaderlist: true,
             showDefineSection: true,
@@ -31,8 +38,12 @@ class Code extends React.Component {
             showParamTypes: false,
             headers: ["stdio.h", "math.h", "string.h"],
             cheaders: [],
-            defines: [],
-            gVariables: { inside: [] },
+            defines: {
+                inside: []
+            },
+            gVariables: {
+                inside: []
+            },
 
             functions: {
                 inside: [
@@ -42,6 +53,7 @@ class Code extends React.Component {
                         id: 0,
                         type: "1main",
                         returnType: "int",
+                        defination: true,
                         NumberOfParams: 0,
                         inside: [
 
@@ -83,8 +95,9 @@ class Code extends React.Component {
 
 
 
-    
-      
+
+
+
 
 
     adjustInputWidth = () => {
@@ -191,7 +204,7 @@ class Code extends React.Component {
         let indices = [];
         let func = this.state.functions
         let flag = false
-
+        console.log("Object to find indicess:", obj)
         const searchInside = (s) => {
             if (s.hasOwnProperty("inside")) {
                 for (let i = 0; i < s.inside.length; i++) {
@@ -217,20 +230,18 @@ class Code extends React.Component {
         return indices;
     };
 
-    findObjectWithID = (id, indexF) => {
+    findObjectWithID = (id, indexF, prevStateV) => {
         let object = null
-        /*
-        this.state.gVariables.inside.forEach((element) => {
-            if (element.id === id) {
-                object = cloneDeep(element)
-                return object
-            }
-            else if(element.hasOwnProperty("inside")){
+        let stateV = null
 
-            }
-        })*/
+        if (prevStateV) {
+            stateV = prevStateV
+        }
+        else {
+            stateV = this.state
+        }
+
         const findObj = (obj) => {
-            console.log("Pssed Object:",obj)
             if (obj && obj.hasOwnProperty("inside")) {
                 for (let i = 0; i < obj.inside.length; i++) {
                     if (obj.inside[i].id === id) {
@@ -243,13 +254,15 @@ class Code extends React.Component {
             }
         };
 
-        findObj(this.state.gVariables)
+        findObj(stateV.defines)
+
+        findObj(stateV.gVariables)
 
         if (indexF) {
-            findObj(this.state.functions.inside[indexF])
+            findObj(stateV.functions.inside[indexF])
         }
         else {
-            findObj(this.state.functions)
+            findObj(stateV.functions)
         }
 
         return object
@@ -314,10 +327,154 @@ class Code extends React.Component {
         }
     };
 
+    insertItemOnParam = (obj, indexF, data, position, empty) => {
+        if (data != null) {
+            let indices = this.findIndices(obj, indexF);
+            let parent = null
+            this.setState(prevState => {
+                const updatedFunc = cloneDeep(prevState.functions);
+                let x = 0;
+                let addPos = 0
+
+                const update = (updated) => {
+                    if (x < indices.length) {
+                        x++;
+                        parent = updated.inside
+                        update(updated.inside[indices[x - 1]]);
+                    } else {
+
+                        if (empty) {
+
+                            if (updated.inside.length > 0) {
+                                updated.inside.splice(0, 0, data)
+                            }
+                            else {
+                                updated.inside.splice(updated.inside.length, 0, data)
+                            }
+
+
+                            return
+                        }
+                        if (position === "top") {
+                            addPos = 0
+                        } else {
+                            addPos = 1
+
+                        }
+
+
+                        parent.splice(indices[x - 1] + addPos, 0, data);
+
+
+                    }
+                };
+                update(updatedFunc);
+
+                return { functions: updatedFunc };
+            }, () => {
+                console.log("Value after insertion:", this.state.functions.inside);
+            });
+        }
+    };
+
+
+    deleteItem = () => {
+        const id = this.state.value.id
+        let deleted = false
+
+        this.setState((prevState) => {
+            let headers = prevState.cheaders
+            headers.map((h, i) => {
+                if (h.id === id) {
+                    headers.splice(i, 1)
+                    deleted = true
+                }
+                return null
+            })
+            return { cheaders: headers }
+        })
+
+
+        if (!deleted) {
+            this.setState((prevState) => {
+                let defines = prevState.defines
+                defines.inside.map((d, i) => {
+                    if (d.id === id) {
+                        defines.inside.splice(i, 1)
+                        deleted = true
+                    }
+                    return null
+                })
+                return { defines: defines }
+            })
+        }
+
+
+        if (!deleted) {
+            this.setState((prevState) => {
+                let gVars = prevState.gVariables
+                gVars.inside.map((v, i) => {
+                    if (v.id === id) {
+                        gVars.inside.splice(i, 1)
+                        deleted = true
+                    }
+                    return null
+                })
+                return { gVariables: gVars }
+            })
+        }
+
+        if (!deleted) {
+            this.setState((prevState) => {
+                let functions = prevState.functions
+                functions.inside.map((f, i) => {
+                    if (f.id === id) {
+                        functions.inside.splice(i, 1)
+                        deleted = true
+                    }
+                    return null
+                })
+                return { functions: functions }
+            })
+        }
+
+
+
+        if (!deleted) {
+            const indexF = this.state.value.indexF
+            const obj = this.findObjectWithID(this.state.value.id)
+            let indices = this.findIndices(obj, indexF);
+
+            let parent = null
+
+            this.setState(prevState => {
+                const updatedFunc = cloneDeep(prevState.functions);
+                let x = 0;
+
+                const update = (updated) => {
+                    if (x < indices.length) {
+                        x++;
+                        parent = updated.inside
+                        update(updated.inside[indices[x - 1]]);
+                    } else {
+                        parent.splice(indices[x - 1], 1);
+                    }
+                };
+                update(updatedFunc);
+
+                return { functions: updatedFunc };
+            }, () => {
+                console.log("Value after deletion:", this.state.functions.inside);
+            });
+        }
+
+    };
+
+
 
     //----------------------------------------
     handleonDragStart = (data, inc) => {
-        this.setState({ value: data, inc: inc })
+        this.setState({ value: data, inc: inc ?? 0 })
     }
     handleOnDrag = () => {
 
@@ -456,8 +613,8 @@ class Code extends React.Component {
                 const g = cloneDeep(prevState.gVariables)
                 g.inside.splice(index + position, 0, data)
                 return { gVariables: g }
-            },()=>{
-                console.log("State After dropping GVAr:",this.state)
+            }, () => {
+                console.log("State After dropping GVAr:", this.state)
             })
 
         }
@@ -517,7 +674,9 @@ class Code extends React.Component {
         let position = 0
         if (empty) {
             this.setState((prevState) => {
-                return { defines: [...prevState.defines, data] }
+                let prev = cloneDeep(prevState.defines)
+                prev.inside = [...prev.inside, data]
+                return { defines: prev }
             }, () => {
                 console.log("state:", this.state)
             })
@@ -533,8 +692,8 @@ class Code extends React.Component {
                 position = 1
             }
             this.setState((prevState) => {
-                const g = [...prevState.defines]
-                g.splice(index + position, 0, data)
+                const g = cloneDeep(prevState.defines)
+                g.inside.splice(index + position, 0, data)
                 return { defines: g }
             })
 
@@ -606,7 +765,7 @@ class Code extends React.Component {
         } else {
             position = "bottom"
         }
-        this.insertItem(obj, indexF, data, position, empty)
+        this.insertItemOnParam(obj, indexF, data, position, empty)
         this.setState((prevState) => {
             const funcs = cloneDeep(prevState.functions)
             funcs.inside[indexF].NumberOfParams += 1
@@ -620,18 +779,19 @@ class Code extends React.Component {
         const indices = this.findIndices(obj)
 
 
-
         if (indices.length !== 0) {
             this.setState(prevState => {
                 const updatedFunc = cloneDeep(prevState.functions);
                 let x = 0;
 
+                console.log("Indicess:", indices)
 
                 const update = (updated) => {
                     if (x < indices.length) {
                         x++;
                         update(updated.inside[indices[x - 1]]);
                     } else {
+                        console.log("Updated at:", updated)
                         updated.inside[index] = data
                     }
                 };
@@ -640,6 +800,7 @@ class Code extends React.Component {
 
                 return { functions: updatedFunc };
             }, () => {
+                this.updateEachVariable(index)
                 console.log("Value:", this.state.functions.inside);
             });
         }
@@ -654,6 +815,7 @@ class Code extends React.Component {
 
                 return { gVariables: updatedGVars }
             }, () => {
+                this.updateEachGVariable()
                 console.log("Gvar updated :", this.state)
             })
         }
@@ -766,9 +928,33 @@ class Code extends React.Component {
 
             return { functions: updatedFunc };
         }, () => {
+            this.updateEachVariable(indexF)
             console.log("After Updting Variaables value:", this.state.functions.inside);
         });
 
+    }
+
+    updateSign = (e, obj, indexF) => {
+        let indices = this.findIndices(obj, indexF);
+        this.setState(prevState => {
+            const updatedFunc = cloneDeep(prevState.functions);
+            let x = 0;
+
+            const update = (updated) => {
+                if (x < indices.length) {
+                    x++;
+                    update(updated.inside[indices[x - 1]]);
+                } else {
+                    console.log("Updated elemetn:", updated)
+                    updated.sign = e.target.value
+                }
+            };
+            update(updatedFunc);
+
+            return { functions: updatedFunc };
+        }, () => {
+            console.log("After Updting Variaables value:", this.state.functions.inside);
+        });
     }
 
 
@@ -776,7 +962,7 @@ class Code extends React.Component {
     updateDefinesName = (e, index) => {
         this.setState((prevState) => {
             const defs = cloneDeep(prevState.defines)
-            defs[index].type = e.target.value
+            defs.inside[index].type = e.target.value
             return { defines: defs }
         })
     }
@@ -784,9 +970,10 @@ class Code extends React.Component {
     updateDefinesValue = (e, index) => {
         this.setState((prevState) => {
             const defs = cloneDeep(prevState.defines)
-            defs[index].value = e.target.value
+            defs.inside[index].value = e.target.value
             return { defines: defs }
         }, () => {
+            this.updateEachGVariable()
             console.log("After Updating Defines Value:", this.state)
         })
     }
@@ -800,8 +987,9 @@ class Code extends React.Component {
     }
 
     updateGVariablesValue = (obj, val, dimension, d) => {
+
         this.setState((prevState) => {
-            
+
             const recurance = (ob) => {
                 if (ob.hasOwnProperty("inside")) {
                     for (let j = 0; j < ob.inside.length; j++) {
@@ -813,8 +1001,6 @@ class Code extends React.Component {
                                     break
                                 default: ob.inside[j].value = val
                             }
-
-                            break
                         }
                         else {
                             recurance(ob.inside[j])
@@ -823,45 +1009,35 @@ class Code extends React.Component {
                 }
             }
 
-            let gVars = prevState.gVariables
+            let gVars = cloneDeep(prevState.gVariables)
             recurance(gVars)
 
-            console.log("Gvarsssss:",gVars)
 
             return { gVariables: gVars }
         }, () => {
-
+            this.updateEachGVariable();
             console.log("After updating Gvariables Value:", this.state)
         })
     }
 
 
-    initializeArray = (obj, index, gVariables) => {
 
-        console.log("Object array to show:", obj)
+
+    initializeArray = (obj, index, gVariables, value) => {
+
+        console.log("Initilizing:", obj, index, gVariables, value)
 
         let val = []
-        let row = null
-        let col = null
+        let row = value[0]
+        let col = value[1]
 
         if (obj.inside.length === 2) {
-            row = obj.inside[1].refId === null ? this.findObjectWithID(obj.inside[1].id, index).value
-                : this.findObjectWithID(obj.inside[1].refId, index).value
-
-
             for (let i = 0; i < row; i++) {
                 val.push(0)
             }
 
         }
         else if (obj.inside.length === 3) {
-            row = obj.inside[1].refId === null ? this.findObjectWithID(obj.inside[1].id, index).value
-                : this.findObjectWithID(obj.inside[1].refId, index).value
-
-            col = obj.inside[2].refId === null ? this.findObjectWithID(obj.inside[2].id, index).value
-                : this.findObjectWithID(obj.inside[2].refId, index).value
-
-
             for (let i = 0; i < row; i++) {
                 let tmp = []
                 for (let j = 0; j < col; j++) {
@@ -871,6 +1047,7 @@ class Code extends React.Component {
             }
         }
 
+
         if (gVariables) {
             this.updateGVariablesValue(obj, val)
         }
@@ -878,83 +1055,481 @@ class Code extends React.Component {
             this.updateVariablesValue(obj, index, val, 0)
         }
 
-
     }
 
 
-      /*compileAndRunCCode=async(cCode)=>{
-        // Load the Emscripten module
-        const Module = await require('path/to/your/emscripten/module.js');
-      
-        // Write the C code to a temporary file
-        Module.FS.writeFile('/tmp/code.c', cCode);
-      
-        // Compile the C code to WebAssembly
-        const wasmResult = Module.ccall('compileCCode', 'number', ['string'], ['/tmp/code.c']);
-      
-        // Execute the compiled WebAssembly module
-        const output = Module.ccall('runWasmModule', 'string', ['number'], [wasmResult]);
-      
-        // Return the output
-        return output;
-      }*/
+    returnArry = (v) => {
+        return `{${v.value.map((r) => (Array.isArray(r) ? "{" + r.map((c) => (c)).join(",") + "}" : r)).join(",")}}`
+    }
+
+
+
+    returnGlobalVariables = () => {
+        return `${this.state.gVariables.inside.map((g) => {
+            return `${g.dataType} ${g.type}${g.inside.map((ins, i) => (i > 0 ? "[" + (ins.refId ? this.findObjectWithID(ins.refId).type : ins.value) + "]" : null)).join("")} = ${g.inside.length > 1 ? this.returnArry(g) : (g.value ?? 0)};\n`
+        }).join("")}`
+    }
+    returnParams = (func) => {
+        return func.inside.map((p, i) => (i < func.NumberOfParams ? `${(i !== 0 ? "," : "")} ${p.dataType} ${p.type}` : null)).join("")
+    }
+
+    showVar = (v, indexF) => {
+        return `${v.dataType} ${v.type}${v.inside.map((ins, i) => (i > 0 ? "[" + (ins.refId ? this.findObjectWithID(ins.refId).type : ins.value) + "]" : null)).join("")} = ${v.inside[0].type === "arithmatic" ? this.showArithmatic(v.inside[0], indexF) : (`${v.inside.length > 1 ? this.returnArry(v) : (v.value ?? 0)}`)};\n    `
+    }
+    showArray = (a) => {
+
+        return `${a.inside.map((ins, i) => (i > 0 ? "[" + (ins.refId ? this.findObjectWithID(ins.refId).type : ins.value) + "]" : null)).join("")}`
+    }
+    showCondition = (cond, i, indexF) => {
+        return `${cond.inside[i].inside[0].refId ? this.findObjectWithID(cond.inside[i].inside[0].refId, indexF).type + this.showArray(cond.inside[i].inside[0]) : cond.inside[i].inside[0].value} ${cond.inside[i].sign} ${cond.inside[i].inside[1].refId ? this.findObjectWithID(cond.inside[i].inside[1].refId, indexF).type + this.showArray(cond.inside[i].inside[1]) : cond.inside[i].inside[1].value}`
+    }
+    showConditionals = (cond, index) => {
+        if (cond.type === "cif") {
+            return `if(${this.showCondition(cond, 0, index)}){
+        ${cond.inside.filter((obj, i) => i > 0).map((obj) => {
+                return this.showInners(obj, index)
+            }).join("\n")}
+    }`
+        }
+        else {
+            return `else{
+        ${cond.inside.map((obj, i) => {
+                return this.showInners(obj, index)
+            }).join("\n")}
+    }`
+        }
+    }
+
+    showLoops = (l, index) => {
+        if (l.type === "cfor") {
+            return `for(${this.showCondition(l, 0, index)}; ${this.showCondition(l, 1, index)};${this.showCondition(l, 2, index)}){
+        ${l.inside.filter((obj, i) => i > 2).map((obj) => {
+                return this.showInners(obj, index)
+            }).join("\n")}
+    }`
+        }
+        else if (l.type === "cwhile") {
+            return `while(${this.showCondition(l, 0, index)}){
+        ${l.inside.filter((obj, i) => i > 0).map((obj) => {
+                return this.showInners(obj, index)
+            }).join("\n")}
+    }`
+        }
+        else {
+            return `do{
+        ${l.inside.filter((obj, i) => i > 0).map((obj) => {
+                return this.showInners(obj, index)
+            }).join("\n")}
+    }
+    while(${this.showCondition(l, 0, index)});`
+        }
+    }
+
+    showFunction = (func, indexF, withoutComma) => {
+        return `${func.type.slice(1)}(${func.inside.map((p) => (p.inside[0].refId ? this.findObjectWithID(p.inside[0].refId).type : p.inside[0].value))})${withoutComma ? null : ";"}`
+    }
+    showArithmatic = (obj, indexF) => {
+        return `(${obj.inside[0].type === "arithmatic" ? this.showArithmatic(obj.inside[0], indexF) : (`${obj.inside[0].refId ? this.findObjectWithID(obj.inside[0].refId, indexF).type : obj.inside[0].value}`)} ${obj.sign} ${obj.inside[1].type === "arithmatic" ? this.showArithmatic(obj, indexF) : (`${obj.inside[1].refId ? this.findObjectWithID(obj.inside[1].refId, indexF).type : obj.inside[1].value}`)})`
+    }
+
+
+    showAssignment = (obj, indexF) => {
+        return `${obj.inside[0].refId ? this.findObjectWithID(obj.inside[0].refId, indexF).type : obj.inside[0].value} ${obj.sign} ${obj.inside[1].type === "arithmatic" ? this.showArithmatic(obj.inside[1], indexF) : obj.inside[1].elementType === "function" ? this.showFunction(obj.inside[1], indexF, true) : (`${obj.inside[1].refId ? this.findObjectWithID(obj.inside[1].refId, indexF).type : obj.inside[1].value}`)};`
+    }
+
+    showReturn = (obj, indexF) => {
+        return `return ${obj.inside[0].type === "arithmatic" ? this.showArithmatic(obj.inside[0], indexF) : (`${obj.inside[0].refId ? this.findObjectWithID(obj.inside[0].refId, indexF).type : obj.inside[0].value}`)};`
+    }
+
+    showInners = (obj, indexF) => {
+        switch (obj.elementType) {
+            case ("variableBtn"): return this.showVar(obj, indexF)
+            case ("conditional"): return this.showConditionals(obj, indexF)
+            case ("loop"): return this.showLoops(obj, indexF)
+            case ("function"): return this.showFunction(obj, indexF)
+            case ("expression"): return obj.type === "return" ? (this.showReturn(obj, indexF)) : (this.showAssignment(obj, indexF))
+            default: return ""
+        }
+    }
+
+    returnFunctions = () => {
+        return `${this.state.functions.inside.map((f, index) => {
+            return f.defination ? `${f.returnType} ${f.type.slice(1)}(${this.returnParams(f)}){         
+    ${f.inside.map((obj, i) => {
+                if (i >= f.NumberOfParams) {
+                    return this.showInners(obj, index)
+                }
+                else {
+                    return null
+                }
+            }).join("\n    ")}
+}\n` : null
+        }).join("")}`
+    }
+
+    updateEachGVariable = () => {
+        const l = this.state.gVariables.inside.length
+
+        const updateVar = (i) => {
+            this.setState((prevState) => {
+                let gVars = cloneDeep(prevState.gVariables)
+                let v = gVars.inside[i]
+
+                const findValue = (obj, i) => {
+                    return obj.inside[i].hasOwnProperty("refId") ? obj.inside[i].refId === null ? (obj.inside[i].value ?? 0) : this.findObjectWithID(obj.inside[i].refId).value : 0
+                }
+
+                switch (v.inside.length) {
+                    case (2): {
+                        const row = v.inside[1].refId === null ? v.inside[1].value : findValue(v, 1)
+                        const len = v.value.length
+
+                        if (len < parseInt(row)) {
+                            for (let i = len; i < row; i++) {
+                                v.value.push(0)
+                            }
+                        }
+                        else {
+                            v.value.splice(row - 1, len - row)
+                        }
+
+                    }
+                        break
+
+
+
+                    case (3): {
+                        const row = v.inside[1].refId === null ? v.inside[1].value : findValue(v, 1)
+                        const col = v.inside[2].refId === null ? v.inside[2].value : findValue(v, 2)
+
+                        const lenR = v.value.length
+
+                        console.log("lenR,row:", lenR, row)
+
+                        if (lenR < parseInt(row)) {
+                            for (let i = lenR; i < row; i++) {
+                                const lenC = Array.isArray(v.value[i]) ? v.value[i].length : 0
+                                console.log("lenC,col:", lenC, col)
+
+                                let tmp = Array.isArray(v.value[i]) ? v.value[i] : []
+
+
+                                if (lenC < parseInt(col)) {
+                                    console.log("Trreeeeeeeeeeeeeeue")
+                                    for (let j = lenC; j < col; j++) {
+                                        tmp.push(0)
+                                    }
+                                }
+                                else {
+                                    if (Array.isArray(v.value[i])) {
+                                        v.value[i].splice(col - 1, lenC - col)
+                                    }
+                                }
+
+                                v.value.push(tmp)
+                            }
+                        }
+                        else {
+                            v.value.splice(row - 1, lenR - row)
+                            for (let i = 0; i < row; i++) {
+                                const lenC = Array.isArray(v.value[i]) ? v.value[i].length : 0
+                                console.log("lenC,col:", lenC, col)
+
+                                let tmp = Array.isArray(v.value[i]) ? v.value[i] : []
+
+
+                                if (lenC < parseInt(col)) {
+                                    console.log("Trreeeeeeeeeeeeeeue")
+                                    for (let j = lenC; j < col; j++) {
+                                        tmp.push(0)
+                                    }
+                                }
+                                else {
+                                    if (Array.isArray(v.value[i])) {
+                                        v.value[i].splice(col - 1, lenC - col)
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+                        break
+
+
+
+                    default: {
+                        v.value = v.inside[0].refId === null ? v.inside[0].value : findValue(v, 0)
+                    }
+                }
+
+
+                return { gVariables: gVars }
+            }, () => {
+                if (i < l - 1) {
+                    updateVar(i + 1)
+                }
+                else {
+                    this.updateEachVariable(0)
+                }
+                console.log("gVariables Updateddddd:", this.state)
+            })
+
+        }
+
+        this.state.gVariables.inside.map((v, i) => {
+            updateVar(i)
+            return null
+        })
+
+    }
+
+    updateEachVariable = (indexF) => {
+        const l = this.state.functions.inside[indexF].inside.length
+
+        const updateVar = (i) => {
+            this.setState((prevState) => {
+                let funcs = cloneDeep(prevState.functions)
+                let v = funcs.inside[indexF].inside[i]
+
+                const findValue = (obj, i) => {
+                    return obj.inside[i].hasOwnProperty("refId") ? obj.inside[i].refId === null ? (obj.inside[i].value ?? 0) : this.findObjectWithID(obj.inside[i].refId, indexF).value : 0
+                }
+
+                if (v.elementType === "variableBtn") {
+                    switch (v.inside.length) {
+                        case (2): {
+                            const row = v.inside[1].refId === null ? v.inside[1].value : findValue(v, 1)
+                            const len = v.value.length
+
+                            if (len < parseInt(row)) {
+                                for (let i = len; i < row; i++) {
+                                    v.value.push(0)
+                                }
+                            }
+                            else {
+                                v.value.splice(row - 1, len - row)
+                            }
+
+                        }
+                            break
+
+
+
+                        case (3): {
+                            const row = v.inside[1].refId === null ? v.inside[1].value : findValue(v, 1)
+                            const col = v.inside[2].refId === null ? v.inside[2].value : findValue(v, 2)
+
+                            const lenR = v.value.length
+
+
+                            if (lenR < parseInt(row)) {
+                                for (let i = lenR; i < row; i++) {
+                                    const lenC = Array.isArray(v.value[i]) ? v.value[i].length : 0
+
+                                    let tmp = Array.isArray(v.value[i]) ? v.value[i] : []
+
+
+                                    if (lenC < parseInt(col)) {
+                                        for (let j = lenC; j < col; j++) {
+                                            tmp.push(0)
+                                        }
+                                    }
+                                    else {
+                                        if (Array.isArray(v.value[i])) {
+                                            v.value[i].splice(col - 1, lenC - col)
+                                        }
+                                    }
+
+                                    v.value.push(tmp)
+                                }
+                            }
+                            else {
+                                v.value.splice(row - 1, lenR - row)
+                                for (let i = 0; i < row; i++) {
+                                    const lenC = Array.isArray(v.value[i]) ? v.value[i].length : 0
+
+                                    let tmp = Array.isArray(v.value[i]) ? v.value[i] : []
+
+
+                                    if (lenC < parseInt(col)) {
+                                        for (let j = lenC; j < col; j++) {
+                                            tmp.push(0)
+                                        }
+                                    }
+                                    else {
+                                        if (Array.isArray(v.value[i])) {
+                                            v.value[i].splice(col - 1, lenC - col)
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+                            break
+
+
+
+                        default: {
+                            console.log("Updating local variable v:",v)
+                            v.value = v.inside[0].refId === null ? v.inside[0].value : findValue(v, 0)
+                        }
+                    }
+                    return { functions: funcs }
+                }
+
+            }, () => {
+                if (i + 1 < l) {
+                    updateVar(i + 1)
+                }
+                console.log("gVariables Updateddddd:", this.state)
+            })
+
+        }
+
+        this.state.functions.inside[indexF].inside.map((v, i) => {
+            updateVar(i)
+            return null
+        })
+
+    }
+
 
 
 
     render() {
 
+
+
+        // Function to handle API call
+        const handleRunButtonClick = () => {
+            console.log("Stttess:", this.state)
+            let code =
+                `${this.state.cheaders.map((h) => ("#include<" + h.type + ">;")).join('\n')}\n
+${this.state.defines.inside.map((d) => ("#define " + d.type + " " + (d.value ?? 0))).join('\n')}\n
+${this.state.functions.inside.map((f) =>
+                    f.defination && f.type !== "1main" ?
+                        `${f.returnType} ${f.type.slice(1)}(${f.inside.map((p, i) => i < f.NumberOfParams ? (i !== 0 ? "," : "") + " " + p.dataType : null).join("")});\n`
+                        : null
+                ).join("")}
+${this.returnGlobalVariables()}
+${this.returnFunctions()}
+`
+
+
+            /*const code = 
+            `
+            #include<stdio.h>
+            int main()
+            {
+                printf("Hello World from C");
+                    return 0;
+            }
+            `;*/
+
+            this.setState((prevState) => {
+                return { showOutput: !prevState.showOutput, code: code }
+            })
+
+
+
+            // Get your code from state or wherever it's stored
+            const input = ""; // Get your input data from state or wherever it's stored
+            const inputRadio = false; // Get your input radio value from state or wherever it's stored
+
+            fetch('http://localhost:8080/compilecode', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    code: code,
+                    input: input,
+                    inputRadio: inputRadio
+                })
+            })
+                .then(response => response.text())
+                .then(data => {
+                    this.setState((prevState) => {
+                        return { responseData: data }
+                    })
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        };
+
+
+
         const showArray = (obj, index, gVariables) => {
+
+
             let items = []
             items.push("{")
 
-            const val0 = obj.inside[1].refId === null ? obj.inside[1].value
+
+
+            let val0 = obj.inside[1].refId === null ? obj.inside[1].value
                 : this.findObjectWithID(obj.inside[1].refId, index).value
 
-            for (let i = 0; i < val0; i++) {
-                if (i !== 0) {
-                    items.push(",")
-                }
-                if (obj.inside.length === 3) {
-                    items.push("{")
-                    const val1 = obj.inside[2].refId === null ? obj.inside[2].value
-                        : this.findObjectWithID(obj.inside[2].refId, index).value
+            let val1 = null
 
-                    for (let j = 0; j < val1; j++) {
-                        if (j !== 0) {
-                            items.push(",")
+            if (obj.inside.length === 3) {
+                val1 = obj.inside[2].refId === null ? obj.inside[2].value
+                    : this.findObjectWithID(obj.inside[2].refId, index).value
+            }
+
+
+            if (obj.value.length === parseInt(val0)) {
+
+                for (let i = 0; i < val0; i++) {
+                    if (i !== 0) {
+                        items.push(",")
+                    }
+                    if (obj.inside.length === 3) {
+                        items.push("{")
+
+
+                        if (Array.isArray(obj.value[i]) && obj.value[i].length === parseInt(val1)) {
+                            for (let j = 0; j < val1; j++) {
+                                if (j !== 0) {
+                                    items.push(",")
+                                }
+                                items.push(<input
+                                    className="w-4 rounded-md autoAdjust"
+                                    onChange={(e) => {
+                                        this.adjustInputWidth()
+                                        if (gVariables) {
+                                            this.updateGVariablesValue(obj, e.target.value, 2, [i, j])
+                                        }
+                                        else {
+                                            this.updateVariablesValue(obj, index, e.target.value, 2, [i, j])
+                                        }
+
+                                    }}
+                                    defaultValue={obj.value[i][j]}
+                                />)
+                            }
                         }
+                        items.push("}")
+
+                    }
+                    else {
                         items.push(<input
                             className="w-4 rounded-md autoAdjust"
                             onChange={(e) => {
                                 this.adjustInputWidth()
                                 if (gVariables) {
-                                    this.updateGVariablesValue(obj,e.target.value,2,[i,j])
+                                    this.updateGVariablesValue(obj, e.target.value, 1, [i])
                                 }
                                 else {
-                                    this.updateVariablesValue(obj, index, e.target.value, 2, [i, j])
+                                    this.updateVariablesValue(obj, index, e.target.value, 1, [i])
                                 }
-
                             }}
-                            defaultValue={obj.value[i][j]}
+                            defaultValue={obj.value[i]}
                         />)
                     }
-                    items.push("}")
                 }
-                else {
-                    items.push(<input
-                        className="w-4 rounded-md autoAdjust"
-                        onChange={(e) => {
-                            this.adjustInputWidth()
-                            if (gVariables) {
-                                this.updateGVariablesValue(obj,e.target.value,1,[i])
-                            }
-                            else {
-                                this.updateVariablesValue(obj, index, e.target.value, 1, [i])
-                            }
-                        }}
-                        defaultValue={obj.value[i]}
-                    />)
-                }
+
             }
 
             items.push("}")
@@ -964,6 +1539,7 @@ class Code extends React.Component {
 
 
         const variable = (obj, index, gVariables) => {
+
             return (<div className="flex items-center">
                 {obj.dataType}
                 <input
@@ -981,7 +1557,8 @@ class Code extends React.Component {
                     value={obj.type}
                     className="w-10  bg-transparent outline-none border-2 border-slate-50 m-2 autoAdjust"
                     draggable="true"
-                    onDragStart={() => {
+                    onDragStart={(e) => {
+                        e.stopPropagation()
                         const data = { id: this.state.id, refId: obj.id, dataType: obj.dataType, type: obj.type, value: obj.value, inside: obj.inside, indicator: false, elementType: "variable" }
                         this.handleonDragStart(data, 1)
                     }}
@@ -1021,27 +1598,24 @@ class Code extends React.Component {
                                                     this.adjustInputWidth()
                                                     if (gVariables) {
                                                         this.updateGVariablesValue(obj.inside[i], e.target.value)
-
                                                     }
                                                     else {
                                                         this.updateVariablesValue(obj.inside[i], index, e.target.value, 0)
+                                                        
                                                     }
-                                                    this.setState((prevState) => {
-                                                        return null
-                                                    }, () => {
-                                                        this.initializeArray(obj, index, gVariables)
-                                                    })
-
-
 
 
                                                 }}
+                                                value={obj.inside[i].value}
                                             />)
                                         case ("floatInput"): return (<input />)
                                         case ("charInput"): return (<input />)
-                                        default: return obj.inside[i].hasOwnProperty("refId") ?
-                                            this.findObjectWithID(obj.inside[i].refId, index).type
-                                            : <p>{"   "}</p>
+                                        default: {
+                                            const refVer = this.findObjectWithID(obj.inside[i].refId, index)
+                                            return obj.inside[i].hasOwnProperty("refId") ?
+                                                refVer.type
+                                                : <p>{"   "}</p>
+                                        }
                                     }
                                 })()
                             }
@@ -1073,8 +1647,8 @@ class Code extends React.Component {
                                             id: this.state.id,
                                             refId: this.state.value.refId ?? null,
                                             type: this.state.value.type,
-                                            inside: this.state.value.inside,
-                                            value: this.state.value.value ?? null
+                                            inside: [{}],//this.state.value.inside,
+                                            value: 0//this.state.value.value
                                         }
                                     this.setState((prevState) => {
                                         return { id: prevState.id + 1 }
@@ -1092,10 +1666,14 @@ class Code extends React.Component {
                                                     onChange={(e) => {
                                                         this.adjustInputWidth()
                                                         if (gVariables) {
-                                                            this.updateGVariablesValue(obj, e.target.value)
+                                                            this.updateGVariablesValue(obj.inside[0], e.target.value, 0)
+                                                            this.updateEachGVariable();
+
+
                                                         }
                                                         else {
-                                                            this.updateVariablesValue(obj, index, e.target.value, 0)
+                                                            this.updateVariablesValue(obj.inside[0], index, e.target.value, 0)
+                                                            this.updateEachVariable(index)
                                                         }
                                                     }}
                                                 />)
@@ -1184,6 +1762,125 @@ class Code extends React.Component {
 
 
 
+        const viewReturn = (obj, indexF) => {
+            const divRef = React.createRef()
+            return (<div className="flex">
+                <div className="mr-4">return</div>
+                <div className="bg-slate-200 flex w-max  rounded-sm slot"
+                    ref={divRef}
+                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                    onDrop={(e) => {
+                        let data = null
+                        this.state.value.type === "arithmatic" ?
+                            data = this.state.value
+                            :
+                            data = {
+                                id: this.state.id,
+                                refId: this.state.value.refId ?? null,
+                                type: this.state.value.type,
+                                inside: this.state.value.inside,
+                                value: this.state.value.value ?? null
+                            }
+                        this.setState((prevState) => {
+                            return { id: prevState.id + 1 }
+                        })
+                        this.dropOnSlot(e, obj, data, divRef, 0)
+                    }}
+                >
+
+                    {
+                        (() => {
+                            switch (obj.inside[0].type) {
+                                case ("intInput"): return (
+                                    <input
+                                        className="w-5 bg-slate-200 autoAdjust"
+                                        onChange={(e) => {
+                                            this.adjustInputWidth()
+                                            this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
+                                        }}
+                                    />)
+                                case ("floatInput"): return (<input />)
+                                case ("charInput"): return (<input />)
+                                case ("arithmatic"): return (arithmatic(obj.inside[0]))
+                                default:
+                                    return obj.inside[0].hasOwnProperty("refId") ? (
+                                        () => {
+                                            const tmp = []
+                                            const elmnt = this.findObjectWithID(obj.inside[0].refId, indexF)
+                                            tmp.push(elmnt.type)
+
+                                            obj.inside[0].hasOwnProperty("inside") ?
+                                                obj.inside[0].inside.map((l, i) => {
+                                                    if (i > 0) {
+                                                        const divRef = React.createRef();
+                                                        tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                            ref={divRef}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                            onDrop={(e) => {
+                                                                const data = {
+                                                                    id: this.state.id,
+                                                                    refId: this.state.value.refId ?? null,
+                                                                    type: this.state.value.type,
+                                                                    inside: this.state.value.inside,
+                                                                    value: this.state.value.value ?? null
+                                                                }
+                                                                this.setState((prevState) => {
+                                                                    return { id: prevState.id + 1 }
+                                                                })
+                                                                this.dropOnSlot(e, obj.inside[0], data, divRef, i)
+                                                            }}
+                                                        >
+
+
+                                                            {
+
+                                                                (() => {
+                                                                    switch (obj.inside[0].inside[i].type) {
+                                                                        case ("intInput"): return (
+                                                                            <input
+                                                                                className="w-5 bg-slate-200 autoAdjust"
+                                                                                onChange={(e) => {
+                                                                                    this.adjustInputWidth()
+                                                                                    this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
+                                                                                }}
+                                                                            />)
+                                                                        case ("floatInput"): return (<input />)
+                                                                        case ("charInput"): return (<input />)
+                                                                        case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
+                                                                        default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                                            this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
+                                                                            : <p>{"   "}</p>
+                                                                    }
+                                                                })()
+                                                            }
+
+                                                        </div>)
+                                                        return null
+                                                    }
+                                                    else {
+                                                        return null
+                                                    }
+
+                                                }) : <p>{"   "}</p>
+
+                                            return tmp
+                                        }
+                                    )()
+                                        : <p>{"   "}</p>
+                            }
+                        })()
+                    }
+
+                </div>
+
+            </div>)
+
+        }
+
+
+
 
 
 
@@ -1217,41 +1914,86 @@ class Code extends React.Component {
                                 ref={divRef}
                                 className={`pl-2 py-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
-                                    this.handleOnDragOver(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, divRef)
+                                    }
                                 }}
                                 onDrop={(e) => {
-                                    this.handleOnDrop(e, im, indexF, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, divRef)
+                                    }
                                 }}
                                 onDragLeave={(e) => {
-                                    this.handleOnDragLeave(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, divRef)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
                                 }}>{assignment(im, indexF)}</div>;
                         case "cif":
                             return <div
                                 draggable="true"
                                 ref={divRef}
-                                className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
+                                className={`pl-2 rounded-lg  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
-                                    this.handleOnDragOver(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, divRef)
+                                    }
                                 }}
                                 onDrop={(e) => {
-                                    this.handleOnDrop(e, im, indexF, divRef)
+
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, divRef)
+                                    }
                                 }}
                                 onDragLeave={(e) => {
-                                    this.handleOnDragLeave(e, divRef)
-                                }}>{cif(im, indexF)}</div>;
+
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, divRef)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
+                                }}
+                            >{cif(im, indexF)}</div>;
                         case "celse":
                             return <div
                                 draggable="true"
                                 ref={divRef}
                                 className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
-                                    this.handleOnDragOver(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, divRef)
+                                    }
                                 }}
                                 onDrop={(e) => {
-                                    this.handleOnDrop(e, im, indexF, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, divRef)
+                                    }
                                 }}
                                 onDragLeave={(e) => {
-                                    this.handleOnDragLeave(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, divRef)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
                                 }}>{celse(im, indexF)}</div>;
                         case "cfor":
                             return <div
@@ -1259,13 +2001,27 @@ class Code extends React.Component {
                                 ref={divRef}
                                 className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
-                                    this.handleOnDragOver(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, divRef)
+                                    }
                                 }}
                                 onDrop={(e) => {
-                                    this.handleOnDrop(e, im, indexF, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, divRef)
+                                    }
                                 }}
                                 onDragLeave={(e) => {
-                                    this.handleOnDragLeave(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, divRef)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
                                 }}
                             >
                                 {cfor(im, indexF)}
@@ -1274,44 +2030,104 @@ class Code extends React.Component {
                         case "cwhile":
                             return <div
                                 ref={divRef}
+                                draggable="true"
                                 className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
-                                    this.handleOnDragOver(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, divRef)
+                                    }
                                 }}
                                 onDrop={(e) => {
-                                    this.handleOnDrop(e, im, indexF, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, divRef)
+                                    }
                                 }}
                                 onDragLeave={(e) => {
-                                    this.handleOnDragLeave(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, divRef)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
                                 }}
                             >
                                 {cwhile(im, indexF)}
+                            </div>;
+                        case "return":
+                            return <div
+                                ref={divRef}
+                                draggable="true"
+                                className={`pl-2 flex items-center min-h-10 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
+                                onDragOver={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, divRef)
+                                    }
+                                }}
+                                onDrop={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, divRef)
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, divRef)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
+                                }}
+                            >
+                                {viewReturn(im, indexF)}
                             </div>;
 
                         case "cdoWhile":
                             return <div
                                 ref={divRef}
+                                draggable="true"
                                 className={`pl-2 rounded-lg my-1 border-gray-400 border-l-2  ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
-                                    this.handleOnDragOver(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, divRef)
+                                    }
                                 }}
                                 onDrop={(e) => {
-                                    this.handleOnDrop(e, im, indexF, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, divRef)
+                                    }
                                 }}
                                 onDragLeave={(e) => {
-                                    this.handleOnDragLeave(e, divRef)
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, divRef)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
                                 }}
                             >
                                 {cdoWhile(im, indexF)}
                             </div>
                         default:
                             if (im.type[0] === '1') {
-
-
                                 return (
                                     <div
                                         id={i}
                                         ref={divRef}
+                                        draggable="true"
                                         className={`pl-2 rounded-lg my-1 border-gray-400 border-l-2  ${colorList[depth - 2]} sortable`}
                                         onDragOver={(e) => {
                                             this.handleOnDragOver(e, divRef)
@@ -1321,8 +2137,13 @@ class Code extends React.Component {
                                         }}
                                         onDragLeave={(e) => {
                                             this.handleOnDragLeave(e, divRef)
+                                        }}
+                                        onDragStart={(e) => {
+                                            e.stopPropagation()
+                                            const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                            this.handleonDragStart(data, 0)
                                         }}>
-                                        {funcCall(im, indexF)}
+                                        {funcCall(im, indexF, false)}
                                     </div>
                                 );
                             }
@@ -1339,6 +2160,11 @@ class Code extends React.Component {
                                     }}
                                     onDragLeave={(e) => {
                                         this.handleOnDragLeave(e, divRef)
+                                    }}
+                                    onDragStart={(e) => {
+                                        e.stopPropagation()
+                                        const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                        this.handleonDragStart(data, 0)
                                     }}>{variable(im, indexF, false)}</div>;
                             }
                     }
@@ -1350,13 +2176,13 @@ class Code extends React.Component {
         }
 
 
-        const funcCall = (func, indexF) => {
+        const funcCall = (func, indexF, assign) => {
             if (!func) {
                 return null;
             }
 
             return (
-                <div className=" min-h-10 py-2 flex">
+                <div className={` ${assign ? "py-0" : "py-2 min-h-10"} flex`}>
                     {func.type.slice(1)}(
                     <div className=" flex">
                         {
@@ -1385,6 +2211,7 @@ class Code extends React.Component {
                                                     this.setState((prevState) => {
                                                         return { id: prevState.id + 1 }
                                                     })
+                                                    console.log("droping in the positin:", p)
                                                     this.dropOnSlot(e, p, data, divRef, 0)
                                                 }}
                                             >
@@ -1394,8 +2221,12 @@ class Code extends React.Component {
                                                         switch (p.inside[0].type) {
                                                             case ("intInput"): return (
                                                                 <input
-                                                                    className="w-5 bg-slate-200 autoAdjust"
-                                                                    onChange={(e) => { this.adjustInputWidth() }}
+                                                                    className="min-w-5 bg-slate-200 autoAdjust"
+                                                                    onChange={(e) => {
+                                                                        this.adjustInputWidth()
+                                                                        this.updateVariablesValue(p.inside[0], indexF, e.target.value)
+                                                                    }}
+                                                                    value={p.inside[0].value}
                                                                 />)
                                                             case ("floatInput"): return (<input />)
                                                             case ("charInput"): return (<input />)
@@ -1431,27 +2262,45 @@ class Code extends React.Component {
                 className="bg-slate-200 my-1 mr-0  min-h-5 sortable"
                 ref={divRef}
                 onDragOver={(e) => {
-                    this.handleOnDragOver(e, divRef)
+                    if (this.state.value.elementType === "variableBtn") {
+                        this.handleOnDragOver(e, divRef)
+                    }
                 }}
                 onDrop={(e) => {
-                    this.dropOnGVariables(e, null, divRef, true) //empty=true as empty section
+                    if (this.state.value.elementType === "variableBtn") {
+                        this.dropOnGVariables(e, null, divRef, true) //empty=true as empty section
+                    }
                 }}
                 onDragLeave={(e) => {
-                    this.handleOnDragLeave(e, divRef)
+                    if (this.state.value.elementType === "variableBtn") {
+                        this.handleOnDragLeave(e, divRef)
+                    }
                 }}>
                 {this.state.gVariables.inside.map((v, i) => {
                     const divRef = React.createRef();
                     return (<div
                         className="bg-blue-200 pl-2 rounded-lg my-1  border-gray-400 border-l-2 sortable"
                         ref={divRef}
+                        draggable="true"
                         onDragOver={(e) => {
-                            this.handleOnDragOver(e, divRef)
+                            if (this.state.value.elementType === "variableBtn") {
+                                this.handleOnDragOver(e, divRef)
+                            }
                         }}
                         onDrop={(e) => {
-                            this.dropOnGVariables(e, i, divRef, false) //empty=false as non empty section
+                            if (this.state.value.elementType === "variableBtn") {
+                                this.dropOnGVariables(e, i, divRef, false) //empty=false as non empty section
+                            }
                         }}
                         onDragLeave={(e) => {
-                            this.handleOnDragLeave(e, divRef)
+                            if (this.state.value.elementType === "variableBtn") {
+                                this.handleOnDragLeave(e, divRef)
+                            }
+                        }}
+                        onDragStart={(e) => {
+                            e.stopPropagation()
+                            const data = { id: v.id, indexF: null, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                            this.handleonDragStart(data, 0)
                         }}>
                         {variable(v, i, true)}
                     </div>)
@@ -1465,27 +2314,51 @@ class Code extends React.Component {
                 className="bg-slate-200 my-1 mr-0  min-h-5 "
                 ref={divRef}
                 onDragOver={(e) => {
-                    this.handleOnDragOver(e, divRef)
+                    if (this.state.value.elementType === "header") {
+                        this.handleOnDragOver(e, divRef)
+
+                    }
                 }}
                 onDrop={(e) => {
-                    this.dropOnHeaders(e, null, divRef, true) //empty=true as empty section
+                    if (this.state.value.elementType === "header") {
+                        this.dropOnHeaders(e, null, divRef, true) //empty=true as empty section
+
+                    }
                 }}
                 onDragLeave={(e) => {
-                    this.handleOnDragLeave(e, divRef)
+                    if (this.state.value.elementType === "header") {
+                        this.handleOnDragLeave(e, divRef)
+
+                    }
                 }}>
                 {this.state.cheaders.map((h, i) => {
                     const divRef = React.createRef();
                     return (<div
                         className=" flex items-center bg-blue-200 pl-2 rounded-lg my-1 min-h-10  border-gray-400 border-l-2 sortable"
                         ref={divRef}
+                        draggable="true"
                         onDragOver={(e) => {
-                            this.handleOnDragOver(e, divRef)
+                            if (this.state.value.elementType === "header") {
+                                this.handleOnDragOver(e, divRef)
+
+                            }
                         }}
                         onDrop={(e) => {
-                            this.dropOnHeaders(e, i, divRef, false) //empty=false as non empty section
+                            if (this.state.value.elementType === "header") {
+                                this.dropOnHeaders(e, i, divRef, false) //empty=false as non empty section
+
+                            }
                         }}
                         onDragLeave={(e) => {
-                            this.handleOnDragLeave(e, divRef)
+                            if (this.state.value.elementType === "header") {
+                                this.handleOnDragLeave(e, divRef)
+
+                            }
+                        }}
+                        onDragStart={(e) => {
+                            e.stopPropagation()
+                            const data = { id: h.id, indexF: null, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                            this.handleonDragStart(data, 0)
                         }}>
                         {<p>#include &lt;{h.type}&gt;</p>}
                     </div>)
@@ -1499,29 +2372,50 @@ class Code extends React.Component {
                 className="bg-slate-200 my-1 mr-0 min-h-5 sortable"
                 ref={divRef}
                 onDragOver={(e) => {
-                    this.handleOnDragOver(e, divRef)
+                    if (this.state.value.elementType === "defineBtn") {
+                        this.handleOnDragOver(e, divRef)
+
+                    }
                 }}
                 onDrop={(e) => {
-                    this.dropOnDefine(e, null, divRef, true) //empty=true as empty section
+                    if (this.state.value.elementType === "defineBtn") {
+                        this.dropOnDefine(e, null, divRef, true) //empty=true as empty section
+
+                    }
                 }}
                 onDragLeave={(e) => {
-                    this.handleOnDragLeave(e, divRef)
+                    if (this.state.value.elementType === "defineBtn") {
+                        this.handleOnDragLeave(e, divRef)
+
+                    }
                 }}>
-                {this.state.defines.map((d, i) => {
+                {this.state.defines.inside.map((d, i) => {
                     const divRef = React.createRef();
 
                     return (
                         <div
                             className="bg-blue-200 pl-2 rounded-lg my-1  border-gray-400 border-l-2 sortable"
                             ref={divRef}
+                            draggable="true"
                             onDragOver={(e) => {
-                                this.handleOnDragOver(e, divRef)
+                                if (this.state.value.elementType === "defineBtn") {
+                                    this.handleOnDragOver(e, divRef)
+                                }
                             }}
                             onDrop={(e) => {
-                                this.dropOnDefine(e, i, divRef, false) //empty=false as non empty section
+                                if (this.state.value.elementType === "defineBtn") {
+                                    this.dropOnDefine(e, i, divRef, false) //empty=false as non empty section
+                                }
                             }}
                             onDragLeave={(e) => {
-                                this.handleOnDragLeave(e, divRef)
+                                if (this.state.value.elementType === "defineBtn") {
+                                    this.handleOnDragLeave(e, divRef)
+                                }
+                            }}
+                            onDragStart={(e) => {
+                                e.stopPropagation()
+                                const data = { id: d.id, indexF: null, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                this.handleonDragStart(data, 0)
                             }}>
 
                             #define
@@ -1533,16 +2427,25 @@ class Code extends React.Component {
                                 }}
                                 value={d.type}
                                 className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                                draggable="true"
+                                onDragStart={() => {
+                                    const data = { id: this.state.id, refId: d.id, dataType: d.dataType, type: d.type, value: d.value, inside: d.inside, indicator: false, elementType: "variable" }
+
+                                    console.log("Dataaaa:", data)
+                                    this.handleonDragStart(data, 1)
+                                }}
                             />
                             <input
                                 onChange={(e) => {
                                     this.floatValue(e);
                                     this.adjustInputWidth(e);
                                     this.updateDefinesValue(e, i)
+
                                 }}
                                 value={d.value}
                                 className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
                             />
+
                             ;
 
                         </div>
@@ -1558,13 +2461,19 @@ class Code extends React.Component {
                 <div className="bg-slate-200 my-1 mr-0  min-h-5 sortable"
                     ref={divRef}
                     onDragOver={(e) => {
-                        this.handleOnDragOver(e, divRef)
+                        if (this.state.value.elementType === "functionBtn") {
+                            this.handleOnDragOver(e, divRef)
+                        }
                     }}
                     onDrop={(e) => {
-                        this.dropOnSubP(e, null, divRef, true) //empty=true as empty section
+                        if (this.state.value.elementType === "functionBtn") {
+                            this.dropOnSubP(e, null, divRef, true) //empty=true as empty section
+                        }
                     }}
                     onDragLeave={(e) => {
-                        this.handleOnDragLeave(e, divRef)
+                        if (this.state.value.elementType === "functionBtn") {
+                            this.handleOnDragLeave(e, divRef)
+                        }
                     }}>
                     {this.state.functions.inside.map((f, index) => {
                         const divRef = React.createRef()
@@ -1574,14 +2483,26 @@ class Code extends React.Component {
                                     id={f.id}
                                     className="bg-blue-200 rounded-lg my-1  border-gray-400 border-l-2 sortable"
                                     ref={divRef}
+                                    draggable="true"
                                     onDragOver={(e) => {
-                                        this.handleOnDragOver(e, divRef)
+                                        if (this.state.value.elementType === "functionBtn") {
+                                            this.handleOnDragOver(e, divRef)
+                                        }
                                     }}
                                     onDrop={(e) => {
-                                        this.dropOnSubP(e, index, divRef, false) //empty=false as non empty section
+                                        if (this.state.value.elementType === "functionBtn") {
+                                            this.dropOnSubP(e, index, divRef, false) //empty=false as non empty section
+                                        }
                                     }}
                                     onDragLeave={(e) => {
-                                        this.handleOnDragLeave(e, divRef)
+                                        if (this.state.value.elementType === "functionBtn") {
+                                            this.handleOnDragLeave(e, divRef)
+                                        }
+                                    }}
+                                    onDragStart={(e) => {
+                                        e.stopPropagation()
+                                        const data = { id: f.id, indexF: null, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                        this.handleonDragStart(data, 0)
                                     }}
                                 >
                                     {subP(f.id)}
@@ -1595,7 +2516,6 @@ class Code extends React.Component {
 
         const subP = (id) => {
             const obj = this.state.functions.inside.find((obj) => obj.id === id);
-            console.log("function obj:", obj)
             const index = this.state.functions.inside.indexOf(obj);
             const divRef = React.createRef();
             return (
@@ -1616,7 +2536,7 @@ class Code extends React.Component {
                             ></input>
                             {"("}
                             <div
-                                className="bg-blue-200 rounded-lg  min-w-4  sortable"
+                                className="bg-blue-200 rounded-lg  min-w-5 min-h-4  sortable"
                                 ref={divRef}
                                 onDragOver={(e) => {
                                     this.handleOnDragOver(e, divRef)
@@ -1673,23 +2593,36 @@ class Code extends React.Component {
                             </div>
                             {") {"}
                         </div>
-                        <div className="bg-slate-200 ml-4 mr-0 min-h-4"
-                            ref={divRef}
-                            onDragOver={(e) => {
-                                this.handleOnDragOver(e, divRef)
-                            }}
-                            onDrop={(e) => {
-                                this.handleOnDrop(e, obj, index, divRef, true)
-                            }}
-                            onDragLeave={(e) => {
-                                this.handleOnDragLeave(e, divRef)
-                            }}
-                        >
+                        {(() => {
+                            const divRef = React.createRef()
+                            return (<div className="bg-slate-200 ml-4 mr-0 min-h-4"
+                                ref={divRef}
+                                onDragOver={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, divRef)
+                                    }
+                                }}
+                                onDrop={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, obj, index, divRef, true)
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, divRef)
+                                    }
+                                }}
+                            >
 
-                            {
-                                showInside(obj, index, obj.NumberOfParams)    //show the elements inside subP
-                            }
-                        </div>
+                                {
+                                    showInside(obj, index, obj.NumberOfParams)    //show the elements inside subP
+                                }
+                            </div>)
+                        })()}
+
                         <p>{"}"}</p>
                     </code>
                 </div>
@@ -1698,7 +2631,7 @@ class Code extends React.Component {
 
 
         const conditional = (obj, indexF) => {
-            console.log("objecthgoottt:", obj)
+            console.log("Conditional object got:", this.state)
             const divRef = React.createRef()
             return (<div className="flex">
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
@@ -1716,84 +2649,104 @@ class Code extends React.Component {
                         this.setState((prevState) => {
                             return { id: prevState.id + 1 }
                         })
+                        console.log("Dropped with the values:", obj, data, this.state.value)
                         this.dropOnSlot(e, obj, data, divRef, 0)
                     }}
                 >
 
                     {
                         (() => {
-                            switch (obj.inside[0].type) {
-                                case ("intInput"): return (
-                                    <input
-                                        className="w-5 bg-slate-200 autoAdjust"
-                                        onChange={(e) => { this.adjustInputWidth() }}
-                                    />)
-                                case ("floatInput"): return (<input />)
-                                case ("charInput"): return (<input />)
-                                case ("arithmatic"): return (arithmatic(obj.inside[0]))
-                                default: return obj.inside[0].hasOwnProperty("refId") ? (
-                                    () => {
-                                        const tmp = []
-                                        const elmnt = this.findObjectWithID(obj.inside[0].refId, indexF)
-                                        tmp.push(elmnt.type)
+                            if (obj.inside[0] && obj.inside[0].hasOwnProperty("type")) {
+                                switch (obj.inside[0].type) {
+                                    case ("intInput"): return (
+                                        <input
+                                            className="w-5 bg-slate-200 autoAdjust"
+                                            onChange={(e) => {
+                                                this.adjustInputWidth()
+                                                this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
+                                            }}
+                                            value={obj.inside[0].value}
+                                        />)
+                                    case ("floatInput"): return (<input />)
+                                    case ("charInput"): return (<input />)
+                                    case ("arithmatic"): return (arithmatic(obj.inside[0]))
+                                    default: return obj.inside[0].hasOwnProperty("refId") ? (
+                                        () => {
+                                            const tmp = []
+                                            const elmnt = this.findObjectWithID(obj.inside[0].refId, indexF)
+                                            console.log("dfskkf skjfhskhfksdhfshfdksfks dkdf:", obj.inside[0], elmnt)
+                                            tmp.push(elmnt.type)
 
-                                        obj.inside[0].hasOwnProperty("inside") ?
-                                            obj.inside[0].inside.map((l, i) => {
-                                                const divRef = React.createRef();
-                                                tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                    ref={divRef}
-                                                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
-                                                    onDrop={(e) => {
-                                                        const data = {
-                                                            id: this.state.id,
-                                                            refId: this.state.value.refId ?? null,
-                                                            type: this.state.value.type,
-                                                            inside: this.state.value.inside,
-                                                            value: this.state.value.value ?? null
-                                                        }
-                                                        this.setState((prevState) => {
-                                                            return { id: prevState.id + 1 }
-                                                        })
-                                                        this.dropOnSlot(e, obj.inside[0], data, divRef, i)
-                                                    }}
-                                                >
+                                            obj.inside[0].hasOwnProperty("inside") ?
+                                                obj.inside[0].inside.map((l, i) => {
+                                                    if (i > 0) {
+                                                        const divRef = React.createRef();
+                                                        tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                            ref={divRef}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                            onDrop={(e) => {
+                                                                const data = {
+                                                                    id: this.state.id,
+                                                                    refId: this.state.value.refId ?? null,
+                                                                    type: this.state.value.type,
+                                                                    inside: this.state.value.inside,
+                                                                    value: this.state.value.value ?? null
+                                                                }
+                                                                this.setState((prevState) => {
+                                                                    return { id: prevState.id + 1 }
+                                                                })
+                                                                this.dropOnSlot(e, obj.inside[0], data, divRef, i)
+                                                            }}
+                                                        >
 
 
-                                                    {
+                                                            {
 
-                                                        (() => {
-                                                            switch (obj.inside[0].inside[i].type) {
-                                                                case ("intInput"): return (
-                                                                    <input
-                                                                        className="w-5 bg-slate-200 autoAdjust"
-                                                                        onChange={(e) => { this.adjustInputWidth() }}
-                                                                    />)
-                                                                case ("floatInput"): return (<input />)
-                                                                case ("charInput"): return (<input />)
-                                                                case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
-                                                                default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
-                                                                    this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
-                                                                    : <p>{"   "}</p>
+                                                                (() => {
+                                                                    switch (obj.inside[0].inside[i].type) {
+                                                                        case ("intInput"): return (
+                                                                            <input
+                                                                                className="w-5 bg-slate-200 autoAdjust"
+                                                                                onChange={(e) => {
+                                                                                    this.adjustInputWidth()
+                                                                                    this.updateVariablesValue(obj.inside[0].inside[i], indexF, e.target.value)
+                                                                                }}
+                                                                            />)
+                                                                        case ("floatInput"): return (<input />)
+                                                                        case ("charInput"): return (<input />)
+                                                                        case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
+                                                                        default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                                            this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
+                                                                            : <p>{"   "}</p>
+                                                                    }
+                                                                })()
                                                             }
-                                                        })()
+
+                                                        </div>)
+
                                                     }
+                                                    return null
+                                                }) : <p>{"   "}</p>
 
-                                                </div>)
-                                                return null
-                                            }) : <p>{"   "}</p>
-
-                                        return tmp
-                                    }
-                                )()
-                                    : <p>{"   "}</p>
+                                            return tmp
+                                        }
+                                    )()
+                                        : <p>{"   "}</p>
+                                }
                             }
                         })()
                     }
 
 
                 </div>
-                <select className="appearance-none bg-slate-200">
+                <select
+                    className="appearance-none bg-slate-200"
+                    onChange={(e) => {
+                        this.updateSign(e, obj, indexF)
+                    }}
+                    value={this.findObjectWithID(obj, indexF)}
+                >
                     <option>{'=='}</option>
                     <option>{'<='}</option>
                     <option>{'>='}</option>
@@ -1823,71 +2776,83 @@ class Code extends React.Component {
 
                     {
                         (() => {
-                            switch (obj.inside[1].type) {
-                                case ("intInput"): return (
-                                    <input
-                                        className="w-5 bg-slate-200 autoAdjust"
-                                        onChange={(e) => { this.adjustInputWidth() }}
-                                    />)
-                                case ("floatInput"): return (<input />)
-                                case ("charInput"): return (<input />)
-                                case ("arithmatic"): return (arithmatic(obj.inside[1]))
-                                default: return obj.inside[1].hasOwnProperty("refId") ? (
-                                    () => {
-                                        const tmp = []
-                                        const elmnt = this.findObjectWithID(obj.inside[1].refId, indexF)
-                                        tmp.push(elmnt.type)
+                            if (obj.inside[1] && obj.inside[1].hasOwnProperty("type")) {
+                                switch (obj.inside[1].type) {
+                                    case ("intInput"): return (
+                                        <input
+                                            className="w-5 bg-slate-200 autoAdjust"
+                                            onChange={(e) => {
+                                                this.adjustInputWidth()
+                                                this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)
+                                            }}
+                                            value={obj.inside[1].value}
+                                        />)
+                                    case ("floatInput"): return (<input />)
+                                    case ("charInput"): return (<input />)
+                                    case ("arithmatic"): return (arithmatic(obj.inside[1]))
+                                    default: return obj.inside[1].hasOwnProperty("refId") ? (
+                                        () => {
+                                            const tmp = []
+                                            const elmnt = this.findObjectWithID(obj.inside[1].refId, indexF)
+                                            tmp.push(elmnt.type)
 
-                                        obj.inside[1].hasOwnProperty("inside") ?
-                                            obj.inside[1].inside.map((l, i) => {
-                                                const divRef = React.createRef();
-                                                tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                    ref={divRef}
-                                                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
-                                                    onDrop={(e) => {
-                                                        const data = {
-                                                            id: this.state.id,
-                                                            refId: this.state.value.refId ?? null,
-                                                            type: this.state.value.type,
-                                                            inside: this.state.value.inside,
-                                                            value: this.state.value.value ?? null
-                                                        }
-                                                        this.setState((prevState) => {
-                                                            return { id: prevState.id + 1 }
-                                                        })
-                                                        this.dropOnSlot(e, obj.inside[1], data, divRef, i)
-                                                    }}
-                                                >
+                                            obj.inside[1].hasOwnProperty("inside") ?
+                                                obj.inside[1].inside.map((l, i) => {
+                                                    if (i > 0) {
+                                                        const divRef = React.createRef();
+                                                        tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                            ref={divRef}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                            onDrop={(e) => {
+                                                                const data = {
+                                                                    id: this.state.id,
+                                                                    refId: this.state.value.refId ?? null,
+                                                                    type: this.state.value.type,
+                                                                    inside: this.state.value.inside,
+                                                                    value: this.state.value.value ?? null
+                                                                }
+                                                                this.setState((prevState) => {
+                                                                    return { id: prevState.id + 1 }
+                                                                })
+                                                                this.dropOnSlot(e, obj.inside[1], data, divRef, i)
+                                                            }}
+                                                        >
 
 
-                                                    {
+                                                            {
 
-                                                        (() => {
-                                                            switch (obj.inside[1].inside[i].type) {
-                                                                case ("intInput"): return (
-                                                                    <input
-                                                                        className="w-5 bg-slate-200 autoAdjust"
-                                                                        onChange={(e) => { this.adjustInputWidth() }}
-                                                                    />)
-                                                                case ("floatInput"): return (<input />)
-                                                                case ("charInput"): return (<input />)
-                                                                case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
-                                                                default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
-                                                                    this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
-                                                                    : <p>{"   "}</p>
+                                                                (() => {
+                                                                    switch (obj.inside[1].inside[i].type) {
+                                                                        case ("intInput"): return (
+                                                                            <input
+                                                                                className="w-5 bg-slate-200 autoAdjust"
+                                                                                onChange={(e) => {
+                                                                                    this.adjustInputWidth()
+                                                                                    this.updateVariablesValue(obj.inside[1].inside[i], indexF, e.target.value)
+                                                                                }}
+                                                                            />)
+                                                                        case ("floatInput"): return (<input />)
+                                                                        case ("charInput"): return (<input />)
+                                                                        case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
+                                                                        default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
+                                                                            this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
+                                                                            : <p>{"   "}</p>
+                                                                    }
+                                                                })()
                                                             }
-                                                        })()
+
+                                                        </div>)
                                                     }
 
-                                                </div>)
-                                                return null
-                                            }) : <p>{"   "}</p>
+                                                    return null
+                                                }) : <p>{"   "}</p>
 
-                                        return tmp
-                                    }
-                                )()
-                                    : <p>{"   "}</p>
+                                            return tmp
+                                        }
+                                    )()
+                                        : <p>{"   "}</p>
+                                }
                             }
                         })()
                     }
@@ -2010,7 +2975,11 @@ class Code extends React.Component {
                     }
 
                 </div>
-                <select className="appearance-none bg-slate-200 px-1 ">
+                <select className="appearance-none bg-slate-200 px-1 "
+                    onChange={(e) => {
+                        this.updateSign(e, obj, indexF)
+                    }}
+                >
                     <option>{'+'}</option>
                     <option>{'-'}</option>
                     <option>{'*'}</option>
@@ -2137,8 +3106,14 @@ class Code extends React.Component {
             return (<div className="flex ">
                 <div className="bg-slate-200 flex w-max min-w-4  rounded-sm slot"
                     ref={divRef}
-                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                    onDragOver={(e) => {
+                        this.handleOnDragOver(e, divRef)
+
+                    }}
+                    onDragLeave={(e) => {
+                        this.handleOnDragLeave(e, divRef)
+
+                    }}
                     onDrop={(e) => {
                         const ins = []
                         let inc = 1
@@ -2158,6 +3133,7 @@ class Code extends React.Component {
                         }
                         this.setState((prevState) => ({ id: prevState.id + inc }))
                         this.dropOnSlot(e, obj, data, divRef, 0)
+
                     }}
                 >
 
@@ -2221,7 +3197,12 @@ class Code extends React.Component {
                             }) : <p>{"   "}</p>}
 
                 </div>
-                <select className="appearance-none bg-slate-200 px-1 ">
+                <select className="appearance-none bg-slate-200 px-1 "
+                    onChange={(e) => {
+                        this.updateSign(e, obj, indexF)
+                    }}
+                    value={this.findObjectWithID(obj, indexF)}
+                >
                     <option>{'='}</option>
                     <option>{'+='}</option>
                     <option>{'-='}</option>
@@ -2236,7 +3217,7 @@ class Code extends React.Component {
                     onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                     onDrop={(e) => {
                         let data = null
-                        this.state.value.type === "arithmatic" ?
+                        this.state.value.type === "arithmatic" || this.state.value.elementType === "function" ?
                             data = this.state.value
                             :
                             data = {
@@ -2247,7 +3228,7 @@ class Code extends React.Component {
                                 value: this.state.value.value ?? null
                             }
                         this.setState((prevState) => {
-                            return { id: prevState.id + 1 }
+                            return { id: prevState.id + 10 }
                         })
                         this.dropOnSlot(e, obj, data, divRef, 1)
                     }}
@@ -2267,65 +3248,72 @@ class Code extends React.Component {
                                 case ("floatInput"): return (<input />)
                                 case ("charInput"): return (<input />)
                                 case ("arithmatic"): return (arithmatic(obj.inside[1]))
-                                default: return obj.inside[1].hasOwnProperty("refId") ? (
-                                    () => {
-                                        const tmp = []
-                                        const elmnt = this.findObjectWithID(obj.inside[1].refId, indexF)
-                                        tmp.push(elmnt.type)
-
-                                        obj.inside[1].hasOwnProperty("inside") ?
-                                            obj.inside[1].inside.map((l, i) => {
-                                                const divRef = React.createRef();
-                                                tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                    ref={divRef}
-                                                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
-                                                    onDrop={(e) => {
-                                                        const data = {
-                                                            id: this.state.id,
-                                                            refId: this.state.value.refId ?? null,
-                                                            type: this.state.value.type,
-                                                            inside: this.state.value.inside,
-                                                            value: this.state.value.value ?? null
-                                                        }
-                                                        this.setState((prevState) => {
-                                                            return { id: prevState.id + 1 }
-                                                        })
-                                                        this.dropOnSlot(e, obj.inside[1], data, divRef, i)
-                                                    }}
-                                                >
-
-
-                                                    {
-
-                                                        (() => {
-                                                            switch (obj.inside[1].inside[i].type) {
-                                                                case ("intInput"): return (
-                                                                    <input
-                                                                        className="w-5 bg-slate-200 autoAdjust"
-                                                                        onChange={(e) => {
-                                                                            this.adjustInputWidth()
-                                                                            this.updateVariablesValue(obj.inside[1].inside[i], indexF, e.target.value, 0)
-                                                                        }}
-                                                                    />)
-                                                                case ("floatInput"): return (<input />)
-                                                                case ("charInput"): return (<input />)
-                                                                case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
-                                                                default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
-                                                                    this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
-                                                                    : <p>{"   "}</p>
-                                                            }
-                                                        })()
-                                                    }
-
-                                                </div>)
-                                                return null
-                                            }) : <p>{"   "}</p>
-
-                                        return tmp
+                                default:
+                                    if (obj.inside[1].elementType === "function") {
+                                        return funcCall(obj.inside[1], indexF, true)
                                     }
-                                )()
-                                    : <p>{"   "}</p>
+                                    else {
+                                        return obj.inside[1].hasOwnProperty("refId") ? (
+                                            () => {
+                                                const tmp = []
+                                                const elmnt = this.findObjectWithID(obj.inside[1].refId, indexF)
+                                                tmp.push(elmnt.type)
+
+                                                obj.inside[1].hasOwnProperty("inside") ?
+                                                    obj.inside[1].inside.map((l, i) => {
+                                                        const divRef = React.createRef();
+                                                        tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                            ref={divRef}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, divRef)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                            onDrop={(e) => {
+                                                                const data = {
+                                                                    id: this.state.id,
+                                                                    refId: this.state.value.refId ?? null,
+                                                                    type: this.state.value.type,
+                                                                    inside: this.state.value.inside,
+                                                                    value: this.state.value.value ?? null
+                                                                }
+                                                                this.setState((prevState) => {
+                                                                    return { id: prevState.id + 1 }
+                                                                })
+                                                                this.dropOnSlot(e, obj.inside[1], data, divRef, i)
+                                                            }}
+                                                        >
+
+
+                                                            {
+
+                                                                (() => {
+                                                                    switch (obj.inside[1].inside[i].type) {
+                                                                        case ("intInput"): return (
+                                                                            <input
+                                                                                className="w-5 bg-slate-200 autoAdjust"
+                                                                                onChange={(e) => {
+                                                                                    this.adjustInputWidth()
+                                                                                    this.updateVariablesValue(obj.inside[1].inside[i], indexF, e.target.value, 0)
+                                                                                }}
+                                                                            />)
+                                                                        case ("floatInput"): return (<input />)
+                                                                        case ("charInput"): return (<input />)
+                                                                        case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i]))
+                                                                        default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
+                                                                            this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
+                                                                            : <p>{"   "}</p>
+                                                                    }
+                                                                })()
+                                                            }
+
+                                                        </div>)
+                                                        return null
+                                                    }) : <p>{"   "}</p>
+
+                                                return tmp
+                                            }
+                                        )()
+                                            : <p>{"   "}</p>
+                                    }
+
                             }
                         })()
                     }
@@ -2350,13 +3338,22 @@ class Code extends React.Component {
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
                         ref={divRef}
                         onDragOver={(e) => {
-                            this.handleOnDragOver(e, divRef)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragOver(e, divRef)
+                            }
                         }}
                         onDrop={(e) => {
-                            this.handleOnDrop(e, obj, indexF, divRef, true)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDrop(e, obj, indexF, divRef, true)
+                            }
                         }}
                         onDragLeave={(e) => {
-                            this.handleOnDragLeave(e, divRef)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragLeave(e, divRef)
+                            }
                         }}>
                         {showInside(obj, indexF, 1)}
                     </div>
@@ -2373,13 +3370,22 @@ class Code extends React.Component {
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
                         ref={divRef}
                         onDragOver={(e) => {
-                            this.handleOnDragOver(e, divRef)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragOver(e, divRef)
+                            }
                         }}
                         onDrop={(e) => {
-                            this.handleOnDrop(e, obj, indexF, divRef, true)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDrop(e, obj, indexF, divRef, true)
+                            }
                         }}
                         onDragLeave={(e) => {
-                            this.handleOnDragLeave(e, divRef)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragLeave(e, divRef)
+                            }
                         }}>
                         {showInside(obj, indexF, 0)}
                     </div>
@@ -2406,13 +3412,22 @@ class Code extends React.Component {
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
                         ref={divRef}
                         onDragOver={(e) => {
-                            this.handleOnDragOver(e, divRef)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragOver(e, divRef)
+                            }
                         }}
                         onDrop={(e) => {
-                            this.handleOnDrop(e, obj, indexF, divRef, true)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDrop(e, obj, indexF, divRef, true)
+                            }
                         }}
                         onDragLeave={(e) => {
-                            this.handleOnDragLeave(e, divRef)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragLeave(e, divRef)
+                            }
                         }}>
                         {showInside(obj, indexF, 3)}
                     </div>
@@ -2436,13 +3451,22 @@ class Code extends React.Component {
                     <div className="bg-slate-200 my-1 ml-5 mr-0 min-h-5"
                         ref={divRef}
                         onDragOver={(e) => {
-                            this.handleOnDragOver(e, divRef)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragOver(e, divRef)
+                            }
                         }}
                         onDrop={(e) => {
-                            this.handleOnDrop(e, obj, indexF, divRef, true)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDrop(e, obj, indexF, divRef, true)
+                            }
                         }}
                         onDragLeave={(e) => {
-                            this.handleOnDragLeave(e, divRef)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragLeave(e, divRef)
+                            }
                         }}>
                         {showInside(obj, indexF, 1)}
                     </div>
@@ -2460,13 +3484,22 @@ class Code extends React.Component {
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
                         ref={divRef}
                         onDragOver={(e) => {
-                            this.handleOnDragOver(e, divRef)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragOver(e, divRef)
+                            }
                         }}
                         onDrop={(e) => {
-                            this.handleOnDrop(e, obj, indexF, divRef, true)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDrop(e, obj, indexF, divRef, true)
+                            }
                         }}
                         onDragLeave={(e) => {
-                            this.handleOnDragLeave(e, divRef)
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragLeave(e, divRef)
+                            }
                         }}>
                         {showInside(obj, indexF, 1)}
                     </div>
@@ -2480,451 +3513,420 @@ class Code extends React.Component {
                 </div>
             )
         }
+
         /*
-        const showVariables = () => {
-            const vars = []
-            const obj = cloneDeep(this.state.functions)
-            const findVars = (obj) => {
-                obj.inside.forEach((element) => {
-                    if (element.elementType === "variable") {
-                        vars.push(<button draggable="true" onDragStart={() => { this.handleonDragStart(element.type, element.value, element.id) }}>{element.dataType} {element.type}</button>)
-                    }
-                    else if (element.hasOwnProperty("inside")) {
-                        if (element.inside.length < 1) {
-                            return;
-                        }
-                        else {
-                            findVars(element)
-                        }
-                    }
-                })
-
-            }
-
-            findVars(obj)
-            return vars
-        }
+        ********************************************************************************************************************************
         */
-        /**********************************************************************************************************************************/
+        const inputField = (id) => { return { id: id, refId: null, dataType: "int", type: "intInput", value: 0, inside: [], indicator: false, elementType: "inputField" } }
 
-        const assign = (id) => { return { id: id, type: "assignment", sign: "=", inside: [{}, {}], indicator: false, elementType: "assignment" } }
-        const condition = (id) => { return { id: id, type: "conditional", sign: "==", inside: [{}, {}], indicator: false, elementType: "conditional" } }
+        const assign = (id) => { return { id: id, type: "assignment", sign: "=", inside: [{}, inputField(id + 2)], indicator: false, elementType: "assignment" } }
+        const condition = (id) => { return { id: id, type: "conditional", sign: "==", inside: [inputField(id + 1), inputField(id + 2)], indicator: false, elementType: "conditional" } }
 
         return (
             <div className="bg-slate-700  flex">
-                <div className=" p-5  bg-slate-400 w-1/4 h-screen overflow-y-auto no-scrollbar" >
-                    {/*headers */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showHeaderlist: !prevState.showHeaderlist }))}>
-                                {this.state.showHeaderlist ? '-' : '+'}
-                            </button>
-                            <div className="inline">Headers</div>
-                        </div>
-                        {
-                            this.state.showHeaderlist && (
-                                <div className="ml-4 flex flex-wrap declareVariable">
-                                    {this.state.headers.map((h, i) => {
-                                        const data = { id: this.state.id, type: h, inside: [], indicator: false, elementType: "header" }
-                                        return (<button draggable="true"
-                                            className="bg-sky-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                this.handleonDragStart(data, 1)
-                                            }}>{h}</button>)
-                                    })}
+                {!this.state.showOutput && (
+                    <div className=" p-5  bg-slate-400 w-1/4 h-screen overflow-y-auto no-scrollbar" >
+                        {/*headers */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showHeaderlist: !prevState.showHeaderlist }))}>
+                                    {this.state.showHeaderlist ? '-' : '+'}
+                                </button>
+                                <div className="inline">Headers</div>
+                            </div>
+                            {
+                                this.state.showHeaderlist && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        {this.state.headers.map((h, i) => {
+                                            const data = { id: this.state.id, type: h, inside: [], indicator: false, elementType: "header" }
+                                            return (<button draggable="true"
+                                                className="bg-sky-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    this.handleonDragStart(data, 1)
+                                                }}>{h}</button>)
+                                        })}
 
-                                </div>
-                            )
-                        }
-                    </div>
-                    {/*Define section*/}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showDefineSection: !prevState.showDefineSection }))}>
-                                {this.state.showDefineSection ? '-' : '+'}
-                            </button>
-                            <div className="inline">Define</div>
+                                    </div>
+                                )
+                            }
                         </div>
-                        {
-                            this.state.showDefineSection && (
-                                <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true"
-                                        className="bg-cyan-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={
-                                            () => {
-                                                const data = { id: this.state.id, type: "def" + this.state.id, value: null, inside: [], indicator: false, elementType: "defineBtn" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>define</button>
-                                    {this.state.defines.map((d) =>
-                                    (
+                        {/*Define section*/}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showDefineSection: !prevState.showDefineSection }))}>
+                                    {this.state.showDefineSection ? '-' : '+'}
+                                </button>
+                                <div className="inline">Define</div>
+                            </div>
+                            {
+                                this.state.showDefineSection && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
                                         <button draggable="true"
                                             className="bg-cyan-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                const data = { id: this.state.id, type: d.type, value: d.value, inside: [], indicator: false, elementType: "define" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>{d.type}</button>
-                                    )
-                                    )}
-                                </div>
-                            )
-                        }
-                    </div>
-                    {/*variables */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showDeclareVariable: !prevState.showDeclareVariable }))}>
-                                {this.state.showDeclareVariable ? '-' : '+'}
-                            </button>
-                            <div className="inline">Variable declaration</div>
-                        </div>
-                        {
-                            this.state.showDeclareVariable && (
-                                <div >
-                                    <div className="ml-4 flex declareVariable">
-                                        <button draggable="true"
-                                            className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variable" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>int</button>
-                                        <button draggable="true"
-                                            className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variable" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>int[]</button>
-                                        <button draggable="true"
-                                            className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variable" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>int[][]</button>
-                                    </div>
-                                    <div className="ml-4 flex declareVariable">
-                                        <button draggable="true"
-                                            className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variable" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>float</button>
-                                        <button draggable="true"
-                                            className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variable" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>float[]</button>
-                                        <button draggable="true"
-                                            className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variable" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>float[][]</button>
-                                    </div>
-                                    <div className="ml-4 flex declareVariable">
-                                        <button draggable="true"
-                                            className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variable" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>char</button>
-                                        <button draggable="true"
-                                            className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variable" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>char[]</button>
-                                        <button draggable="true"
-                                            className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                            onDragStart={() => {
-                                                const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variable" }
-                                                this.handleonDragStart(data, 1)
-                                            }}>char[][]</button>
-                                    </div>
-                                </div>
-                            )
-                        }
-                    </div>
-                    {/*constant */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showInputFields: !prevState.showInputFields }))}>
-                                {this.state.showInputFields ? '-' : '+'}
-                            </button>
-                            <div className="inline">Input Fields</div>
-                        </div>
-                        {
-                            this.state.showInputFields && (
-                                <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true"
-                                        className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, refId: null, dataType: "int", type: "intInput", value: null, inside: [], indicator: false, elementType: "inputField" }
-                                            this.handleonDragStart(data, 1)
-                                        }}>input</button>
-                                </div>
-                            )
-                        }
-                        {/*
-                            this.state.showInputFields && (
-                                <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true"
-                                        className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, refId: null, dataType: "int", type: "intInput", value: null, inside: [], indicator: false, elementType: "inputField" }
-                                            this.handleonDragStart(data, 1)
-                                        }}>int</button>
-
-                                    <button draggable="true"
-                                        className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, refId: null, dataType: "float", type: "floatInput", value: null, inside: [], indicator: false, elementType: "inputField" }
-                                            this.handleonDragStart(data, 1)
-                                        }}>float</button>
-
-                                    <button draggable="true"
-                                        className="bg-green-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, refId: null, dataType: "char", type: "charInput", value: null, inside: [], indicator: false, elementType: "inputField" }
-                                            this.handleonDragStart(data, 1)
-                                        }}>char</button>
-
-                                    <button draggable="true"
-                                        className="bg-green-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, refId: null, dataType: "char[]", type: "char[]Input", value: null, inside: [], indicator: false, elementType: "inputField" }
-                                            this.handleonDragStart(data, 1)
-                                        }}>char[]</button>
-
-                                </div>
-                            )*/
-                        }
-                    </div>
-                    {/*Conditionals */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showConditionals: !prevState.showConditionals }))}>
-                                {this.state.showConditionals ? '-' : '+'}
-                            </button>
-                            <div className="inline">Conditional statements</div>
-                        </div>
-                        {
-                            this.state.showConditionals && (
-                                <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true"
-                                        className="bg-lime-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, type: "cif", showOptions: false, inside: [condition(this.state.id + 1)], indicator: false, elementType: "conditional" }
-                                            this.handleonDragStart(data, 2)
-                                        }}>if</button>
-                                    <button draggable="true"
-                                        className="bg-lime-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, type: "celse", showOptions: false, inside: [], indicator: false, elementType: "conditional" }
-                                            this.handleonDragStart(data, 1)
-                                        }}>else</button>
-                                </div>
-                            )
-                        }
-                    </div>
-                    {/*Loops */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showLoops: !prevState.showLoops }))}>
-                                {this.state.showLoops ? '-' : '+'}
-                            </button>
-                            <div className="inline">Loops</div>
-                        </div>
-                        {
-                            this.state.showLoops && (
-                                <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true"
-                                        className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, type: "cfor", inside: [assign(this.state.id + 1), condition(this.state.id + 2), assign(this.state.id + 3)], indicator: false, elementType: "loop" }
-                                            this.handleonDragStart(data, 4)
-                                        }}>For</button>
-
-                                    <button draggable="true"
-                                        className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, type: "cwhile", inside: [condition(this.state.id + 1)], indicator: false, elementType: "loop" }
-                                            this.handleonDragStart(data, 2)
-                                        }}>While</button>
-
-                                    <button draggable="true"
-                                        className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, type: "cdoWhile", inside: [condition(this.state.id + 1)], indicator: false, elementType: "loop" }
-                                            this.handleonDragStart(data, 2)
-                                        }}>Do-While</button>
-                                </div>
-                            )
-                        }
-                    </div>
-                    {/*Expressions */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showOthers: !prevState.showOthers }))}>
-                                {this.state.showOthers ? '-' : '+'}
-                            </button>
-                            <div className="inline">Expressions</div>
-                        </div>
-                        {
-                            this.state.showOthers && (
-                                <div className="ml-4 flex flex-wrap declareVariable">
-                                    <button draggable="true"
-                                        className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, type: "assignment", sign: "=", inside: [{}, {}], indicator: false, elementType: "expression" }
-                                            this.handleonDragStart(data, 1)
-                                        }}>Assignment</button>
-                                    <button draggable="true"
-                                        className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = { id: this.state.id, type: "arithmatic", sign: "+", inside: [{}, {}], indicator: false, elementType: "expression" }
-                                            this.handleonDragStart(data, 1)
-                                        }}>Arithmatic</button>
-                                </div>
-                            )
-                        }
-                    </div>
-
-
-                    {/*Functions */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showFunctions: !prevState.showFunctions }))}>
-                                {this.state.showFunctions ? '-' : '+'}
-                            </button>
-                            <div className="inline">Functions</div>
-                        </div>
-
-                        {
-                            this.state.showFunctions && (
-                                <div className="ml-4 flex flex-wrap declareVariable ">
-                                    <button
-                                        draggable="true"
-                                        className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = {
-                                                id: this.state.id,
-                                                type: 1 + "func" + this.state.id,
-                                                returnType: "void",
-                                                defination: true,
-                                                NumberOfParams: 0,
-                                                inside: [
-
-                                                ]
-                                            }
-                                            this.handleonDragStart(data, 1)
-                                        }}
-                                    >
-                                        void
-                                    </button>
-
-                                    <button
-                                        draggable="true"
-                                        className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = {
-                                                id: this.state.id,
-                                                type: 1 + "func" + this.state.id,
-                                                returnType: "int",
-                                                defination: true,
-                                                NumberOfParams: 0,
-                                                inside: [
-
-                                                ]
-                                            }
-                                            this.handleonDragStart(data, 1)
-                                        }}
-                                    >
-                                        int
-                                    </button>
-
-                                    <button
-                                        draggable="true"
-                                        className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = {
-                                                id: this.state.id,
-                                                type: 1 + "func" + this.state.id,
-                                                returnType: "float",
-                                                defination: true,
-                                                NumberOfParams: 0,
-                                                inside: [
-
-                                                ]
-                                            }
-                                            this.handleonDragStart(data, 1)
-                                        }}
-                                    >
-                                        float
-                                    </button>
-
-                                    <button
-                                        draggable="true"
-                                        className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
-                                        onDragStart={() => {
-                                            const data = {
-                                                id: this.state.id,
-                                                type: 1 + "func" + this.state.id,
-                                                returnType: "char",
-                                                defination: true,
-                                                NumberOfParams: 0,
-                                                inside: [
-
-                                                ]
-                                            }
-                                            this.handleonDragStart(data, 1)
-                                        }}
-                                    >
-                                        char
-                                    </button>
-
-                                    {this.state.functions.inside.map((f, i) => (
-                                        f.name === " " ? null : (
-                                            <button
-                                                id={f.type}
-                                                draggable="true"
-                                                className="bg-yellow-300 p-1 rounded-md border-2 flex border-slate-600 m-2px"
-                                                onDragStart={() => {
-                                                    const data = {
-                                                        id: this.state.id,
-                                                        refId: f.id,
-                                                        type: f.type,
-                                                        returnType: f.returnType,
-                                                        defination: false,
-                                                        NumberOfParams: f.NumberOfParams,
-                                                        inside: cloneDeep(f.inside)
-                                                    }
+                                            onDragStart={
+                                                () => {
+                                                    const data = { id: this.state.id, refId: null, type: "def" + this.state.id, value: null, inside: [], indicator: false, elementType: "defineBtn" }
                                                     this.handleonDragStart(data, 1)
                                                 }}
+                                        >
+                                            define
+                                        </button>
+                                    </div>
+                                )
+                            }
+                        </div>
+                        {/*variables */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showDeclareVariable: !prevState.showDeclareVariable }))}>
+                                    {this.state.showDeclareVariable ? '-' : '+'}
+                                </button>
+                                <div className="inline">Variable declaration</div>
+                            </div>
+                            {
+                                this.state.showDeclareVariable && (
+                                    <div >
+                                        <div className="ml-4 flex declareVariable">
+                                            <button draggable="true"
+                                                className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={(e) => {
+                                                    e.stopPropagation()
+                                                    const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 2)
+                                                }}>int</button>
+                                            <button draggable="true"
+                                                className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>int[]</button>
+                                            <button draggable="true"
+                                                className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>int[][]</button>
+                                        </div>
+                                        <div className="ml-4 flex declareVariable">
+                                            <button draggable="true"
+                                                className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>float</button>
+                                            <button draggable="true"
+                                                className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>float[]</button>
+                                            <button draggable="true"
+                                                className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>float[][]</button>
+                                        </div>
+                                        <div className="ml-4 flex declareVariable">
+                                            <button draggable="true"
+                                                className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>char</button>
+                                            <button draggable="true"
+                                                className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>char[]</button>
+                                            <button draggable="true"
+                                                className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>char[][]</button>
+                                        </div>
+                                    </div>
+                                )
+                            }
+                        </div>
+                        {/*constant */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showInputFields: !prevState.showInputFields }))}>
+                                    {this.state.showInputFields ? '-' : '+'}
+                                </button>
+                                <div className="inline">Input Fields</div>
+                            </div>
+                            {
+                                this.state.showInputFields && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        <button draggable="true"
+                                            className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, refId: null, dataType: "int", type: "intInput", value: 0, inside: [], indicator: false, elementType: "inputField" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>input</button>
+                                    </div>
+                                )
+                            }
 
-                                            >
-                                                {f.returnType} {f.type.slice(1)} ({f.inside.map((p, i) => {
-                                                    if (i < f.NumberOfParams) {
-                                                        return (
-                                                            (i === 0) ? (
-                                                                <span id={i}>{p.dataType}</span>
-                                                            ) :
-                                                                (
-                                                                    <span id={i}>, {p.dataType}</span>
-                                                                )
-                                                        )
-                                                    }
-                                                    else {
-                                                        return null
-                                                    }
-                                                })})
-                                            </button>)
-                                    ))}
-                                </div>
-                            )
-                        }
+                        </div>
+                        {/*Conditionals */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showConditionals: !prevState.showConditionals }))}>
+                                    {this.state.showConditionals ? '-' : '+'}
+                                </button>
+                                <div className="inline">Conditional statements</div>
+                            </div>
+                            {
+                                this.state.showConditionals && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        <button draggable="true"
+                                            className="bg-lime-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, type: "cif", showOptions: false, inside: [condition(this.state.id + 1)], indicator: false, elementType: "conditional" }
+                                                this.handleonDragStart(data, 4)
+                                            }}>if</button>
+                                        <button draggable="true"
+                                            className="bg-lime-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, type: "celse", showOptions: false, inside: [], indicator: false, elementType: "conditional" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>else</button>
+                                    </div>
+                                )
+                            }
+                        </div>
+                        {/*Loops */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showLoops: !prevState.showLoops }))}>
+                                    {this.state.showLoops ? '-' : '+'}
+                                </button>
+                                <div className="inline">Loops</div>
+                            </div>
+                            {
+                                this.state.showLoops && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        <button draggable="true"
+                                            className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, type: "cfor", inside: [assign(this.state.id + 1), condition(this.state.id + 2), assign(this.state.id + 3)], indicator: false, elementType: "loop" }
+                                                this.handleonDragStart(data, 6)
+                                            }}>For</button>
+
+                                        <button draggable="true"
+                                            className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, type: "cwhile", inside: [condition(this.state.id + 1)], indicator: false, elementType: "loop" }
+                                                this.handleonDragStart(data, 4)
+                                            }}>While</button>
+
+                                        <button draggable="true"
+                                            className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, type: "cdoWhile", inside: [condition(this.state.id + 1)], indicator: false, elementType: "loop" }
+                                                this.handleonDragStart(data, 4)
+                                            }}>Do-While</button>
+                                    </div>
+                                )
+                            }
+                        </div>
+                        {/*Expressions */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showOthers: !prevState.showOthers }))}>
+                                    {this.state.showOthers ? '-' : '+'}
+                                </button>
+                                <div className="inline">Expressions</div>
+                            </div>
+                            {
+                                this.state.showOthers && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        <button draggable="true"
+                                            className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, type: "assignment", sign: "=", inside: [{}, {}], indicator: false, elementType: "expression" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>Assignment</button>
+                                        <button draggable="true"
+                                            className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, type: "arithmatic", sign: "+", inside: [{}, {}], indicator: false, elementType: "expression" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>Arithmatic</button>
+                                        <button draggable="true"
+                                            className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.state.id, type: "return", sign: "+", inside: [{}], indicator: false, elementType: "expression" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>return</button>
+                                    </div>
+                                )
+                            }
+                        </div>
+
+
+                        {/*Functions */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showFunctions: !prevState.showFunctions }))}>
+                                    {this.state.showFunctions ? '-' : '+'}
+                                </button>
+                                <div className="inline">Functions</div>
+                            </div>
+
+                            {
+                                this.state.showFunctions && (
+                                    <div className="ml-4 flex flex-wrap declareVariable ">
+                                        <button
+                                            draggable="true"
+                                            className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = {
+                                                    id: this.state.id,
+                                                    type: 1 + "func" + this.state.id,
+                                                    returnType: "void",
+                                                    elementType: "functionBtn",
+                                                    defination: true,
+                                                    NumberOfParams: 0,
+                                                    inside: [
+
+                                                    ]
+                                                }
+                                                this.handleonDragStart(data, 1)
+                                            }}
+                                        >
+                                            void
+                                        </button>
+
+                                        <button
+                                            draggable="true"
+                                            className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = {
+                                                    id: this.state.id,
+                                                    type: 1 + "func" + this.state.id,
+                                                    returnType: "int",
+                                                    elementType: "functionBtn",
+                                                    defination: true,
+                                                    NumberOfParams: 0,
+                                                    inside: [
+
+                                                    ]
+                                                }
+                                                this.handleonDragStart(data, 1)
+                                            }}
+                                        >
+                                            int
+                                        </button>
+
+                                        <button
+                                            draggable="true"
+                                            className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = {
+                                                    id: this.state.id,
+                                                    type: 1 + "func" + this.state.id,
+                                                    returnType: "float",
+                                                    elementType: "functionBtn",
+                                                    defination: true,
+                                                    NumberOfParams: 0,
+                                                    inside: [
+
+                                                    ]
+                                                }
+                                                this.handleonDragStart(data, 1)
+                                            }}
+                                        >
+                                            float
+                                        </button>
+
+                                        <button
+                                            draggable="true"
+                                            className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = {
+                                                    id: this.state.id,
+                                                    type: 1 + "func" + this.state.id,
+                                                    returnType: "char",
+                                                    elementType: "functionBtn",
+                                                    defination: true,
+                                                    NumberOfParams: 0,
+                                                    inside: [
+
+                                                    ]
+                                                }
+                                                this.handleonDragStart(data, 1)
+                                            }}
+                                        >
+                                            char
+                                        </button>
+
+                                        {this.state.functions.inside.map((f, i) => (
+                                            f.name === " " ? null : (
+                                                <button
+                                                    id={f.type}
+                                                    draggable="true"
+                                                    className="bg-yellow-300 p-1 rounded-md border-2 flex border-slate-600 m-2px"
+                                                    onDragStart={() => {
+                                                        const tmp = []
+                                                        for (let i = 0; i < f.inside.length; i++) {
+                                                            const param = {
+                                                                id: this.state.id + i,
+                                                                dataType: f.inside[i].dataType,
+                                                                type: null,
+                                                                value: null,
+                                                                inside: [{}],
+                                                                indicator: false,
+                                                                elementType: "param"
+                                                            }
+
+                                                            tmp.push(param)
+                                                        }
+                                                        const data = {
+                                                            id: this.state.id + f.inside.length,
+                                                            refId: f.id,
+                                                            type: f.type,
+                                                            elementType: "function",
+                                                            returnType: f.returnType,
+                                                            defination: false,
+                                                            NumberOfParams: f.NumberOfParams,
+                                                            inside: tmp
+                                                        }
+
+
+                                                        this.handleonDragStart(data, f.inside.length + 1)
+                                                    }}
+
+                                                >
+                                                    {f.returnType} {f.type.slice(1)} ({f.inside.map((p, i) => {
+                                                        if (i < f.NumberOfParams) {
+                                                            return (
+                                                                (i === 0) ? (
+                                                                    <span id={i}>{p.dataType}</span>
+                                                                ) :
+                                                                    (
+                                                                        <span id={i}>, {p.dataType}</span>
+                                                                    )
+                                                            )
+                                                        }
+                                                        else {
+                                                            return null
+                                                        }
+                                                    })})
+                                                </button>)
+                                        ))}
+                                    </div>
+                                )
+                            }
+                        </div>
+
                     </div>
-
-                </div>
+                )}
 
                 <div className="space-y-4 p-10 m-10 mt-0 mb-0 bg-slate-200 w-3/4 h-screen overflow-y-auto no-scrollbar">
                     <p className="font-bold text-2xl border-b-2">Main.c</p>
@@ -3028,12 +4030,84 @@ class Code extends React.Component {
                         </pre>
                     </div>
 
+
+
+
+
                     <div className="flex justify-center">
-                        <button className="align-middle m-5 border-2 w-24 h-12 bg-lime-200">
-                            Run
+                        <button className="align-middle m-5 border-2 w-24 h-12 bg-lime-200" onClick={handleRunButtonClick}>
+                            {this.state.showOutput ? "Stop" : "Run"}
                         </button>
+                        {/* Display response data */}
+
                     </div>
+
+                    {(() => {
+                        const divRef = React.createRef();
+
+                        const handleDragEnter = debounce(() => {
+                            if (divRef.current) {
+                                divRef.current.style.backgroundColor = "red";
+                            }
+                        }, 100);
+
+                        const handleDragLeave = debounce(() => {
+                            if (divRef.current) {
+                                divRef.current.style.backgroundColor = "white";
+                            }
+                        }, 100);
+
+                        return (
+                            <div>
+                                <FontAwesomeIcon
+                                    icon={faTrash}
+                                    ref={divRef}
+                                    size="2x"
+                                    className={`fixed bottom-8 right-8 p-3 rounded-full bg-white`}
+                                    onDrop={(e) => {
+                                        this.deleteItem();
+                                        if (divRef.current) {
+                                            divRef.current.style.backgroundColor = "white";
+                                        }
+                                    }}
+                                    onDragEnter={(e) => {
+                                        e.preventDefault();
+                                        handleDragEnter();
+                                    }}
+                                    onDragLeave={(e) => {
+                                        e.preventDefault();
+                                        handleDragLeave();
+                                    }}
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        if (divRef.current) {
+                                            divRef.current.style.backgroundColor = "red";
+                                        }
+                                    }}
+                                />
+                            </div>
+                        );
+                    })()}
+
+
+
+
                 </div>
+                {this.state.showOutput && (
+                    <div className="flex flex-col h-screen w-1/2 flex-grow text-white">
+                        <p>Code:</p>
+                        <div className="h-3/6 w-full bg-cyan-50  p-4 rounded-md font-mono text-black mb-4">
+
+                            <pre className="bg-slate-200 p-1 h-full rounded-md overflow-y-scroll">{this.state.code}</pre>
+
+                        </div>
+                        <p>Console:</p>
+                        <div className="h-2/6 w-full bg-slate-800 overflow-y-scroll text-slate-50 p-4 border-4 rounded-md font-mono">
+                            {this.state.responseData}
+                        </div>
+                    </div>
+                )}
+
 
                 {/*          
                 <div id="memory" className="space-y-4 p-10 pb-20  m-10 mt-0 mb-0 bg-slate-200 w-1/2 h-screen">
@@ -3208,6 +4282,9 @@ class Code extends React.Component {
                         </div>
                     </div>
                 </div>*/}
+
+
+
             </div>
         );
     }
