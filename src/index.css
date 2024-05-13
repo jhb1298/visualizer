@@ -11,15 +11,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-/*
-.declareVariable>button{
-  display: block;
-  background-color: rgb(235, 166, 77);
-  margin: 2px;
-  padding: 2px;
-  border: 1px solid black;
-  border-radius: 5px;
-}*/
+
 .declareVariable>button:hover{
   scale: 1.1;
 }
@@ -45,6 +37,21 @@ code {
 input {
   border-color: rgba(255,255,255, 0.1); /* Adjust the last value (alpha) to control transparency */
 }
+
+.logInput {
+  background-color: rgba(0, 0, 0, 0.1);
+  border: none; 
+  outline: none; 
+  padding: 5px; 
+  border-bottom: 2px solid rgba(0, 0, 0, 0); 
+}
+
+.logInput:focus {
+ border-color: black;
+}
+
+
+
 
 
 

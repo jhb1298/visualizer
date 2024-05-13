@@ -5,22 +5,25 @@ import { faTrash } from '@fortawesome/free-solid-svg-icons';
 import { debounce } from 'lodash';
 
 const cloneDeep = require('lodash/cloneDeep')
+const ids = [];
+const divRefs = {}
+
 
 class Code extends React.Component {
 
-
     constructor(props) {
-
         super(props);
         this.state = {
             id: 10,
-
+            name: "Main",
             tmp: [],
 
             code: "",
-            responseData: "",
+            responseData: null,
 
+            showOpenOption: false,
             showOutput: false,
+            showFileOptions: false,
             //for sidebar
             showHeaderlist: true,
             showDefineSection: true,
@@ -50,7 +53,7 @@ class Code extends React.Component {
                     {
                         showParamTypes: false,
                         showOptions: false,
-                        id: 0,
+                        id: this.Uid(),
                         type: "1main",
                         returnType: "int",
                         defination: true,
@@ -64,27 +67,27 @@ class Code extends React.Component {
                     {
                         showParamTypes: false,
                         showOptions: false,
-                        id: 1,
+                        id: this.Uid(),
                         type: "1printf",
                         returnType: "void",
                         defination: false,
                         NumberOfParams: 2,
                         inside: [
-                            { id: 3, dataType: "char[]", type: 'var' + 3, value: null, inside: [{}], indicator: false, elementType: "param" },
-                            { id: 4, dataType: "any", type: 'var' + 4, value: null, inside: [{}], indicator: false, elementType: "param" }
+                            { id: this.Uid(), dataType: "char[]", type: 'var' + 3, value: null, inside: [{}], indicator: false, elementType: "param" },
+                            { id: this.Uid(), dataType: "any", type: 'var' + 4, value: null, inside: [{}], indicator: false, elementType: "param" }
                         ]
                     },
                     {
                         showParamTypes: false,
                         showOptions: false,
-                        id: 2,
+                        id: this.Uid(),
                         type: "1scanf",
                         returnType: "void",
                         defination: false,
                         NumberOfParams: 2,
                         inside: [
-                            { id: 5, dataType: "char[]", type: 'var' + 5, value: null, inside: [{}], indicator: false, elementType: "param" },
-                            { id: 6, dataType: "any", type: 'var' + 6, value: null, inside: [{}], indicator: false, elementType: "param" }
+                            { id: this.Uid(), dataType: "char[]", type: 'var' + 5, value: null, inside: [{}], indicator: false, elementType: "param" },
+                            { id: this.Uid(), dataType: "any", type: 'var' + 6, value: null, inside: [{}], indicator: false, elementType: "param" }
                         ]
                     }
                 ]
@@ -95,6 +98,25 @@ class Code extends React.Component {
 
 
 
+    Uid = (l) => {
+        let length = 4;
+        if (l) {
+            length = l;
+        }
+        const characters = 'abcdefghijklmnopqrstuvwxyz0123456789_';
+        let id = '';
+        for (let i = 0; i < length; i++) {
+            id += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        if (ids.includes(id)) {
+            return this.Uid();
+        } else {
+            const divRef = React.createRef();
+            ids.push(id);
+            divRefs[id] = divRef;
+            return id
+        }
+    }
 
 
 
@@ -561,7 +583,7 @@ class Code extends React.Component {
         })
         e.stopPropagation();
         let data = this.state.value
-        this.setState((prevState) => ({ id: prevState.id + prevState.inc }))
+        //this.setState((prevState) => ({ id: prevState.id + prevState.inc }))
         let position = ""
         const div = divRef.current;
         const mouseY = e.clientY;
@@ -586,9 +608,9 @@ class Code extends React.Component {
         e.stopPropagation();
 
         let data = this.state.value
-        this.setState((prevState) => {
+        /*this.setState((prevState) => {
             return { id: prevState.id + 1 }
-        })
+        })*/
         if (empty) {
             this.setState((prevState) => {
                 let g = cloneDeep(prevState.gVariables)
@@ -628,9 +650,9 @@ class Code extends React.Component {
         e.stopPropagation();
 
         let data = this.state.value
-        this.setState((prevState) => {
+        /*this.setState((prevState) => {
             return { id: prevState.id + 1 }
-        })
+        })*/
 
         let position = 0
         if (empty) {
@@ -668,9 +690,9 @@ class Code extends React.Component {
         e.stopPropagation();
 
         const data = this.state.value
-        this.setState((prevState) => {
+        /*this.setState((prevState) => {
             return { id: prevState.id + 1 }
-        })
+        })*/
         let position = 0
         if (empty) {
             this.setState((prevState) => {
@@ -709,9 +731,9 @@ class Code extends React.Component {
         e.stopPropagation();
 
         let data = this.state.value
-        this.setState((prevState) => {
+        /*this.setState((prevState) => {
             return { id: prevState.id + prevState.inc }
-        })
+        })*/
         let position = 0
         if (empty) {
             this.setState((prevState) => {
@@ -755,7 +777,7 @@ class Code extends React.Component {
         e.stopPropagation();
         let data = this.state.value
         data = { ...data, elementType: "param" }
-        this.setState((prevState) => ({ id: prevState.id + prevState.inc }))
+        //this.setState((prevState) => ({ id: prevState.id + prevState.inc }))
         let position = ""
         const div = divRef.current;
         const mouseX = e.clientX;
@@ -1370,7 +1392,7 @@ class Code extends React.Component {
 
 
                         default: {
-                            console.log("Updating local variable v:",v)
+                            console.log("Updating local variable v:", v)
                             v.value = v.inside[0].refId === null ? v.inside[0].value : findValue(v, 0)
                         }
                     }
@@ -1397,12 +1419,27 @@ class Code extends React.Component {
 
 
     render() {
+        const fileInputRef = React.createRef()
 
+        /*function wrap(inputString) {
+            const maxWordsPerLine = 5
+            const words = inputString.split(/\s+/);
+            let wrappedString = '';
+            let line = '';
 
+            for (let i = 0; i < words.length; i++) {
+                line += words[i] + ' ';
 
-        // Function to handle API call
-        const handleRunButtonClick = () => {
-            console.log("Stttess:", this.state)
+                if ((i + 1) % maxWordsPerLine === 0 || i === words.length - 1) {
+                    wrappedString += line.trim() + '\n';
+                    line = '';
+                }
+            }
+
+            return wrappedString.trim();
+        }*/
+
+        const generateCode = () => {
             let code =
                 `${this.state.cheaders.map((h) => ("#include<" + h.type + ">;")).join('\n')}\n
 ${this.state.defines.inside.map((d) => ("#define " + d.type + " " + (d.value ?? 0))).join('\n')}\n
@@ -1414,27 +1451,20 @@ ${this.state.functions.inside.map((f) =>
 ${this.returnGlobalVariables()}
 ${this.returnFunctions()}
 `
+            return code
+        }
 
 
-            /*const code = 
-            `
-            #include<stdio.h>
-            int main()
-            {
-                printf("Hello World from C");
-                    return 0;
-            }
-            `;*/
+        // Function to handle API call
+        const handleRunButtonClick = () => {
+            console.log("Stttess:", this.state)
+            const code = generateCode()
 
             this.setState((prevState) => {
                 return { showOutput: !prevState.showOutput, code: code }
             })
-
-
-
             // Get your code from state or wherever it's stored
             const input = ""; // Get your input data from state or wherever it's stored
-            const inputRadio = false; // Get your input radio value from state or wherever it's stored
 
             fetch('http://localhost:8080/compilecode', {
                 method: 'POST',
@@ -1444,7 +1474,6 @@ ${this.returnFunctions()}
                 body: JSON.stringify({
                     code: code,
                     input: input,
-                    inputRadio: inputRadio
                 })
             })
                 .then(response => response.text())
@@ -1456,6 +1485,100 @@ ${this.returnFunctions()}
                 .catch(error => {
                     console.error('Error:', error);
                 });
+        };
+
+
+        const handleSaveButtonClick = () => {
+            let state = cloneDeep(this.state)
+            fetch('http://localhost:8080/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: localStorage.getItem('email'),
+                    codeId: localStorage.getItem('codeId'),
+                    jsonData: state
+                })
+            })
+                .then(response => response.text())
+                .then(data => {
+                    this.setState((prevState) => {
+                        return { responseData: data }
+                    })
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        };
+
+        const handleNewButtonClick = () => {
+            const email = 'x';
+            fetch(`http://localhost:8080/codes/${email}`)
+                .then(response => response.json())
+                .then(jsonData => {
+                    console.log("response code:", jsonData)
+                    this.setState(jsonData[0].jsonData);
+                })
+                .catch(error => {
+                    console.error('Error fetching codes:', error);
+                });
+        };
+
+        const handleOpenButtonClick = () => {
+            const email = localStorage.getItem('email');
+            fetch(`http://localhost:8080/codes/${email}`)
+                .then(response => response.json())
+                .then(jsonData => {
+                    this.setState(() => ({ responseData: jsonData }), () => {
+                        console.log("response code:", this.state.responseData)
+                        this.setState(() => ({ showOpenOption: true }))
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching codes:', error);
+                });
+        };
+
+        const handleFileChange = (event) => {
+            const selectedFile = event.target.files[0];
+            if (selectedFile) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const fileContent = reader.result;
+                        const jsonData = JSON.parse(fileContent);
+                        console.log('Parsed JSON data:', jsonData);
+                        localStorage.setItem('codeId', this.Uid(8))
+                        this.setState(jsonData)
+                    } catch (error) {
+                        console.error('Error parsing JSON:', error);
+                    }
+                };
+                reader.readAsText(selectedFile); // Read the file as text
+            } else {
+                console.log('No file selected');
+            }
+        };
+
+
+        // Function to trigger file input click event when the button is clicked
+        const handleButtonClick = () => {
+            fileInputRef.current.click(); // Trigger click event of the hidden file input
+        };
+
+
+        const downloadState = () => {
+            const text = JSON.stringify(this.state); // Convert state to JSON string
+            const blob = new Blob([text], { type: 'text/plain' }); // Create a blob with the text content
+            const url = URL.createObjectURL(blob); // Create a URL for the blob
+            const a = document.createElement('a'); // Create a link element
+            a.href = url; // Set the href attribute of the link to the URL
+            a.download = 'state.visc'; // Set the download attribute of the link to the desired file name
+            document.body.appendChild(a); // Append the link to the document body
+            a.click(); // Simulate a click on the link to trigger the download
+            document.body.removeChild(a); // Remove the link from the document body
+            URL.revokeObjectURL(url); // Revoke the URL to release memory
         };
 
 
@@ -1559,7 +1682,7 @@ ${this.returnFunctions()}
                     draggable="true"
                     onDragStart={(e) => {
                         e.stopPropagation()
-                        const data = { id: this.state.id, refId: obj.id, dataType: obj.dataType, type: obj.type, value: obj.value, inside: obj.inside, indicator: false, elementType: "variable" }
+                        const data = { id: this.Uid(), refId: obj.id, dataType: obj.dataType, type: obj.type, value: obj.value, inside: obj.inside, indicator: false, elementType: "variable" }
                         this.handleonDragStart(data, 1)
                     }}
                 />
@@ -1573,15 +1696,15 @@ ${this.returnFunctions()}
                             onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                             onDrop={(e) => {
                                 const data = {
-                                    id: this.state.id,
+                                    id: this.Uid(),
                                     refId: this.state.value.refId ?? null,
                                     type: this.state.value.type,
                                     inside: this.state.value.inside,
                                     value: this.state.value.value ?? null
                                 }
-                                this.setState((prevState) => {
+                                /*this.setState((prevState) => {
                                     return { id: prevState.id + 1 }
-                                })
+                                })*/
                                 this.dropOnSlot(e, obj, data, divRef, i)
                             }}
                         >
@@ -1601,7 +1724,7 @@ ${this.returnFunctions()}
                                                     }
                                                     else {
                                                         this.updateVariablesValue(obj.inside[i], index, e.target.value, 0)
-                                                        
+
                                                     }
 
 
@@ -1644,15 +1767,15 @@ ${this.returnFunctions()}
                                         data = this.state.value
                                         :
                                         data = {
-                                            id: this.state.id,
+                                            id: this.Uid(),
                                             refId: this.state.value.refId ?? null,
                                             type: this.state.value.type,
                                             inside: [{}],//this.state.value.inside,
                                             value: 0//this.state.value.value
                                         }
-                                    this.setState((prevState) => {
+                                    /*this.setState((prevState) => {
                                         return { id: prevState.id + 1 }
-                                    })
+                                    })*/
                                     this.dropOnSlot(e, obj, data, divRef, 0)
                                 }}
                             >
@@ -1696,15 +1819,15 @@ ${this.returnFunctions()}
                                                                     onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                                                                     onDrop={(e) => {
                                                                         const data = {
-                                                                            id: this.state.id,
+                                                                            id: this.Uid(),
                                                                             refId: this.state.value.refId ?? null,
                                                                             type: this.state.value.type,
                                                                             inside: this.state.value.inside,
                                                                             value: this.state.value.value ?? null
                                                                         }
-                                                                        this.setState((prevState) => {
+                                                                        /*this.setState((prevState) => {
                                                                             return { id: prevState.id + 1 }
-                                                                        })
+                                                                        })*/
                                                                         this.dropOnSlot(e, obj.inside[0], data, divRef, i)
                                                                     }}
                                                                 >
@@ -1776,15 +1899,15 @@ ${this.returnFunctions()}
                             data = this.state.value
                             :
                             data = {
-                                id: this.state.id,
+                                id: this.Uid(),
                                 refId: this.state.value.refId ?? null,
                                 type: this.state.value.type,
                                 inside: this.state.value.inside,
                                 value: this.state.value.value ?? null
                             }
-                        this.setState((prevState) => {
+                        /*this.setState((prevState) => {
                             return { id: prevState.id + 1 }
-                        })
+                        })*/
                         this.dropOnSlot(e, obj, data, divRef, 0)
                     }}
                 >
@@ -1820,15 +1943,15 @@ ${this.returnFunctions()}
                                                             onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                                                             onDrop={(e) => {
                                                                 const data = {
-                                                                    id: this.state.id,
+                                                                    id: this.Uid(),
                                                                     refId: this.state.value.refId ?? null,
                                                                     type: this.state.value.type,
                                                                     inside: this.state.value.inside,
                                                                     value: this.state.value.value ?? null
                                                                 }
-                                                                this.setState((prevState) => {
+                                                                /*this.setState((prevState) => {
                                                                     return { id: prevState.id + 1 }
-                                                                })
+                                                                })*/
                                                                 this.dropOnSlot(e, obj.inside[0], data, divRef, i)
                                                             }}
                                                         >
@@ -2203,14 +2326,14 @@ ${this.returnFunctions()}
                                                 onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                                                 onDrop={(e) => {
                                                     const data = {
-                                                        id: this.state.id,
+                                                        id: this.Uid(),//this.state.id,
                                                         refId: this.state.value.refId ?? null,
                                                         type: this.state.value.type,
                                                         value: this.state.value.value ?? null
                                                     }
-                                                    this.setState((prevState) => {
+                                                    /*this.setState((prevState) => {
                                                         return { id: prevState.id + 1 }
-                                                    })
+                                                    })*/
                                                     console.log("droping in the positin:", p)
                                                     this.dropOnSlot(e, p, data, divRef, 0)
                                                 }}
@@ -2429,7 +2552,7 @@ ${this.returnFunctions()}
                                 className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
                                 draggable="true"
                                 onDragStart={() => {
-                                    const data = { id: this.state.id, refId: d.id, dataType: d.dataType, type: d.type, value: d.value, inside: d.inside, indicator: false, elementType: "variable" }
+                                    const data = { id: this.Uid(), refId: d.id, dataType: d.dataType, type: d.type, value: d.value, inside: d.inside, indicator: false, elementType: "variable" }
 
                                     console.log("Dataaaa:", data)
                                     this.handleonDragStart(data, 1)
@@ -2567,7 +2690,7 @@ ${this.returnFunctions()}
                                                 }}
                                                 draggable="true"
                                                 onDragStart={() => {
-                                                    const data = { id: this.state.id, refId: p.id, dataType: p.dataType, type: p.type, value: p.value, inside: p.inside, indicator: false, elementType: "variable" }
+                                                    const data = { id: this.Uid(), refId: p.id, dataType: p.dataType, type: p.type, value: p.value, inside: p.inside, indicator: false, elementType: "variable" }
                                                     this.handleonDragStart(data, 1)
                                                 }}
                                             >
@@ -2640,15 +2763,15 @@ ${this.returnFunctions()}
                     onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                     onDrop={(e) => {
                         const data = {
-                            id: this.state.id,
+                            id: this.Uid(),
                             refId: this.state.value.refId ?? null,
                             type: this.state.value.type,
                             inside: this.state.value.inside,
                             value: this.state.value.value ?? null
                         }
-                        this.setState((prevState) => {
+                        /*this.setState((prevState) => {
                             return { id: prevState.id + 1 }
-                        })
+                        })*/
                         console.log("Dropped with the values:", obj, data, this.state.value)
                         this.dropOnSlot(e, obj, data, divRef, 0)
                     }}
@@ -2687,15 +2810,15 @@ ${this.returnFunctions()}
                                                             onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                                                             onDrop={(e) => {
                                                                 const data = {
-                                                                    id: this.state.id,
+                                                                    id: this.Uid(),
                                                                     refId: this.state.value.refId ?? null,
                                                                     type: this.state.value.type,
                                                                     inside: this.state.value.inside,
                                                                     value: this.state.value.value ?? null
                                                                 }
-                                                                this.setState((prevState) => {
+                                                                /*this.setState((prevState) => {
                                                                     return { id: prevState.id + 1 }
-                                                                })
+                                                                })*/
                                                                 this.dropOnSlot(e, obj.inside[0], data, divRef, i)
                                                             }}
                                                         >
@@ -2760,15 +2883,15 @@ ${this.returnFunctions()}
                     onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                     onDrop={(e) => {
                         const data = {
-                            id: this.state.id,
+                            id: this.Uid(),
                             refId: this.state.value.refId ?? null,
                             type: this.state.value.type,
                             inside: this.state.value.inside,
                             value: this.state.value.value ?? null
                         }
-                        this.setState((prevState) => {
+                        /*this.setState((prevState) => {
                             return { id: prevState.id + 1 }
-                        })
+                        })*/
                         this.dropOnSlot(e, obj, data, divRef, 1)
                     }}
                 >
@@ -2806,15 +2929,15 @@ ${this.returnFunctions()}
                                                             onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                                                             onDrop={(e) => {
                                                                 const data = {
-                                                                    id: this.state.id,
+                                                                    id: this.Uid(),
                                                                     refId: this.state.value.refId ?? null,
                                                                     type: this.state.value.type,
                                                                     inside: this.state.value.inside,
                                                                     value: this.state.value.value ?? null
                                                                 }
-                                                                this.setState((prevState) => {
+                                                                /*this.setState((prevState) => {
                                                                     return { id: prevState.id + 1 }
-                                                                })
+                                                                })*/
                                                                 this.dropOnSlot(e, obj.inside[1], data, divRef, i)
                                                             }}
                                                         >
@@ -2877,15 +3000,15 @@ ${this.returnFunctions()}
                             data = this.state.value
                             :
                             data = {
-                                id: this.state.id,
+                                id: this.Uid(),
                                 refId: this.state.value.refId ?? null,
                                 type: this.state.value.type,
                                 inside: this.state.value.inside,
                                 value: this.state.value.value ?? null
                             }
-                        this.setState((prevState) => {
+                        /*this.setState((prevState) => {
                             return { id: prevState.id + 1 }
-                        })
+                        })*/
                         this.dropOnSlot(e, obj, data, divRef, 0)
                     }}
                 >
@@ -2921,15 +3044,15 @@ ${this.returnFunctions()}
                                                             onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                                                             onDrop={(e) => {
                                                                 const data = {
-                                                                    id: this.state.id,
+                                                                    id: this.Uid(),
                                                                     refId: this.state.value.refId ?? null,
                                                                     type: this.state.value.type,
                                                                     inside: this.state.value.inside,
                                                                     value: this.state.value.value ?? null
                                                                 }
-                                                                this.setState((prevState) => {
+                                                                /*this.setState((prevState) => {
                                                                     return { id: prevState.id + 1 }
-                                                                })
+                                                                })*/
                                                                 this.dropOnSlot(e, obj.inside[0], data, divRef, i)
                                                             }}
                                                         >
@@ -2996,15 +3119,15 @@ ${this.returnFunctions()}
                             data = this.state.value
                             :
                             data = {
-                                id: this.state.id,
+                                id: this.Uid(),
                                 refId: this.state.value.refId ?? null,
                                 type: this.state.value.type,
                                 inside: this.state.value.inside,
                                 value: this.state.value.value ?? null
                             }
-                        this.setState((prevState) => {
+                        /*this.setState((prevState) => {
                             return { id: prevState.id + 1 }
-                        })
+                        })*/
                         this.dropOnSlot(e, obj, data, divRef, 1)
                     }}
                 >
@@ -3041,15 +3164,15 @@ ${this.returnFunctions()}
                                                         onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                                                         onDrop={(e) => {
                                                             const data = {
-                                                                id: this.state.id,
+                                                                id: this.Uid(),
                                                                 refId: this.state.value.refId ?? null,
                                                                 type: this.state.value.type,
                                                                 inside: this.state.value.inside,
                                                                 value: this.state.value.value ?? null
                                                             }
-                                                            this.setState((prevState) => {
+                                                            /*this.setState((prevState) => {
                                                                 return { id: prevState.id + 1 }
-                                                            })
+                                                            })*/
                                                             this.dropOnSlot(e, obj.inside[1], data, divRef, i)
                                                         }}
                                                     >
@@ -3118,14 +3241,14 @@ ${this.returnFunctions()}
                         const ins = []
                         let inc = 1
 
-                        this.state.value.inside.forEach(item => {
+                        /*this.state.value.inside.forEach(item => {
 
                             ins.push({ id: this.state.id + inc })
                             inc++;
-                        });
+                        });*/
 
                         const data = {
-                            id: this.state.id,
+                            id: this.Uid(),
                             refId: this.state.value.refId,
                             type: this.state.value.type,
                             inside: ins,
@@ -3152,15 +3275,15 @@ ${this.returnFunctions()}
                                         onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                                         onDrop={(e) => {
                                             const data = {
-                                                id: this.state.id,
+                                                id: this.Uid(),
                                                 refId: this.state.value.refId ?? null,
                                                 type: this.state.value.type,
                                                 inside: this.state.value.inside,
                                                 value: this.state.value.value ?? null
                                             }
-                                            this.setState((prevState) => {
+                                            /*this.setState((prevState) => {
                                                 return { id: prevState.id + 1 }
-                                            })
+                                            })*/
                                             this.dropOnSlot(e, obj.inside[0], data, divRef, i)
                                         }}
                                     >
@@ -3221,15 +3344,15 @@ ${this.returnFunctions()}
                             data = this.state.value
                             :
                             data = {
-                                id: this.state.id,
+                                id: this.Uid(),
                                 refId: this.state.value.refId ?? null,
                                 type: this.state.value.type,
                                 inside: this.state.value.inside,
                                 value: this.state.value.value ?? null
                             }
-                        this.setState((prevState) => {
+                        /*this.setState((prevState) => {
                             return { id: prevState.id + 10 }
-                        })
+                        })*/
                         this.dropOnSlot(e, obj, data, divRef, 1)
                     }}
                 >
@@ -3268,15 +3391,15 @@ ${this.returnFunctions()}
                                                             onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
                                                             onDrop={(e) => {
                                                                 const data = {
-                                                                    id: this.state.id,
+                                                                    id: this.Uid(),
                                                                     refId: this.state.value.refId ?? null,
                                                                     type: this.state.value.type,
                                                                     inside: this.state.value.inside,
                                                                     value: this.state.value.value ?? null
                                                                 }
-                                                                this.setState((prevState) => {
+                                                                /*this.setState((prevState) => {
                                                                     return { id: prevState.id + 1 }
-                                                                })
+                                                                })*/
                                                                 this.dropOnSlot(e, obj.inside[1], data, divRef, i)
                                                             }}
                                                         >
@@ -3517,10 +3640,10 @@ ${this.returnFunctions()}
         /*
         ********************************************************************************************************************************
         */
-        const inputField = (id) => { return { id: id, refId: null, dataType: "int", type: "intInput", value: 0, inside: [], indicator: false, elementType: "inputField" } }
+        const inputField = () => { return { id: this.Uid(), refId: null, dataType: "int", type: "intInput", value: 0, inside: [], indicator: false, elementType: "inputField" } }
 
-        const assign = (id) => { return { id: id, type: "assignment", sign: "=", inside: [{}, inputField(id + 2)], indicator: false, elementType: "assignment" } }
-        const condition = (id) => { return { id: id, type: "conditional", sign: "==", inside: [inputField(id + 1), inputField(id + 2)], indicator: false, elementType: "conditional" } }
+        const assign = (id) => { return { id: id, type: "assignment", sign: "=", inside: [{}, inputField()], indicator: false, elementType: "assignment" } }
+        const condition = (id) => { return { id: id, type: "conditional", sign: "==", inside: [inputField(), inputField()], indicator: false, elementType: "conditional" } }
 
         return (
             <div className="bg-slate-700  flex">
@@ -3538,8 +3661,8 @@ ${this.returnFunctions()}
                                 this.state.showHeaderlist && (
                                     <div className="ml-4 flex flex-wrap declareVariable">
                                         {this.state.headers.map((h, i) => {
-                                            const data = { id: this.state.id, type: h, inside: [], indicator: false, elementType: "header" }
-                                            return (<button draggable="true"
+                                            const data = { id: this.Uid(), type: h, inside: [], indicator: false, elementType: "header" }
+                                            return (<button title="This is a tooltip" draggable="true"
                                                 className="bg-sky-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={() => {
                                                     this.handleonDragStart(data, 1)
@@ -3553,7 +3676,10 @@ ${this.returnFunctions()}
                         {/*Define section*/}
                         <div>
                             <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
-                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showDefineSection: !prevState.showDefineSection }))}>
+                                <button
+                                    className="font-bold w-3"
+                                    onClick={() => this.setState(prevState => ({ showDefineSection: !prevState.showDefineSection }))}
+                                >
                                     {this.state.showDefineSection ? '-' : '+'}
                                 </button>
                                 <div className="inline">Define</div>
@@ -3561,11 +3687,13 @@ ${this.returnFunctions()}
                             {
                                 this.state.showDefineSection && (
                                     <div className="ml-4 flex flex-wrap declareVariable">
-                                        <button draggable="true"
+                                        <button
+                                            title={`define pi 3.1416;`}
+                                            draggable="true"
                                             className="bg-cyan-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={
                                                 () => {
-                                                    const data = { id: this.state.id, refId: null, type: "def" + this.state.id, value: null, inside: [], indicator: false, elementType: "defineBtn" }
+                                                    const data = { id: this.Uid(), refId: null, type: "def" + this.Uid(), value: null, inside: [], indicator: false, elementType: "defineBtn" }
                                                     this.handleonDragStart(data, 1)
                                                 }}
                                         >
@@ -3588,62 +3716,71 @@ ${this.returnFunctions()}
                                     <div >
                                         <div className="ml-4 flex declareVariable">
                                             <button draggable="true"
+                                                title={`int a = 5`}
                                                 className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={(e) => {
                                                     e.stopPropagation()
-                                                    const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variableBtn" }
+                                                    const data = { id: this.Uid(), dataType: "int", type: 'var' + this.Uid(), value: null, inside: [inputField()], indicator: false, elementType: "variableBtn" }
                                                     this.handleonDragStart(data, 2)
                                                 }}>int</button>
                                             <button draggable="true"
+                                                title={`int[5] = {1, 2, 3, 4, 5}`}
                                                 className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={() => {
-                                                    const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variableBtn" }
+                                                    const data = { id: this.Uid(), dataType: "int", type: 'var' + this.Uid(), value: [], inside: [{}, inputField()], indicator: false, elementType: "variableBtn" }
                                                     this.handleonDragStart(data, 1)
                                                 }}>int[]</button>
                                             <button draggable="true"
+                                                title={`int[5][2] = {{1, 2}, {3, 4}, {5, 6}, {7, 8}, {9, 10}}`}
                                                 className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={() => {
-                                                    const data = { id: this.state.id, dataType: "int", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variableBtn" }
+                                                    const data = { id: this.Uid(), dataType: "int", type: 'var' + this.Uid(), value: [], inside: [{}, inputField(), inputField()], indicator: false, elementType: "variableBtn" }
                                                     this.handleonDragStart(data, 1)
                                                 }}>int[][]</button>
                                         </div>
                                         <div className="ml-4 flex declareVariable">
                                             <button draggable="true"
+                                                title={`float a = 5.02`}
                                                 className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={() => {
-                                                    const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variableBtn" }
+                                                    const data = { id: this.Uid(), dataType: "float", type: 'var' + this.Uid(), value: null, inside: [inputField()], indicator: false, elementType: "variableBtn" }
                                                     this.handleonDragStart(data, 1)
                                                 }}>float</button>
                                             <button draggable="true"
+                                                title={`float[5] = {1.2, 2.3, 3.5, 4.1, 5.0}`}
                                                 className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={() => {
-                                                    const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variableBtn" }
+                                                    const data = { id: this.Uid(), dataType: "float", type: 'var' + this.Uid(), value: [], inside: [{}, {}], indicator: false, elementType: "variableBtn" }
                                                     this.handleonDragStart(data, 1)
                                                 }}>float[]</button>
                                             <button draggable="true"
+                                                title={`float[5][2] = {{1.2, 2.3}, {3.4, 4.1}, {5.2, 6.5}, {7.2, 8.1}, {9.3, 10.4}}`}
                                                 className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={() => {
-                                                    const data = { id: this.state.id, dataType: "float", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variableBtn" }
+                                                    const data = { id: this.Uid(), dataType: "float", type: 'var' + this.Uid(), value: [], inside: [{}, {}, {}], indicator: false, elementType: "variableBtn" }
                                                     this.handleonDragStart(data, 1)
                                                 }}>float[][]</button>
                                         </div>
                                         <div className="ml-4 flex declareVariable">
                                             <button draggable="true"
+                                                title={`char = 'a'`}
                                                 className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={() => {
-                                                    const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: null, inside: [{}], indicator: false, elementType: "variableBtn" }
+                                                    const data = { id: this.Uid(), dataType: "char", type: 'var' + this.Uid(), value: null, inside: [inputField()], indicator: false, elementType: "variableBtn" }
                                                     this.handleonDragStart(data, 1)
                                                 }}>char</button>
                                             <button draggable="true"
+                                                title={`char[5] = {'a', 'b', 'c', 'd', 'e'}`}
                                                 className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={() => {
-                                                    const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: [], inside: [{}, {}], indicator: false, elementType: "variableBtn" }
+                                                    const data = { id: this.Uid(), dataType: "char", type: 'var' + this.Uid(), value: [], inside: [{}, {}], indicator: false, elementType: "variableBtn" }
                                                     this.handleonDragStart(data, 1)
                                                 }}>char[]</button>
                                             <button draggable="true"
+                                                title={`char[5][2] = {{'a', 'b'}, {'c', 'd'}, {'e', 'f'}, {'g', 'h'}, {'i', 'j'}}`}
                                                 className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={() => {
-                                                    const data = { id: this.state.id, dataType: "char", type: 'var' + this.state.id, value: [], inside: [{}, {}, {}], indicator: false, elementType: "variableBtn" }
+                                                    const data = { id: this.Uid(), dataType: "char", type: 'var' + this.Uid(), value: [], inside: [{}, {}, {}], indicator: false, elementType: "variableBtn" }
                                                     this.handleonDragStart(data, 1)
                                                 }}>char[][]</button>
                                         </div>
@@ -3653,7 +3790,9 @@ ${this.returnFunctions()}
                         </div>
                         {/*constant */}
                         <div>
-                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
+                            <div
+
+                                className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
                                 <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showInputFields: !prevState.showInputFields }))}>
                                     {this.state.showInputFields ? '-' : '+'}
                                 </button>
@@ -3663,9 +3802,10 @@ ${this.returnFunctions()}
                                 this.state.showInputFields && (
                                     <div className="ml-4 flex flex-wrap declareVariable">
                                         <button draggable="true"
+                                            title={`Any input`}
                                             className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
                                             onDragStart={() => {
-                                                const data = { id: this.state.id, refId: null, dataType: "int", type: "intInput", value: 0, inside: [], indicator: false, elementType: "inputField" }
+                                                const data = { id: this.Uid(), refId: null, dataType: "int", type: "intInput", value: 0, inside: [], indicator: false, elementType: "inputField" }
                                                 this.handleonDragStart(data, 1)
                                             }}>input</button>
                                     </div>
@@ -3685,15 +3825,21 @@ ${this.returnFunctions()}
                                 this.state.showConditionals && (
                                     <div className="ml-4 flex flex-wrap declareVariable">
                                         <button draggable="true"
+                                            title={`if ( condition ) {     
+
+}`}
                                             className="bg-lime-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
-                                                const data = { id: this.state.id, type: "cif", showOptions: false, inside: [condition(this.state.id + 1)], indicator: false, elementType: "conditional" }
+                                                const data = { id: this.Uid(), type: "cif", showOptions: false, inside: [condition(this.Uid())], indicator: false, elementType: "conditional" }
                                                 this.handleonDragStart(data, 4)
                                             }}>if</button>
                                         <button draggable="true"
+                                            title={`else {     
+
+}`}
                                             className="bg-lime-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
-                                                const data = { id: this.state.id, type: "celse", showOptions: false, inside: [], indicator: false, elementType: "conditional" }
+                                                const data = { id: this.Uid(), type: "celse", showOptions: false, inside: [], indicator: false, elementType: "conditional" }
                                                 this.handleonDragStart(data, 1)
                                             }}>else</button>
                                     </div>
@@ -3712,23 +3858,33 @@ ${this.returnFunctions()}
                                 this.state.showLoops && (
                                     <div className="ml-4 flex flex-wrap declareVariable">
                                         <button draggable="true"
+                                            title={`for ( initialization ; condition ; increment/decrement ) {     
+
+}`}
                                             className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
-                                                const data = { id: this.state.id, type: "cfor", inside: [assign(this.state.id + 1), condition(this.state.id + 2), assign(this.state.id + 3)], indicator: false, elementType: "loop" }
+                                                const data = { id: this.Uid(), type: "cfor", inside: [assign(this.Uid()), condition(this.Uid()), assign(this.Uid())], indicator: false, elementType: "loop" }
                                                 this.handleonDragStart(data, 6)
                                             }}>For</button>
 
                                         <button draggable="true"
+                                            title={`while ( condition ) {     
+
+}`}
                                             className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
-                                                const data = { id: this.state.id, type: "cwhile", inside: [condition(this.state.id + 1)], indicator: false, elementType: "loop" }
+                                                const data = { id: this.Uid(), type: "cwhile", inside: [condition(this.Uid())], indicator: false, elementType: "loop" }
                                                 this.handleonDragStart(data, 4)
                                             }}>While</button>
 
                                         <button draggable="true"
+                                            title={`do{
+
+}
+while ( condition ) ;`}
                                             className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
-                                                const data = { id: this.state.id, type: "cdoWhile", inside: [condition(this.state.id + 1)], indicator: false, elementType: "loop" }
+                                                const data = { id: this.Uid(), type: "cdoWhile", inside: [condition(this.Uid())], indicator: false, elementType: "loop" }
                                                 this.handleonDragStart(data, 4)
                                             }}>Do-While</button>
                                     </div>
@@ -3747,21 +3903,38 @@ ${this.returnFunctions()}
                                 this.state.showOthers && (
                                     <div className="ml-4 flex flex-wrap declareVariable">
                                         <button draggable="true"
+                                            title={`
+   variable  =  value ;
+or  variable  +=  value ;
+or  variable  -=  value ;
+or  variable  *=  value ;
+or  variable  /=  value ;
+or  variable  ++ ;
+or  variable  -- ;
+`}
                                             className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
-                                                const data = { id: this.state.id, type: "assignment", sign: "=", inside: [{}, {}], indicator: false, elementType: "expression" }
+                                                const data = { id: this.Uid(), type: "assignment", sign: "=", inside: [{}, {}], indicator: false, elementType: "expression" }
                                                 this.handleonDragStart(data, 1)
                                             }}>Assignment</button>
                                         <button draggable="true"
+                                            title={`
+   variable/value  +  variable/value ;
+or  variable/value  -  variable/value ;
+or  variable/value  *  variable/value ;
+or  variable/value  /  variable/value ;
+or  variable/value  %  variable/value ;
+                                        `}
                                             className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
-                                                const data = { id: this.state.id, type: "arithmatic", sign: "+", inside: [{}, {}], indicator: false, elementType: "expression" }
+                                                const data = { id: this.Uid(), type: "arithmatic", sign: "+", inside: [{}, {}], indicator: false, elementType: "expression" }
                                                 this.handleonDragStart(data, 1)
                                             }}>Arithmatic</button>
                                         <button draggable="true"
+                                            title={`return  variable/value ;`}
                                             className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
-                                                const data = { id: this.state.id, type: "return", sign: "+", inside: [{}], indicator: false, elementType: "expression" }
+                                                const data = { id: this.Uid(), type: "return", sign: "+", inside: [{}], indicator: false, elementType: "expression" }
                                                 this.handleonDragStart(data, 1)
                                             }}>return</button>
                                     </div>
@@ -3783,12 +3956,15 @@ ${this.returnFunctions()}
                                 this.state.showFunctions && (
                                     <div className="ml-4 flex flex-wrap declareVariable ">
                                         <button
+                                            title={`void functionName ( ) {
+
+}`}
                                             draggable="true"
                                             className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
                                                 const data = {
-                                                    id: this.state.id,
-                                                    type: 1 + "func" + this.state.id,
+                                                    id: this.Uid(),
+                                                    type: 1 + "func" + this.Uid(),
                                                     returnType: "void",
                                                     elementType: "functionBtn",
                                                     defination: true,
@@ -3805,11 +3981,14 @@ ${this.returnFunctions()}
 
                                         <button
                                             draggable="true"
+                                            title={`int functionName ( ) {
+
+}`}
                                             className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
                                                 const data = {
-                                                    id: this.state.id,
-                                                    type: 1 + "func" + this.state.id,
+                                                    id: this.Uid(),
+                                                    type: 1 + "func" + this.Uid(),
                                                     returnType: "int",
                                                     elementType: "functionBtn",
                                                     defination: true,
@@ -3826,11 +4005,14 @@ ${this.returnFunctions()}
 
                                         <button
                                             draggable="true"
+                                            title={`char functionName ( ) {
+
+}`}
                                             className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
                                                 const data = {
-                                                    id: this.state.id,
-                                                    type: 1 + "func" + this.state.id,
+                                                    id: this.Uid(),
+                                                    type: 1 + "func" + this.Uid(),
                                                     returnType: "float",
                                                     elementType: "functionBtn",
                                                     defination: true,
@@ -3847,11 +4029,14 @@ ${this.returnFunctions()}
 
                                         <button
                                             draggable="true"
+                                            title={`char functionName ( ) {
+
+}`}
                                             className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                             onDragStart={() => {
                                                 const data = {
-                                                    id: this.state.id,
-                                                    type: 1 + "func" + this.state.id,
+                                                    id: this.Uid(),
+                                                    type: 1 + "func" + this.Uid(),
                                                     returnType: "char",
                                                     elementType: "functionBtn",
                                                     defination: true,
@@ -3876,7 +4061,7 @@ ${this.returnFunctions()}
                                                         const tmp = []
                                                         for (let i = 0; i < f.inside.length; i++) {
                                                             const param = {
-                                                                id: this.state.id + i,
+                                                                id: this.Uid(),
                                                                 dataType: f.inside[i].dataType,
                                                                 type: null,
                                                                 value: null,
@@ -3888,7 +4073,7 @@ ${this.returnFunctions()}
                                                             tmp.push(param)
                                                         }
                                                         const data = {
-                                                            id: this.state.id + f.inside.length,
+                                                            id: this.Uid(),
                                                             refId: f.id,
                                                             type: f.type,
                                                             elementType: "function",
@@ -3929,7 +4114,86 @@ ${this.returnFunctions()}
                 )}
 
                 <div className="space-y-4 p-10 m-10 mt-0 mb-0 bg-slate-200 w-3/4 h-screen overflow-y-auto no-scrollbar">
-                    <p className="font-bold text-2xl border-b-2">Main.c</p>
+                    <div className="flex justify-between mx-2 border-b-2 border-black pb-2 relative">
+
+                        <div className="flex box-border">
+                            <input
+                                className="font-bold text-2xl border-b-2 autoAdjust w-[60px] rounded-md bg-slate-50 bg-opacity-40"
+                                defaultValue={"Main"}
+                                onChange={(e) => {
+                                    this.adjustInputWidth()
+                                    this.setState(() => ({ name: e.target.value }))
+                                }}
+                                value={this.state.name}
+                            />
+                            <p className="font-bold text-2xl border-b-2">.c</p>
+                        </div>
+
+                        <button className="text-2xl font-semibold border-2 px-2 border-slate-500 rounded-md relative"
+                            onClick={() => {
+
+                                this.setState((prevState) => {
+                                    return { showFileOptions: !prevState.showFileOptions, showOpenOption: false }
+                                })
+                            }}
+                        >
+                            File
+                            {this.state.showFileOptions && (<div className="absolute left-0 top-full bg-cyan-200 border border-gray-200 rounded-md mt-1 p-2 text-base text-left ">
+                                <button
+                                    className="block"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleNewButtonClick()
+                                        localStorage.setItem('codeId', this.Uid(8))
+                                        this.setState(() => ({ showFileOptions: false }))
+                                    }}
+                                >New</button>
+
+                                <button
+                                    className="block"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenButtonClick()
+                                        this.setState(() => {
+                                            return { showFileOptions: false }
+                                        })
+                                    }}
+                                >Open</button>
+
+                                <button
+                                    className="block"
+                                    onClick={() => {
+                                        handleSaveButtonClick()
+                                    }}
+                                >
+                                    Save
+                                </button>
+
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    style={{ display: 'none' }}
+                                    accept=".visc"
+                                />
+                                <button className="block" onClick={() => { handleButtonClick() }}>Upload</button>
+
+                                <button className="block" onClick={() => { downloadState() }}>Download</button>
+                            </div>)}
+
+
+                            {this.state.showOpenOption && (<div className="absolute left-0 top-full bg-cyan-200 border border-gray-200 rounded-md mt-1 p-2 text-base text-left">
+                                {this.state.responseData.map((rd) => {
+                                    return (<button onClick={() => {
+                                        this.setState(rd.jsonData)
+                                    }}>{rd.jsonData.name}</button>)
+                                })}
+                            </div>)}
+
+                        </button>
+
+                    </div>
+
 
                     <div className="bg-slate-300 p-4 rounded-lg">
                         <p className="text-right">Documentation section</p>
@@ -4103,7 +4367,7 @@ ${this.returnFunctions()}
                         </div>
                         <p>Console:</p>
                         <div className="h-2/6 w-full bg-slate-800 overflow-y-scroll text-slate-50 p-4 border-4 rounded-md font-mono">
-                            {this.state.responseData}
+                            <pre>{this.state.responseData}</pre>
                         </div>
                     </div>
                 )}
