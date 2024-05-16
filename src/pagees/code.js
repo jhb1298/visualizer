@@ -6,7 +6,7 @@ import { debounce } from 'lodash';
 
 const cloneDeep = require('lodash/cloneDeep')
 const ids = [];
-const divRefs = {}
+//const divRefs = {}
 
 
 class Code extends React.Component {
@@ -111,9 +111,9 @@ class Code extends React.Component {
         if (ids.includes(id)) {
             return this.Uid();
         } else {
-            let divRef = React.createRef();
+            //let divRef = React.createRef();
             ids.push(id);
-            divRefs[id] = divRef;
+            //divRefs[id] = divRef
             return id
         }
     }
@@ -511,10 +511,11 @@ class Code extends React.Component {
 
     }
 
-    handleOnDragOver = (e, divRef) => {
+    handleOnDragOver = (e, id) => {
         e.preventDefault();
         e.stopPropagation();
-        const div = divRef.current
+        console.log("HandledragOver Id:", id)
+        const div = document.getElementById(id);
         const mouseY = e.clientY;
         //console.log(divRef.classList.findIndex((name) => { return name === "sortableLR" }))
         const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
@@ -533,10 +534,10 @@ class Code extends React.Component {
         }
     };
 
-    dragOverSortableLR = (e, divRef) => {
+    dragOverSortableLR = (e, id) => {
         e.preventDefault();
         e.stopPropagation();
-        const div = divRef.current
+        const div = document.getElementById(id);
         const mouseY = e.clientX;
         //console.log(divRef.classList.findIndex((name) => { return name === "sortableLR" }))
         const objectCenterX = div.getBoundingClientRect().left + div.offsetWidth / 2;
@@ -552,8 +553,8 @@ class Code extends React.Component {
 
     }
 
-    dragLeaveSortableLR = (e, divRef) => {
-        const div = divRef.current
+    dragLeaveSortableLR = (e, id) => {
+        const div = document.getElementById(id);
 
 
         div.style.borderLeft = 'none';
@@ -562,8 +563,8 @@ class Code extends React.Component {
     }
 
 
-    handleOnDragLeave = (e, divRef) => {
-        const div = divRef.current
+    handleOnDragLeave = (e, id) => {
+        const div = document.getElementById(id);
 
         if (div.offsetHeight >= 40) {
             div.style.borderTop = 'none';
@@ -575,7 +576,7 @@ class Code extends React.Component {
 
     }
     //---------------------------------------------
-    handleOnDrop = (e, obj, indexF, divRef, empty) => {
+    handleOnDrop = (e, obj, indexF, id, empty) => {
         let divs = document.querySelectorAll("div.sortable")
         divs.forEach((item) => {
             item.style.borderBottom = 'none'
@@ -585,7 +586,7 @@ class Code extends React.Component {
         let data = this.state.value
         //this.setState((prevState) => ({ id: prevState.id + prevState.inc }))
         let position = ""
-        const div = divRef.current;
+        const div = document.getElementById(id);
         const mouseY = e.clientY;
         const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
         if (mouseY - objectCenterY < 0) {
@@ -599,7 +600,7 @@ class Code extends React.Component {
 
 
 
-    dropOnGVariables = (e, index, divRef, empty) => {
+    dropOnGVariables = (e, index, id, empty) => {
         let divs = document.querySelectorAll("div.sortable")
         divs.forEach((item) => {
             item.style.borderBottom = 'none'
@@ -622,7 +623,7 @@ class Code extends React.Component {
         }
 
         else {
-            const div = divRef.current;
+            const div = document.getElementById(id);
             const mouseY = e.clientY;
             let position = 0
             const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
@@ -641,7 +642,7 @@ class Code extends React.Component {
 
         }
     }
-    dropOnHeaders = (e, index, divRef, empty) => {
+    dropOnHeaders = (e, index, id, empty) => {
         let divs = document.querySelectorAll("div.sortable")
         divs.forEach((item) => {
             item.style.borderBottom = 'none'
@@ -650,9 +651,7 @@ class Code extends React.Component {
         e.stopPropagation();
 
         let data = this.state.value
-        /*this.setState((prevState) => {
-            return { id: prevState.id + 1 }
-        })*/
+
 
         let position = 0
         if (empty) {
@@ -664,7 +663,7 @@ class Code extends React.Component {
         }
 
         else {
-            const div = divRef.current;
+            const div = document.getElementById(id);
             const mouseY = e.clientY;
             const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
             if (mouseY - objectCenterY < 0) {
@@ -681,7 +680,7 @@ class Code extends React.Component {
         }
     }
 
-    dropOnDefine = (e, index, divRef, empty) => {
+    dropOnDefine = (e, index, id, empty) => {
         let divs = document.querySelectorAll("div.sortable")
         divs.forEach((item) => {
             item.style.borderBottom = 'none'
@@ -705,7 +704,7 @@ class Code extends React.Component {
         }
 
         else {
-            const div = divRef.current;
+            const div = document.getElementById(id);
             const mouseY = e.clientY;
             const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
             if (mouseY - objectCenterY < 0) {
@@ -722,7 +721,7 @@ class Code extends React.Component {
         }
     }
 
-    dropOnSubP = (e, index, divRef, empty) => {
+    dropOnSubP = (e, index, id, empty) => {
         let divs = document.querySelectorAll("div.sortable")
         divs.forEach((item) => {
             item.style.borderBottom = 'none'
@@ -746,7 +745,7 @@ class Code extends React.Component {
         }
 
         else {
-            const div = divRef.current;
+            const div = document.getElementById(id);
             const mouseY = e.clientY;
             const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
             if (mouseY - objectCenterY < 0) {
@@ -763,7 +762,7 @@ class Code extends React.Component {
         }
     }
 
-    dropOnParams = (e, obj, indexF, divRef, empty) => {
+    dropOnParams = (e, obj, indexF, id, empty) => {
         let divs = document.querySelectorAll("div.sortable")
         divs.forEach((item) => {
             item.style.borderBottom = 'none'
@@ -779,7 +778,7 @@ class Code extends React.Component {
         data = { ...data, elementType: "param" }
         //this.setState((prevState) => ({ id: prevState.id + prevState.inc }))
         let position = ""
-        const div = divRef.current;
+        const div = document.getElementById(id);
         const mouseX = e.clientX;
         const objectCenterX = div.getBoundingClientRect().left + div.offsetWidth / 2;
         if (mouseX - objectCenterX < 0) {
@@ -796,7 +795,7 @@ class Code extends React.Component {
 
     }
 
-    dropOnSlot = (e, obj, data, divRef, index) => {
+    dropOnSlot = (e, obj, data, id, index) => {
         e.stopPropagation()
         const indices = this.findIndices(obj)
 
@@ -1418,7 +1417,7 @@ class Code extends React.Component {
 
 
     render() {
-        const fileInputRef = React.createRef()
+        const fileInputRef = this.Uid()
 
         /*function wrap(inputString) {
             const maxWordsPerLine = 5
@@ -1489,7 +1488,6 @@ ${this.returnFunctions()}
 
         const handleSaveButtonClick = () => {
             let state = cloneDeep(this.state)
-            const refs=cloneDeep(divRefs)
             fetch('http://localhost:8080/save', {
                 method: 'POST',
                 headers: {
@@ -1498,8 +1496,7 @@ ${this.returnFunctions()}
                 body: JSON.stringify({
                     email: localStorage.getItem('email'),
                     codeId: localStorage.getItem('codeId'),
-                    ids:ids,
-                    divRefs:refs,
+                    ids: ids,
                     jsonData: state
                 })
             })
@@ -1566,7 +1563,7 @@ ${this.returnFunctions()}
 
         // Function to trigger file input click event when the button is clicked
         const handleButtonClick = () => {
-            fileInputRef.current.click(); // Trigger click event of the hidden file input
+            document.getElementById(fileInputRef).click(); // Trigger click event of the hidden file input
         };
 
 
@@ -1695,8 +1692,8 @@ ${this.returnFunctions()}
                         return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
                             //ref={divRefs[l.id]}
                             id={l.id}
-                            onDragOver={(e) => this.handleOnDragOver(e, divRefs[l.id])}
-                            onDragLeave={(e) => this.handleOnDragLeave(e, divRefs[l.id])}
+                            onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                            onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
                             onDrop={(e) => {
                                 const data = {
                                     id: this.Uid(),
@@ -1708,7 +1705,7 @@ ${this.returnFunctions()}
                                 /*this.setState((prevState) => {
                                     return { id: prevState.id + 1 }
                                 })*/
-                                this.dropOnSlot(e, obj, data, divRefs[l.id], i)
+                                this.dropOnSlot(e, obj, data, l.id, i)
                             }}
                         >
 
@@ -1763,8 +1760,8 @@ ${this.returnFunctions()}
                             <div className="bg-slate-200 flex w-max min-w-5  rounded-sm slot"
                                 //ref={divRefs[obj.inside[0].id]}
                                 id={obj.inside[0].id}
-                                onDragOver={(e) => this.handleOnDragOver(e, divRefs[obj.inside[0].id])}
-                                onDragLeave={(e) => this.handleOnDragLeave(e, divRefs[obj.inside[0].id])}
+                                onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
+                                onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
                                 onDrop={(e) => {
                                     let data = null
                                     this.state.value.type === "arithmatic" ?
@@ -1780,7 +1777,7 @@ ${this.returnFunctions()}
                                     /*this.setState((prevState) => {
                                         return { id: prevState.id + 1 }
                                     })*/
-                                    this.dropOnSlot(e, obj, data, divRefs[obj.inside[0].id], 0)
+                                    this.dropOnSlot(e, obj, data, obj.inside[0].id, 0)
                                 }}
                             >
 
@@ -1821,8 +1818,8 @@ ${this.returnFunctions()}
                                                                 tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
                                                                     //ref={divRefs[l.id]}
                                                                     id={l.id}
-                                                                    onDragOver={(e) => this.handleOnDragOver(e, divRefs[l.id])}
-                                                                    onDragLeave={(e) => this.handleOnDragLeave(e, divRefs[l.id])}
+                                                                    onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                                    onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
                                                                     onDrop={(e) => {
                                                                         const data = {
                                                                             id: this.Uid(),
@@ -1832,7 +1829,7 @@ ${this.returnFunctions()}
                                                                             value: this.state.value.value ?? null
                                                                         }
 
-                                                                        this.dropOnSlot(e, obj.inside[0], data, divRefs[l.id], i)
+                                                                        this.dropOnSlot(e, obj.inside[0], data, l.id, i)
                                                                     }}
                                                                 >
 
@@ -1890,13 +1887,14 @@ ${this.returnFunctions()}
 
 
         const viewReturn = (obj, indexF) => {
-            const divRef = React.createRef()
+            //const divRef = React.createRef()
             return (<div className="flex">
                 <div className="mr-4">return</div>
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                    ref={divRef}
-                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                    //ref={divRef}
+                    id={obj.id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.id)}
                     onDrop={(e) => {
                         let data = null
                         this.state.value.type === "arithmatic" ?
@@ -1912,7 +1910,7 @@ ${this.returnFunctions()}
                         /*this.setState((prevState) => {
                             return { id: prevState.id + 1 }
                         })*/
-                        this.dropOnSlot(e, obj, data, divRef, 0)
+                        this.dropOnSlot(e, obj, data, obj.id, 0)
                     }}
                 >
 
@@ -2033,30 +2031,32 @@ ${this.returnFunctions()}
             return obj.inside && obj.inside.map((im, i) => {
                 if (i >= startingIndex) {
                     //const divRef = React.createRef();
-                    const divRef = divRefs[im.id]
+                    //const divRef = divRefs[im.id]
+
                     const depth = this.findIndices(im).length
                     switch (im.type) {
                         case "assignment":
                             return <div
                                 draggable="true"
-                                ref={divRef}
+                                //ref={divRef}
+                                id={im.id}
                                 className={`pl-2 py-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragOver(e, divRef)
+                                        this.handleOnDragOver(e, im.id)
                                     }
                                 }}
                                 onDrop={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDrop(e, im, indexF, divRef)
+                                        this.handleOnDrop(e, im, indexF, im.id)
                                     }
                                 }}
                                 onDragLeave={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragLeave(e, divRef)
+                                        this.handleOnDragLeave(e, im.id)
                                     }
                                 }}
                                 onDragStart={(e) => {
@@ -2067,26 +2067,27 @@ ${this.returnFunctions()}
                         case "cif":
                             return <div
                                 draggable="true"
-                                ref={divRef}
+                                id={im.id}
+                                //ref={divRef}
                                 className={`pl-2 rounded-lg  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragOver(e, divRef)
+                                        this.handleOnDragOver(e, im.id)
                                     }
                                 }}
                                 onDrop={(e) => {
 
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDrop(e, im, indexF, divRef)
+                                        this.handleOnDrop(e, im, indexF, im.id)
                                     }
                                 }}
                                 onDragLeave={(e) => {
 
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragLeave(e, divRef)
+                                        this.handleOnDragLeave(e, im.id)
                                     }
                                 }}
                                 onDragStart={(e) => {
@@ -2098,24 +2099,25 @@ ${this.returnFunctions()}
                         case "celse":
                             return <div
                                 draggable="true"
-                                ref={divRef}
+                                id={im.id}
+                                //ref={divRef}
                                 className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragOver(e, divRef)
+                                        this.handleOnDragOver(e, im.id)
                                     }
                                 }}
                                 onDrop={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDrop(e, im, indexF, divRef)
+                                        this.handleOnDrop(e, im, indexF, im.id)
                                     }
                                 }}
                                 onDragLeave={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragLeave(e, divRef)
+                                        this.handleOnDragLeave(e, im.id)
                                     }
                                 }}
                                 onDragStart={(e) => {
@@ -2126,24 +2128,25 @@ ${this.returnFunctions()}
                         case "cfor":
                             return <div
                                 draggable="true"
-                                ref={divRef}
+                                id={im.id}
+                                //ref={divRef}
                                 className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragOver(e, divRef)
+                                        this.handleOnDragOver(e, im.id)
                                     }
                                 }}
                                 onDrop={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDrop(e, im, indexF, divRef)
+                                        this.handleOnDrop(e, im, indexF, im.id)
                                     }
                                 }}
                                 onDragLeave={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragLeave(e, divRef)
+                                        this.handleOnDragLeave(e, im.id)
                                     }
                                 }}
                                 onDragStart={(e) => {
@@ -2157,25 +2160,26 @@ ${this.returnFunctions()}
 
                         case "cwhile":
                             return <div
-                                ref={divRef}
+                                id={im.id}
+                                //ref={divRef}
                                 draggable="true"
                                 className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragOver(e, divRef)
+                                        this.handleOnDragOver(e, im.id)
                                     }
                                 }}
                                 onDrop={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDrop(e, im, indexF, divRef)
+                                        this.handleOnDrop(e, im, indexF, im.id)
                                     }
                                 }}
                                 onDragLeave={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragLeave(e, divRef)
+                                        this.handleOnDragLeave(e, im.id)
                                     }
                                 }}
                                 onDragStart={(e) => {
@@ -2188,25 +2192,26 @@ ${this.returnFunctions()}
                             </div>;
                         case "return":
                             return <div
-                                ref={divRef}
+                                id={im.id}
+                                //ref={divRef}
                                 draggable="true"
                                 className={`pl-2 flex items-center min-h-10 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragOver(e, divRef)
+                                        this.handleOnDragOver(e, im.id)
                                     }
                                 }}
                                 onDrop={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDrop(e, im, indexF, divRef)
+                                        this.handleOnDrop(e, im, indexF, im.id)
                                     }
                                 }}
                                 onDragLeave={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragLeave(e, divRef)
+                                        this.handleOnDragLeave(e, im.id)
                                     }
                                 }}
                                 onDragStart={(e) => {
@@ -2220,25 +2225,26 @@ ${this.returnFunctions()}
 
                         case "cdoWhile":
                             return <div
-                                ref={divRef}
+                                id={im.id}
+                                //ref={divRef}
                                 draggable="true"
                                 className={`pl-2 rounded-lg my-1 border-gray-400 border-l-2  ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragOver(e, divRef)
+                                        this.handleOnDragOver(e, im.id)
                                     }
                                 }}
                                 onDrop={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDrop(e, im, indexF, divRef)
+                                        this.handleOnDrop(e, im, indexF, im.id)
                                     }
                                 }}
                                 onDragLeave={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragLeave(e, divRef)
+                                        this.handleOnDragLeave(e, im.id)
                                     }
                                 }}
                                 onDragStart={(e) => {
@@ -2253,18 +2259,19 @@ ${this.returnFunctions()}
                             if (im.type[0] === '1') {
                                 return (
                                     <div
-                                        id={i}
-                                        ref={divRef}
+
+                                        id={im.id}
+                                        //ref={divRef}
                                         draggable="true"
                                         className={`pl-2 rounded-lg my-1 border-gray-400 border-l-2  ${colorList[depth - 2]} sortable`}
                                         onDragOver={(e) => {
-                                            this.handleOnDragOver(e, divRef)
+                                            this.handleOnDragOver(e, im.id)
                                         }}
                                         onDrop={(e) => {
-                                            this.handleOnDrop(e, im, indexF, divRef)
+                                            this.handleOnDrop(e, im, indexF, im.id)
                                         }}
                                         onDragLeave={(e) => {
-                                            this.handleOnDragLeave(e, divRef)
+                                            this.handleOnDragLeave(e, im.id)
                                         }}
                                         onDragStart={(e) => {
                                             e.stopPropagation()
@@ -2277,17 +2284,18 @@ ${this.returnFunctions()}
                             }
                             else {
                                 return < div
+                                    id={im.id}
                                     draggable="true"
-                                    ref={divRef}
+                                    //ref={divRef}
                                     className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                     onDragOver={(e) => {
-                                        this.handleOnDragOver(e, divRef)
+                                        this.handleOnDragOver(e, im.id)
                                     }}
                                     onDrop={(e) => {
-                                        this.handleOnDrop(e, im, indexF, divRef)
+                                        this.handleOnDrop(e, im, indexF, im.id)
                                     }}
                                     onDragLeave={(e) => {
-                                        this.handleOnDragLeave(e, divRef)
+                                        this.handleOnDragLeave(e, im.id)
                                     }}
                                     onDragStart={(e) => {
                                         e.stopPropagation()
@@ -2384,23 +2392,25 @@ ${this.returnFunctions()}
 
 
         const showGVariables = () => {
-            const divRef = React.createRef();
+            //const divRef = React.createRef();
+            const id = this.Uid()
             return <div
+                id={id}
                 className="bg-slate-200 my-1 mr-0  min-h-5 sortable"
-                ref={divRef}
+                //ref={divRef}
                 onDragOver={(e) => {
                     if (this.state.value.elementType === "variableBtn") {
-                        this.handleOnDragOver(e, divRef)
+                        this.handleOnDragOver(e, id)
                     }
                 }}
                 onDrop={(e) => {
                     if (this.state.value.elementType === "variableBtn") {
-                        this.dropOnGVariables(e, null, divRef, true) //empty=true as empty section
+                        this.dropOnGVariables(e, null, id, true) //empty=true as empty section
                     }
                 }}
                 onDragLeave={(e) => {
                     if (this.state.value.elementType === "variableBtn") {
-                        this.handleOnDragLeave(e, divRef)
+                        this.handleOnDragLeave(e, id)
                     }
                 }}>
                 {this.state.gVariables.inside.map((v, i) => {
@@ -2412,17 +2422,17 @@ ${this.returnFunctions()}
                         draggable="true"
                         onDragOver={(e) => {
                             if (this.state.value.elementType === "variableBtn") {
-                                this.handleOnDragOver(e, divRefs[v.id])
+                                this.handleOnDragOver(e, v.id)
                             }
                         }}
                         onDrop={(e) => {
                             if (this.state.value.elementType === "variableBtn") {
-                                this.dropOnGVariables(e, i, divRefs[v.id], false) //empty=false as non empty section
+                                this.dropOnGVariables(e, i, v.id, false) //empty=false as non empty section
                             }
                         }}
                         onDragLeave={(e) => {
                             if (this.state.value.elementType === "variableBtn") {
-                                this.handleOnDragLeave(e, divRefs[v.id])
+                                this.handleOnDragLeave(e, v.id)
                             }
                         }}
                         onDragStart={(e) => {
@@ -2437,25 +2447,27 @@ ${this.returnFunctions()}
         }
 
         const showHeaders = () => {
-            const divRef = React.createRef();
+            //const divRef = React.createRef();
+            const id = this.Uid()
             return <div
+                id={id}
                 className="bg-slate-200 my-1 mr-0  min-h-5 "
-                ref={divRef}
+                //ref={divRef}
                 onDragOver={(e) => {
                     if (this.state.value.elementType === "header") {
-                        this.handleOnDragOver(e, divRef)
+                        this.handleOnDragOver(e, id)
 
                     }
                 }}
                 onDrop={(e) => {
                     if (this.state.value.elementType === "header") {
-                        this.dropOnHeaders(e, null, divRef, true) //empty=true as empty section
+                        this.dropOnHeaders(e, null, id, true) //empty=true as empty section
 
                     }
                 }}
                 onDragLeave={(e) => {
                     if (this.state.value.elementType === "header") {
-                        this.handleOnDragLeave(e, divRef)
+                        this.handleOnDragLeave(e, id)
 
                     }
                 }}>
@@ -2468,19 +2480,19 @@ ${this.returnFunctions()}
                         draggable="true"
                         onDragOver={(e) => {
                             if (this.state.value.elementType === "header") {
-                                this.handleOnDragOver(e, divRefs[h.id])
+                                this.handleOnDragOver(e, h.id)
 
                             }
                         }}
                         onDrop={(e) => {
                             if (this.state.value.elementType === "header") {
-                                this.dropOnHeaders(e, i, divRefs[h.id], false) //empty=false as non empty section
+                                this.dropOnHeaders(e, i, h.id, false) //empty=false as non empty section
 
                             }
                         }}
                         onDragLeave={(e) => {
                             if (this.state.value.elementType === "header") {
-                                this.handleOnDragLeave(e, divRefs[h.id])
+                                this.handleOnDragLeave(e, h.id)
 
                             }
                         }}
@@ -2496,25 +2508,27 @@ ${this.returnFunctions()}
         }
 
         const showDefines = () => {
-            const divRef = React.createRef();
+            //const divRef = React.createRef();
+            const id = this.Uid()
             return <div
+                id={id}
                 className="bg-slate-200 my-1 mr-0 min-h-5 sortable"
-                ref={divRef}
+                //ref={divRef}
                 onDragOver={(e) => {
                     if (this.state.value.elementType === "defineBtn") {
-                        this.handleOnDragOver(e, divRef)
+                        this.handleOnDragOver(e, id)
 
                     }
                 }}
                 onDrop={(e) => {
                     if (this.state.value.elementType === "defineBtn") {
-                        this.dropOnDefine(e, null, divRef, true) //empty=true as empty section
+                        this.dropOnDefine(e, null, id, true) //empty=true as empty section
 
                     }
                 }}
                 onDragLeave={(e) => {
                     if (this.state.value.elementType === "defineBtn") {
-                        this.handleOnDragLeave(e, divRef)
+                        this.handleOnDragLeave(e, id)
 
                     }
                 }}>
@@ -2525,21 +2539,21 @@ ${this.returnFunctions()}
                         <div
                             className="bg-blue-200 pl-2 rounded-lg my-1  border-gray-400 border-l-2 sortable"
                             //ref={divRefs[obj.id]}
-id={obj.id}
+                            id={obj.id}
                             draggable="true"
                             onDragOver={(e) => {
                                 if (this.state.value.elementType === "defineBtn") {
-                                    this.handleOnDragOver(e, divRefs[obj.id])
+                                    this.handleOnDragOver(e, obj.id)
                                 }
                             }}
                             onDrop={(e) => {
                                 if (this.state.value.elementType === "defineBtn") {
-                                    this.dropOnDefine(e, i, divRefs[obj.id], false) //empty=false as non empty section
+                                    this.dropOnDefine(e, i, obj.id, false) //empty=false as non empty section
                                 }
                             }}
                             onDragLeave={(e) => {
                                 if (this.state.value.elementType === "defineBtn") {
-                                    this.handleOnDragLeave(e, divRefs[obj.id])
+                                    this.handleOnDragLeave(e, obj.id)
                                 }
                             }}
                             onDragStart={(e) => {
@@ -2570,8 +2584,8 @@ id={obj.id}
                             <div className="bg-slate-200  w-max min-w-5  inline  rounded-sm slot"
                                 //ref={divRefs[obj.inside[0].id]}
                                 id={obj.inside[0].id}
-                                onDragOver={(e) => this.handleOnDragOver(e, divRefs[obj.inside[0].id])}
-                                onDragLeave={(e) => this.handleOnDragLeave(e, divRefs[obj.inside[0].id])}
+                                onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
+                                onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
                                 onDrop={(e) => {
                                     let data = null
                                     this.state.value.type === "arithmatic" ?
@@ -2585,7 +2599,7 @@ id={obj.id}
                                             value: 0//this.state.value.value
                                         }
 
-                                    this.dropOnSlot(e, obj, data, divRefs[obj.inside[0].id], 0)
+                                    this.dropOnSlot(e, obj, data, obj.inside[0].id, 0)
                                 }}
                             >
 
@@ -2598,18 +2612,6 @@ id={obj.id}
                                                     onChange={(e) => {
                                                         this.adjustInputWidth()
                                                         this.updateDefinesValue(e, i)
-
-                                                        /*if (gVariables) {
-                                                            this.updateGVariablesValue(obj.inside[0], e.target.value, 0)
-                                                            this.updateEachGVariable();
-
-
-                                                        }
-                                                        else {
-                                                            this.updateVariablesValue(obj.inside[0], index, e.target.value, 0)
-
-                                                            this.updateEachVariable(index)
-                                                        }*/
                                                     }}
                                                 />)
                                             case ("floatInput"): return (<input />)
@@ -2633,23 +2635,25 @@ id={obj.id}
         }
 
         const showSubprograms = () => {
-            const divRef = React.createRef();
+            //const divRef = React.createRef();
+            const id = this.Uid()
             return (
                 <div className="bg-slate-200 my-1 mr-0  min-h-5 sortable"
-                    ref={divRef}
+                    //ref={divRef}
+                    id={id}
                     onDragOver={(e) => {
                         if (this.state.value.elementType === "functionBtn") {
-                            this.handleOnDragOver(e, divRef)
+                            this.handleOnDragOver(e, id)
                         }
                     }}
                     onDrop={(e) => {
                         if (this.state.value.elementType === "functionBtn") {
-                            this.dropOnSubP(e, null, divRef, true) //empty=true as empty section
+                            this.dropOnSubP(e, null, id, true) //empty=true as empty section
                         }
                     }}
                     onDragLeave={(e) => {
                         if (this.state.value.elementType === "functionBtn") {
-                            this.handleOnDragLeave(e, divRef)
+                            this.handleOnDragLeave(e, id)
                         }
                     }}>
                     {this.state.functions.inside.map((f, index) => {
@@ -2663,17 +2667,17 @@ id={obj.id}
                                     draggable="true"
                                     onDragOver={(e) => {
                                         if (this.state.value.elementType === "functionBtn") {
-                                            this.handleOnDragOver(e, divRefs[f.id])
+                                            this.handleOnDragOver(e, f.id)
                                         }
                                     }}
                                     onDrop={(e) => {
                                         if (this.state.value.elementType === "functionBtn") {
-                                            this.dropOnSubP(e, index, divRefs[f.id], false) //empty=false as non empty section
+                                            this.dropOnSubP(e, index, f.id, false) //empty=false as non empty section
                                         }
                                     }}
                                     onDragLeave={(e) => {
                                         if (this.state.value.elementType === "functionBtn") {
-                                            this.handleOnDragLeave(e, divRefs[f.id])
+                                            this.handleOnDragLeave(e, f.id)
                                         }
                                     }}
                                     onDragStart={(e) => {
@@ -2694,7 +2698,7 @@ id={obj.id}
         const subP = (id) => {
             const obj = this.state.functions.inside.find((obj) => obj.id === id);
             const index = this.state.functions.inside.indexOf(obj);
-            const divRef = React.createRef();
+            //const divRef = React.createRef();
             return (
                 <div className=" pl-2 bg-blue-300 flex items-center rounded-lg sortable">
                     <code className="w-full">
@@ -2717,15 +2721,16 @@ id={obj.id}
                             {"("}
                             <div
                                 className="bg-blue-200 rounded-lg  min-w-5 min-h-4  sortable"
-                                ref={divRef}
+                                //ref={divRef}
+                                id={id}
                                 onDragOver={(e) => {
-                                    this.handleOnDragOver(e, divRef)
+                                    this.handleOnDragOver(e, id)
                                 }}
                                 onDrop={(e) => {
-                                    this.dropOnParams(e, obj, index, divRef, true)
+                                    this.dropOnParams(e, obj, index, id, true)
                                 }}
                                 onDragLeave={(e) => {
-                                    this.handleOnDragLeave(e, divRef)
+                                    this.handleOnDragLeave(e, id)
                                 }}
 
                             >
@@ -2733,18 +2738,18 @@ id={obj.id}
                                     //const divRef = React.createRef()
                                     if (i < obj.NumberOfParams) {
                                         return (
-                                            <div 
+                                            <div
                                                 className="items-center inline-flex bg-blue-200 rounded-lg min-w-4 sortableLR"
                                                 //ref={divRefs[p.id]}
                                                 id={p.id}
                                                 onDragOver={(e) => {
-                                                    this.dragOverSortableLR(e, divRefs[p.id])
+                                                    this.dragOverSortableLR(e, p.id)
                                                 }}
                                                 onDrop={(e) => {
-                                                    this.dropOnParams(e, p, index, divRefs[p.id], false)
+                                                    this.dropOnParams(e, p, index, p.id, false)
                                                 }}
                                                 onDragLeave={(e) => {
-                                                    this.dragLeaveSortableLR(e, divRefs[p.id])
+                                                    this.dragLeaveSortableLR(e, p.id)
                                                 }}
                                                 draggable="true"
                                                 onDragStart={(e) => {
@@ -2782,25 +2787,27 @@ id={obj.id}
                             {") {"}
                         </div>
                         {(() => {
-                            const divRef = React.createRef()
+                            //const divRef = React.createRef()
+                            const id = this.Uid()
                             return (<div className="bg-slate-200 ml-4 mr-0 min-h-4"
-                                ref={divRef}
+                                //ref={divRef}
+                                id={id}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragOver(e, divRef)
+                                        this.handleOnDragOver(e, id)
                                     }
                                 }}
                                 onDrop={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDrop(e, obj, index, divRef, true)
+                                        this.handleOnDrop(e, obj, index, id, true)
                                     }
                                 }}
                                 onDragLeave={(e) => {
                                     const et = this.state.value.elementType
                                     if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                        this.handleOnDragLeave(e, divRef)
+                                        this.handleOnDragLeave(e, id)
                                     }
                                 }}
                             >
@@ -2820,12 +2827,13 @@ id={obj.id}
 
         const conditional = (obj, indexF) => {
             console.log("Conditional object got:", this.state)
-            const divRef = React.createRef()
+            //const divRef = React.createRef()
             return (<div className="flex">
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                    ref={divRef}
-                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                    //ref={divRef}
+                    id={obj.inside[0].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
                     onDrop={(e) => {
                         const data = {
                             id: this.Uid(),
@@ -2838,7 +2846,7 @@ id={obj.id}
                             return { id: prevState.id + 1 }
                         })*/
                         console.log("Dropped with the values:", obj, data, this.state.value)
-                        this.dropOnSlot(e, obj, data, divRef, 0)
+                        this.dropOnSlot(e, obj, data, obj.inside[0].id, 0)
                     }}
                 >
 
@@ -2868,11 +2876,12 @@ id={obj.id}
                                             obj.inside[0].hasOwnProperty("inside") ?
                                                 obj.inside[0].inside.map((l, i) => {
                                                     if (i > 0) {
-                                                        const divRef = React.createRef();
+                                                        //const divRef = React.createRef();
                                                         tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                            ref={divRef}
-                                                            onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                                            onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                            //ref={divRef}
+                                                            id={l.id}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
                                                             onDrop={(e) => {
                                                                 const data = {
                                                                     id: this.Uid(),
@@ -2884,7 +2893,7 @@ id={obj.id}
                                                                 /*this.setState((prevState) => {
                                                                     return { id: prevState.id + 1 }
                                                                 })*/
-                                                                this.dropOnSlot(e, obj.inside[0], data, divRef, i)
+                                                                this.dropOnSlot(e, obj.inside[0], data, l.id, i)
                                                             }}
                                                         >
 
@@ -2943,9 +2952,10 @@ id={obj.id}
                     <option>{'!='}</option>
                 </select>
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                    ref={divRef}
-                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                    //ref={divRef}
+                    id={obj.inside[1].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[1].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[1].id)}
                     onDrop={(e) => {
                         const data = {
                             id: this.Uid(),
@@ -2957,7 +2967,7 @@ id={obj.id}
                         /*this.setState((prevState) => {
                             return { id: prevState.id + 1 }
                         })*/
-                        this.dropOnSlot(e, obj, data, divRef, 1)
+                        this.dropOnSlot(e, obj, data, obj.inside[1].id, 1)
                     }}
                 >
 
@@ -2987,11 +2997,12 @@ id={obj.id}
                                             obj.inside[1].hasOwnProperty("inside") ?
                                                 obj.inside[1].inside.map((l, i) => {
                                                     if (i > 0) {
-                                                        const divRef = React.createRef();
+                                                        //const divRef = React.createRef();
                                                         tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                            ref={divRef}
-                                                            onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                                            onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                            //ref={divRef}
+                                                            id={l.id}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
                                                             onDrop={(e) => {
                                                                 const data = {
                                                                     id: this.Uid(),
@@ -3003,7 +3014,7 @@ id={obj.id}
                                                                 /*this.setState((prevState) => {
                                                                     return { id: prevState.id + 1 }
                                                                 })*/
-                                                                this.dropOnSlot(e, obj.inside[1], data, divRef, i)
+                                                                this.dropOnSlot(e, obj.inside[1], data, l.id, i)
                                                             }}
                                                         >
 
@@ -3053,13 +3064,14 @@ id={obj.id}
 
         const arithmatic = (obj, indexF) => {
             console.log("Index of function inside updated arithmatic:", indexF)
-            const divRef = React.createRef()
+            //const divRef = React.createRef()
             return (<div className="flex">
                 (
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                    ref={divRef}
-                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                    //ref={divRef}
+                    id={obj.id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.id)}
                     onDrop={(e) => {
                         let data = null
                         this.state.value.type === "arithmatic" ?
@@ -3073,7 +3085,7 @@ id={obj.id}
                                 value: this.state.value.value ?? null
                             }
 
-                        this.dropOnSlot(e, obj, data, divRef, 0)
+                        this.dropOnSlot(e, obj, data, obj.id, 0)
                     }}
                 >
 
@@ -3105,9 +3117,9 @@ id={obj.id}
                                                         //const divRef = React.createRef();
                                                         tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
                                                             //ref={divRefs[l.id]}
-id={l.id}
-                                                            onDragOver={(e) => this.handleOnDragOver(e, divRefs[l.id])}
-                                                            onDragLeave={(e) => this.handleOnDragLeave(e, divRefs[l.id])}
+                                                            id={l.id}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
                                                             onDrop={(e) => {
                                                                 const data = {
                                                                     id: this.Uid(),
@@ -3116,10 +3128,8 @@ id={l.id}
                                                                     inside: this.state.value.inside,
                                                                     value: this.state.value.value ?? null
                                                                 }
-                                                                /*this.setState((prevState) => {
-                                                                    return { id: prevState.id + 1 }
-                                                                })*/
-                                                                this.dropOnSlot(e, obj.inside[0], data, divRefs[l.id], i)
+
+                                                                this.dropOnSlot(e, obj.inside[0], data, l.id, i)
                                                             }}
                                                         >
 
@@ -3176,9 +3186,10 @@ id={l.id}
                     <option>{'%'}</option>
                 </select>
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                    ref={divRef}
-                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                    //ref={divRef}
+                    id={obj.inside[0].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
                     onDrop={(e) => {
                         let data = null
                         this.state.value.type === "arithmatic" ?
@@ -3192,7 +3203,7 @@ id={l.id}
                                 value: this.state.value.value ?? null
                             }
 
-                        this.dropOnSlot(e, obj, data, divRef, 1)
+                        this.dropOnSlot(e, obj, data, obj.inside[0].id, 1)
                     }}
                 >
 
@@ -3225,8 +3236,8 @@ id={l.id}
                                                     tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
                                                         //ref={divRefs[l.id]}
                                                         id={l.id}
-                                                        onDragOver={(e) => this.handleOnDragOver(e, divRefs[l.id])}
-                                                        onDragLeave={(e) => this.handleOnDragLeave(e, divRefs[l.id])}
+                                                        onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                        onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
                                                         onDrop={(e) => {
                                                             const data = {
                                                                 id: this.Uid(),
@@ -3236,7 +3247,7 @@ id={l.id}
                                                                 value: this.state.value.value ?? null
                                                             }
 
-                                                            this.dropOnSlot(e, obj.inside[1], data, divRefs[l.id], i)
+                                                            this.dropOnSlot(e, obj.inside[1], data, l.id, i)
                                                         }}
                                                     >
 
@@ -3288,16 +3299,17 @@ id={l.id}
 
 
         const assignment = (obj, indexF) => {
-            const divRef = React.createRef()
+            //const divRef = React.createRef()
             return (<div className="flex ">
                 <div className="bg-slate-200 flex w-max min-w-4  rounded-sm slot"
-                    ref={divRef}
+                    //ref={divRef}
+                    id={obj.id}
                     onDragOver={(e) => {
-                        this.handleOnDragOver(e, divRef)
+                        this.handleOnDragOver(e,obj.id)
 
                     }}
                     onDragLeave={(e) => {
-                        this.handleOnDragLeave(e, divRef)
+                        this.handleOnDragLeave(e, obj.id)
 
                     }}
                     onDrop={(e) => {
@@ -3312,7 +3324,7 @@ id={l.id}
                             value: this.state.value.value
                         }
                         this.setState((prevState) => ({ id: prevState.id + inc }))
-                        this.dropOnSlot(e, obj, data, divRef, 0)
+                        this.dropOnSlot(e, obj, data, obj.id, 0)
 
                     }}
                 >
@@ -3330,8 +3342,8 @@ id={l.id}
                                     return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
                                         //ref={divRefs[l.id]}
                                         id={l.id}
-                                        onDragOver={(e) => this.handleOnDragOver(e, divRefs[l.id])}
-                                        onDragLeave={(e) => this.handleOnDragLeave(e, divRefs[l.id])}
+                                        onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                        onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
                                         onDrop={(e) => {
                                             const data = {
                                                 id: this.Uid(),
@@ -3340,10 +3352,8 @@ id={l.id}
                                                 inside: this.state.value.inside,
                                                 value: this.state.value.value ?? null
                                             }
-                                            /*this.setState((prevState) => {
-                                                return { id: prevState.id + 1 }
-                                            })*/
-                                            this.dropOnSlot(e, obj.inside[0], data, divRefs[l.id], i)
+
+                                            this.dropOnSlot(e, obj.inside[0], data, l.id, i)
                                         }}
                                     >
 
@@ -3394,9 +3404,10 @@ id={l.id}
                     <option>{'--'}</option>
                 </select>
                 <div className="bg-slate-200 flex w-max min-w-5  rounded-sm slot"
-                    ref={divRef}
-                    onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                    //ref={obj.id}
+                    id={obj.id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.id)}
                     onDrop={(e) => {
                         let data = null
                         this.state.value.type === "arithmatic" || this.state.value.elementType === "function" ?
@@ -3410,7 +3421,7 @@ id={l.id}
                                 value: this.state.value.value ?? null
                             }
 
-                        this.dropOnSlot(e, obj, data, divRef, 1)
+                        this.dropOnSlot(e, obj, data, obj.id, 1)
                     }}
                 >
 
@@ -3446,8 +3457,8 @@ id={l.id}
                                                             tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
                                                                 //ref={divRefs[l.id]}
                                                                 id={l.id}
-                                                                onDragOver={(e) => this.handleOnDragOver(e, divRefs[l.id])}
-                                                                onDragLeave={(e) => this.handleOnDragLeave(e, divRefs[l.id])}
+                                                                onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                                onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
                                                                 onDrop={(e) => {
                                                                     const data = {
                                                                         id: this.Uid(),
@@ -3456,10 +3467,8 @@ id={l.id}
                                                                         inside: this.state.value.inside,
                                                                         value: this.state.value.value ?? null
                                                                     }
-                                                                    /*this.setState((prevState) => {
-                                                                        return { id: prevState.id + 1 }
-                                                                    })*/
-                                                                    this.dropOnSlot(e, obj.inside[1], data, divRefs[l.id], i)
+
+                                                                    this.dropOnSlot(e, obj.inside[1], data, l.id, i)
                                                                 }}
                                                             >
 
@@ -3511,7 +3520,8 @@ id={l.id}
 
 
         const cif = (obj, indexF) => {
-            const divRef = React.createRef();
+            //const divRef = React.createRef();
+            const id=this.Uid()
             return (
                 <div>
                     <div className="h-7 flex rounded-lg">
@@ -3520,23 +3530,24 @@ id={l.id}
                         <p className="inline-block">){"{"}</p>
                     </div>
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
-                        ref={divRef}
+                        //ref={divRef}
+                        id={id}
                         onDragOver={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragOver(e, divRef)
+                                this.handleOnDragOver(e, id)
                             }
                         }}
                         onDrop={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDrop(e, obj, indexF, divRef, true)
+                                this.handleOnDrop(e, obj, indexF,id, true)
                             }
                         }}
                         onDragLeave={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragLeave(e, divRef)
+                                this.handleOnDragLeave(e, id)
                             }
                         }}>
                         {showInside(obj, indexF, 1)}
@@ -3546,29 +3557,31 @@ id={l.id}
         }
 
         const celse = (obj, indexF) => {
-            const divRef = React.createRef();
+            //const divRef = React.createRef();
+            const id=this.Uid()
             return (
                 <div>
                     else{'{'}
 
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
-                        ref={divRef}
+                        id={id}
+                        //ref={divRef}
                         onDragOver={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragOver(e, divRef)
+                                this.handleOnDragOver(e,id)
                             }
                         }}
                         onDrop={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDrop(e, obj, indexF, divRef, true)
+                                this.handleOnDrop(e, obj, indexF, id, true)
                             }
                         }}
                         onDragLeave={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragLeave(e, divRef)
+                                this.handleOnDragLeave(e, id)
                             }
                         }}>
                         {showInside(obj, indexF, 0)}
@@ -3581,7 +3594,8 @@ id={l.id}
 
 
         const cfor = (obj, indexF) => {
-            const divRef = React.createRef();
+            //const divRef = React.createRef();
+            const id=this.Uid()
             return (
                 <div>
                     <div className="h-7 flex rounded-lg">
@@ -3594,23 +3608,24 @@ id={l.id}
                         ){'{'}</div>
 
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
-                        ref={divRef}
+                    id={id}
+                        //ref={divRef}
                         onDragOver={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragOver(e, divRef)
+                                this.handleOnDragOver(e, id)
                             }
                         }}
                         onDrop={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDrop(e, obj, indexF, divRef, true)
+                                this.handleOnDrop(e, obj, indexF, id, true)
                             }
                         }}
                         onDragLeave={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragLeave(e, divRef)
+                                this.handleOnDragLeave(e, id)
                             }
                         }}>
                         {showInside(obj, indexF, 3)}
@@ -3625,7 +3640,8 @@ id={l.id}
 
 
         const cwhile = (obj, indexF) => {
-            const divRef = React.createRef();
+            //const divRef = React.createRef();
+            const id=this.Uid()
             return (
                 <div>
                     <div className="h-7 flex rounded-lg">
@@ -3633,23 +3649,24 @@ id={l.id}
                         <div className="border-2 border-slate-100">{conditional(obj.inside[0], indexF)}</div>
                         ){'{'}</div>
                     <div className="bg-slate-200 my-1 ml-5 mr-0 min-h-5"
-                        ref={divRef}
+                        //ref={divRef}
+                        id={id}
                         onDragOver={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragOver(e, divRef)
+                                this.handleOnDragOver(e, id)
                             }
                         }}
                         onDrop={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDrop(e, obj, indexF, divRef, true)
+                                this.handleOnDrop(e, obj, indexF,id, true)
                             }
                         }}
                         onDragLeave={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragLeave(e, divRef)
+                                this.handleOnDragLeave(e, id)
                             }
                         }}>
                         {showInside(obj, indexF, 1)}
@@ -3661,28 +3678,28 @@ id={l.id}
         }
 
         const cdoWhile = (obj, indexF) => {
-            const divRef = React.createRef();
+            const id=this.Uid()
             return (
                 <div>
                     do{'{'}
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
-                        ref={divRef}
+                    id={id}
                         onDragOver={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragOver(e, divRef)
+                                this.handleOnDragOver(e, id)
                             }
                         }}
                         onDrop={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDrop(e, obj, indexF, divRef, true)
+                                this.handleOnDrop(e, obj, indexF, id, true)
                             }
                         }}
                         onDragLeave={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragLeave(e, divRef)
+                                this.handleOnDragLeave(e, id)
                             }
                         }}>
                         {showInside(obj, indexF, 1)}
@@ -4231,8 +4248,9 @@ or  variable/value  %  variable/value ;
                                 </button>
 
                                 <input
+                                    id={fileInputRef}
                                     type="file"
-                                    ref={fileInputRef}
+                                    //ref={fileInputRef}
                                     onChange={handleFileChange}
                                     style={{ display: 'none' }}
                                     accept=".visc"
