@@ -5,15 +5,244 @@ import { faTrash } from '@fortawesome/free-solid-svg-icons';
 import { debounce } from 'lodash';
 
 const cloneDeep = require('lodash/cloneDeep')
-const ids = [];
-//const divRefs = {}
+let stateVar = {}
+let consoleRef = React.createRef()
+let consoleInputs = []
+
+let ret = false
+
+
+const delay = async (ms) => {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+const waitForRightArrowPress = async () => {
+    return new Promise((resolve) => {
+        const handleKeyPress = (event) => {
+            if (event.key === 'ArrowRight') {
+                document.removeEventListener('keydown', handleKeyPress);
+                resolve();
+            }
+        };
+        document.addEventListener('keydown', handleKeyPress);
+    });
+};
+
+
+const del = 500
 
 
 class Code extends React.Component {
 
+
+
+
     constructor(props) {
         super(props);
         this.state = {
+            id: 10,
+            name: "Main",
+            tmp: [],
+
+            data: [],
+            stackFrames: [
+
+            ],
+            paramVals: [],
+            funcId: null,
+
+
+            elseP: false,
+
+            code: "",
+            responseData: null,
+
+            showOpenOption: false,
+            showOutput: false,
+            showFileOptions: false,
+            //for sidebar
+            showHeaderlist: true,
+            showDefineSection: true,
+            showDeclareVariable: true,
+            showInputFields: true,
+            showConditionals: true,
+            showLoops: true,
+            showFunctions: true,
+            showOthers: true,
+
+            value: null,
+            inc: 0,
+
+            showDataTypes: false,
+            showParamTypes: false,
+            headers: ["stdio.h", "math.h", "string.h"],
+            cheaders: [],
+            defines: {
+                inside: []
+            },
+            gVariables: {
+                inside: []
+            },
+
+            functions: {
+                inside: [
+                    {
+
+                        id: this.Uid(),
+                        type: "1main",
+                        returnType: "int",
+                        defination: true,
+                        NumberOfParams: 0,
+                        elementType: "functionBtn",
+                        inside: [
+
+
+                        ]
+                    },
+
+                    {
+
+                        id: this.Uid(),
+                        type: "1printf",
+                        returnType: "void",
+                        defination: false,
+                        NumberOfParams: 2,
+                        elementType: "functionBtn",
+                        inside: [
+                            { id: this.Uid(), dataType: "char[]", type: 'var' + 3, value: null, inside: [{}], indicator: false, elementType: "param" },
+                            { id: this.Uid(), dataType: "any", type: 'var' + 4, value: null, inside: [{}], indicator: false, elementType: "param" }
+                        ],
+
+
+                    },
+                    {
+
+                        id: this.Uid(),
+                        type: "1scanf",
+                        returnType: "void",
+                        defination: false,
+                        NumberOfParams: 2,
+                        elementType: "functionBtn",
+                        inside: [
+                            { id: this.Uid(), dataType: "char[]", type: 'var' + 5, value: null, inside: [{}], indicator: false, elementType: "param" },
+                            { id: this.Uid(), dataType: "ref_any", type: 'var' + 6, value: null, inside: [{}], indicator: false, elementType: "param" }
+                        ],
+
+                    }
+                ]
+            }
+
+        };
+        this.funcs = [{
+            type: "scanf",
+            fnc: async ([str, v]) => {
+
+                str = str.inside[0]
+                v = v.inside[0]
+
+                consoleRef.current.disabled = false
+                consoleRef.current.focus();
+
+
+                while (consoleInputs.length === 0) {
+                    await delay(del)
+                }
+
+
+                this.setState((prevState) => (
+                    { data: prevState.data.map(item => item.id === v.refId ? { ...item, value: consoleInputs.shift() ?? 404 } : item) }
+                ), () => {
+                    consoleRef.current.blur();
+                    consoleRef.current.disabled = true
+                });
+                return "updated";
+            }
+        },
+        {
+            type: "printf",
+            fnc: async ([str, ...args]) => {
+                let txt = ""
+                str = str.inside[0].value;
+                if (args[0].inside.length === 0) {
+                    txt = str.substring(1, str.length - 1).replace(/\\n/g, "\n");
+                    console.log(txt)
+                    consoleRef.current.value += txt
+                    return txt;
+                }
+                args = args.map(arg => arg.inside[0].refId ? this.state.data.find((d) => (d.id = arg.inside[0].refId)).value : arg.inside[0].value);
+
+                let argIndex = 0;
+                let formattedString = str.replace(/%(-?\d*(?:\.\d+)?)([sdif])/g, (match, specifier, type) => {
+                    let value = args[argIndex++];
+                    let matchParts = specifier.match(/(-?\d*)(?:\.(\d+))?/);
+                    let width = parseInt(matchParts[1], 10) || 0;
+                    let precision = parseInt(matchParts[2], 10);
+
+                    switch (type) {
+                        case 's':
+                            value = String(value);
+                            break;
+                        case 'd':
+                        case 'i':
+                            value = parseInt(value, 10);
+                            break;
+                        case 'f':
+                            value = precision !== undefined ? parseFloat(value).toFixed(precision) : parseFloat(value).toFixed(6);
+                            break;
+                        default:
+                            return match;
+                    }
+
+                    if (width) {
+                        if (width > 0) {
+                            value = value.toString().padStart(width, ' ');
+                        } else {
+                            value = value.toString().padEnd(-width, ' ');
+                        }
+                    }
+                    return value;
+                });
+
+                txt = formattedString.substring(1, formattedString.length - 1).replace(/\\n/g, "\n");
+                console.log(txt)
+                consoleRef.current.value += txt
+
+                return txt;
+            }
+
+        }
+        ]
+
+    }
+
+
+
+
+
+    Uid = (l) => {
+        let length = 4;
+        if (l) {
+            length = l;
+        }
+        const characters = 'abcdefghijklmnopqrstuvwxyzBCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_';
+        let id = '';
+        for (let i = 0; i < length; i++) {
+            id += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        /*if (ids.includes(id)) {
+            return this.Uid();
+        } else {
+
+            ids.push(id);
+
+            return id
+        }*/
+        return id;
+    }
+
+
+    componentDidMount() {
+        localStorage.setItem('codeId', this.Uid(8))
+        stateVar = {
             id: 10,
             name: "Main",
             tmp: [],
@@ -95,31 +324,6 @@ class Code extends React.Component {
 
         };
     }
-
-
-
-    Uid = (l) => {
-        let length = 4;
-        if (l) {
-            length = l;
-        }
-        const characters = 'abcdefghijklmnopqrstuvwxyz0123456789_';
-        let id = '';
-        for (let i = 0; i < length; i++) {
-            id += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
-        if (ids.includes(id)) {
-            return this.Uid();
-        } else {
-            //let divRef = React.createRef();
-            ids.push(id);
-            //divRefs[id] = divRef
-            return id
-        }
-    }
-
-
-
 
 
     adjustInputWidth = () => {
@@ -226,7 +430,6 @@ class Code extends React.Component {
         let indices = [];
         let func = this.state.functions
         let flag = false
-        console.log("Object to find indicess:", obj)
         const searchInside = (s) => {
             if (s.hasOwnProperty("inside")) {
                 for (let i = 0; i < s.inside.length; i++) {
@@ -277,6 +480,7 @@ class Code extends React.Component {
         };
 
         findObj(stateV.defines)
+
 
         findObj(stateV.gVariables)
 
@@ -517,7 +721,7 @@ class Code extends React.Component {
         console.log("HandledragOver Id:", id)
         const div = document.getElementById(id);
         const mouseY = e.clientY;
-        //console.log(divRef.classList.findIndex((name) => { return name === "sortableLR" }))
+
         const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
 
         if (div.offsetHeight >= 40) {
@@ -539,7 +743,6 @@ class Code extends React.Component {
         e.stopPropagation();
         const div = document.getElementById(id);
         const mouseY = e.clientX;
-        //console.log(divRef.classList.findIndex((name) => { return name === "sortableLR" }))
         const objectCenterX = div.getBoundingClientRect().left + div.offsetWidth / 2;
 
 
@@ -1149,7 +1352,7 @@ class Code extends React.Component {
         return `${func.type.slice(1)}(${func.inside.map((p) => (p.inside[0].refId ? this.findObjectWithID(p.inside[0].refId).type : p.inside[0].value))})${withoutComma ? null : ";"}`
     }
     showArithmatic = (obj, indexF) => {
-        return `(${obj.inside[0].type === "arithmatic" ? this.showArithmatic(obj.inside[0], indexF) : (`${obj.inside[0].refId ? this.findObjectWithID(obj.inside[0].refId, indexF).type : obj.inside[0].value}`)} ${obj.sign} ${obj.inside[1].type === "arithmatic" ? this.showArithmatic(obj, indexF) : (`${obj.inside[1].refId ? this.findObjectWithID(obj.inside[1].refId, indexF).type : obj.inside[1].value}`)})`
+        return `(${obj.inside[0].type === "arithmatic" ? this.showArithmatic(obj.inside[0], indexF) : (`${obj.inside[0].refId ? this.findObjectWithID(obj.inside[0].refId, indexF).type : obj.inside[0].value}`)} ${obj.sign} ${obj.inside[1].type === "arithmatic" ? this.showArithmatic(obj.inside[1], indexF) : (`${obj.inside[1].refId ? this.findObjectWithID(obj.inside[1].refId, indexF).type : obj.inside[1].value}`)})`
     }
 
 
@@ -1413,11 +1616,710 @@ class Code extends React.Component {
 
     }
 
+    generateCode = () => {
+        let code =
+            `${this.state.cheaders.map((h) => ("#include<" + h.type + ">;")).join('\n')}\n
+${this.state.defines.inside.map((d) => ("#define " + d.type + " " + (d.value ?? 0))).join('\n')}\n
+${this.state.functions.inside.map((f) =>
+                f.defination && f.type !== "1main" ?
+                    `${f.returnType} ${f.type.slice(1)}(${f.inside.map((p, i) => i < f.NumberOfParams ? (i !== 0 ? "," : "") + " " + p.dataType : null).join("")});\n`
+                    : null
+            ).join("")}
+${this.returnGlobalVariables()}
+${this.returnFunctions()}
+`
+        return code
+    }
+
+    /*
+    // Function to handle API call
+    const handleRunButtonClick = () => {
+        const code = generateCode()
+        let elements=document.getElementsByClassName("interactControlled")
+
+        if(this.state.showOutput){     
+            
+            for(let i=0;i<elements.length;i++){
+                elements[i].style.pointerEvents ='auto'
+            }
+        }
+        else{
+            for(let i=0;i<elements.length;i++){
+                elements[i].style.pointerEvents ='none'
+            }
+        }
+
+        this.setState((prevState) => {
+            return { showOutput: !prevState.showOutput, code: code }
+        })
+        
+       // Get your code from state or wherever it's stored
+       const input = ""; // Get your input data from state or wherever it's stored
+
+       fetch('http://localhost:8080/compilecode', {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json',
+           },
+           body: JSON.stringify({
+               code: code,
+               input: input,
+           })
+       })
+           .then(response => response.text())
+           .then(data => {
+               this.setState((prevState) => {
+                   return { responseData: data }
+               })
+           })
+           .catch(error => {
+               console.error('Error:', error);
+           });
+    };*/
+
+
+    handleSimulateButtonClick = () => {
+        const code = this.generateCode()
+        let elements = document.getElementsByClassName("interactControlled")
+        this.setState(() => ({ stackFrames: [] }))
+
+
+        if (this.state.showOutput) {
+
+            for (let i = 0; i < elements.length; i++) {
+                elements[i].style.pointerEvents = 'auto'
+            }
+        }
+        else {
+            for (let i = 0; i < elements.length; i++) {
+                elements[i].style.pointerEvents = 'none'
+            }
+        }
+
+        this.setState((prevState) => {
+            return { showOutput: !prevState.showOutput, code: code, data: [] }
+        }, () => {
+
+            if (this.state.showOutput) {
+
+
+                const handleVar = async (obj) => {
+
+
+                    this.setState((prevState) => {
+                        let vars = [...prevState.data]
+                        const index = vars.findIndex((item) => (obj.id === item.id))
+                        if (index === -1) {
+                            const paramVals = [...this.state.paramVals]
+
+                            vars.push({
+                                id: obj.id,
+                                type: obj.type,
+                                value: paramVals.length > 0 ? paramVals.shift().value : obj.value ?? 0
+                            });
+
+                            this.setState(() => {
+                                return { paramVals: paramVals }
+                            })
+
+                        }
+                        else {
+                            vars[index].type = obj.type
+                            vars[index].value = obj.value ?? 0;
+                        }
+                        return { data: vars }
+                    }, () => {
+                        console.log("state after xcccccccccccccccccccccccccccccccccccccc updating data:", this.state)
+                    })
+                }
+
+                const handleFunction = async (func) => {
+
+                   
+                    this.setState((prevState) => {
+                        const nop = func.NumberOfParams;
+                        const nog = prevState.gVariables.inside.length;
+
+                        let updatedData = [...prevState.data]
+
+                        const argOfFunc = func.inside.slice(0, nop)  //extract the args from function called
+                        let args = []
+
+
+
+                        for (let i = 0; i < argOfFunc.length; i++) {
+                            const arg = argOfFunc[i].inside[0]
+                            args.push(arg.refId ?
+                                { type: this.state.data.find((d) => (d.id === arg.refId)).type, refId: null, value: this.state.data.find((d) => (d.id === arg.refId)).value }
+                                : { type: arg.type, refId: null, value: arg.value })
+
+                        }
+
+
+
+
+                        const localVars = updatedData.slice(nog);    //extract the local variables
+
+
+
+                        updatedData = updatedData.slice(0, nog)  //extract the global vars
+
+
+                        let stack = [
+                            {
+                                ret: "return Address",
+                                type: func.type,
+                                args: [...args],
+                                localVars: localVars
+                            }, ...prevState.stackFrames,
+                        ];
+
+
+                        return { stackFrames: stack, data: updatedData };    //push stackframe
+                    });
+
+                    await delay(del)
+
+                    const i = this.state.functions.inside.findIndex((f) => (f.id === func.refId))
+
+                    await processElements(this.state.functions, i, i + 1)   //go to the function and process through it
+
+                    let retVal = 0
+                    await delay(del)                   //pop the stackframe
+                    this.setState((prevState) => {
+                        let frames = [...prevState.stackFrames]
+                        const poppedFrame = frames.shift()
+                        retVal = poppedFrame.ret
+                        let updatedData = [...prevState.data]
+                        const nog = prevState.gVariables.inside.length;
+                        updatedData.splice(nog, updatedData.length - nog)
+                        updatedData = [...updatedData, ...poppedFrame.localVars]
+                        return ({ data: updatedData, stackFrames: frames })
+                    })
+
+                    await delay(del)
+
+                    return retVal
+
+                };
+
+
+                const handleCalledFunc = async (func) => {
+                
+
+                    await delay(del);
+                    this.setState((prevState) => {
+                        let updatedFrame = [...prevState.stackFrames];
+                        updatedFrame[0].ret = null;
+                        let paramVals = prevState.paramVals
+                        if (updatedFrame[0].args) {
+                            paramVals = [...updatedFrame[0].args]
+                        }
+                        //updatedFrame[0].args = null;
+                        return { stackFrames: updatedFrame, paramVals: paramVals };
+                    });
+
+                    await processElements(func, 0, func.inside.length);
+                    await delay(del)
+                };
+
+
+                const handleUndefCalledFunc = async (func) => {
+
+                    await this.funcs.find((obj) => (obj.type === func.type.slice(1))).fnc(func.inside)
+
+                };
+
+             
+
+
+                const checkCondition = async (obj) => {
+                    let l = obj.inside[0].refId ?
+                        this.state.data.find((item) => item.id === obj.inside[0].refId).value
+                        : obj.inside[0].value ?? 0
+
+                    l = parseInt(l, 10)
+
+                    let r = obj.inside[1].refId ?
+                        this.state.data.find((item) => item.id === obj.inside[1].refId).value
+                        : obj.inside[1].value ?? 0
+
+                    r = parseInt(r, 10)
+
+                    const sign = obj.sign
+
+                    console.log("Obj:", obj, l, r)
+
+                    switch (sign) {
+                        case ("<="): return (l <= r);
+                        case (">="): return (l >= r);
+                        case ("<"): return (l < r);
+                        case (">"): return (l > r);
+                        case ("!="): return (l !== r);
+                        default: return (l === r);
+                    }
+                }
+
+                const handleIf = async (obj) => {
+
+                
+                    await processElements(obj, 0, 1)
+                    await delay(del)
+
+
+                    if (await checkCondition(obj.inside[0])) {
+                        this.setState(() => {
+                            return { elseP: true }
+                        })
+                        await processElements(obj, 1, obj.inside.length)
+                        alert("returned the if")
+                    }
+                    else {
+                        this.setState(() => {
+                            return { elseP: true }
+                        })
+                    }
+                }
+
+
+
+                const handleElse = async (obj) => {
+
+                    await processElements(obj, 0, 1)
+                    await delay(del)
+
+                    while (true) {
+                        if (await checkCondition(obj.inside[0])) {
+                            await processElements(obj, 1, obj.inside.length)
+                        }
+                        else {
+                            break
+                        }
+                    }
+
+                }
+
+
+                const handleWhile = async (obj) => {
+
+                    while (true) {
+                        await processElements(obj, 0, 1)
+                        await delay(del)
+
+                        if (await checkCondition(obj.inside[0])) {
+                            await processElements(obj, 1, obj.inside.length)
+                        }
+                        else {
+                            break
+                        }
+                    }
+
+                }
+
+                const handleDoWhile = async (obj) => {
+
+                    while (true) {
+                        await processElements(obj, 0, 1)
+                        await delay(del)
+                        await processElements(obj, 1, obj.inside.length)
+
+                        if (!await checkCondition(obj.inside[0])) {
+                            break
+                        }
+                    }
+
+                }
+
+                const handleFor = async (obj) => {
+
+                    await processElements(obj, 0, 1)
+                    await delay(del)
+
+                    while (true) {
+                        await processElements(obj, 1, 2)
+                        await delay(del)
+
+                        if (await checkCondition(obj.inside[1])) {
+                            await processElements(obj, 3, obj.inside.length)
+                            await processElements(obj, 2, 3)
+                            await delay(del)
+                        }
+                        else {
+                            break
+                        }
+                    }
+
+                }
+
+
+                const arithmatic = async (arith) => {
+                    let l = 0;
+                    let r = 0;
+
+                    console.log("Arithmatic equation:", arith)
+
+                    const sign = arith.sign
+
+                    if (arith.inside[0].type === "arithmatic") {
+                        l = await arithmatic(arith.inside[0])
+                        await processElements(arith, 0, 1)
+                    }
+                    else {
+                        l = parseInt(arith.inside[0].refId ? this.state.data.find((item) => (item.id === arith.inside[0].refId)).value : arith.inside[0].value, 10);
+                    }
+
+                    if (arith.inside[1].type === "arithmatic") {
+                        r = await arithmatic(arith.inside[1])
+                        await processElements(arith, 1, 2)
+                    }
+                    else {
+                        r = parseInt(arith.inside[1].refId ? this.state.data.find((item) => (item.id === arith.inside[1].refId)).value : arith.inside[1].value, 10);
+                    }
+
+                    switch (sign) {
+                        case "+": return l + r;
+                        case "-": return l - r;
+                        case "*": return l * r;
+                        case "/": return Math.floor(l / r);
+                        case "%": return l % r;
+                        default: return 0;
+                    }
+
+                }
+
+
+
+                const asign = async (obj) => {
+       
+
+                    let l = 0;
+                    let r = 0;
+                    if (obj.inside[0].refId) {
+                        const foundObject = this.state.data.find((item) => (item.id === obj.inside[0].refId));
+                        l = parseInt(foundObject.value, 10);
+                    }
+
+
+                    if (obj.inside[1].type === "arithmatic") {
+                        r = await arithmatic(obj.inside[1])
+                        await processElements(obj, 1, 2)
+                    }
+                    else {
+                        let i = -1
+                        if (obj.inside[1].elementType === "function") {
+                            i = this.state.functions.inside.findIndex((f) => (f.id === obj.inside[1].refId))
+                            console.log("Index:", i)
+                        }
+
+                        r = parseInt(obj.inside[1].elementType === "function" ?
+                            /*await processElements(this.state.functions,i,i+1)*/
+                            await handleFunction(obj.inside[1])
+                            : obj.inside[1].refId ?
+                                this.state.data.find((item) => (item.id === obj.inside[1].refId)).value
+                                : obj.inside[1].value, 10);
+                        
+                    }
+
+                    const sign = obj.sign;
+
+                    switch (sign) {
+                        case "+=": return l + r;
+                        case "-=": return l - r;
+                        case "*=": return l * r;
+                        case "/=": return Math.floor(l / r);
+                        case "%=": return l % r;
+                        default: return r;
+                    }
+                }
+
+
+                const handleAsignment = async (obj) => {
+
+
+                    await processElements(obj, 0, 1)
+                    const newValue = await asign(obj);
+                    const updatedData = this.state.data.map(item => {
+                        if (item.id === obj.inside[0].refId) {
+                            return { ...item, value: newValue };
+                        }
+                        return item;
+                    });
+                    this.setState({ data: updatedData });
+                    ret=false               //return to asign after function call thats why it needs to reset false
+                }
+
+                const handleReturn = async (obj) => {
+                    let r = 0;
+
+                    if (obj.inside[0].type === "arithmatic") {
+                        r = await arithmatic(obj.inside[0])
+                        await processElements(obj, 0, 1)
+                    }
+                    else {
+                        
+                        r = parseInt(obj.inside[0].elementType === "function" ?
+                            await handleFunction(obj.inside[0])
+                            : obj.inside[0].refId ?
+                                this.state.data.find((item) => (item.id === obj.inside[0].refId)).value
+                                : obj.inside[0].value, 10);
+                        
+                    }
+
+                    this.setState((prevState) => {
+                        let updatedFrame = [...prevState.stackFrames];
+
+                        /**updatedFrame[0].ret = obj.inside[0].refId ? prevState.data.find((item) => (item.id === obj.inside[0].refId)).value : obj.inside[0].value ?? 0*/
+                        updatedFrame[0].ret=r
+
+                        return { stackFrames: updatedFrame };
+                    });
+                };
+
+
+
+                const processElements = async (obj, initial, end) => {
+
+                    if(ret){
+                        console.log("outer returned for:", obj)
+                        alert("return from outer")
+                        return 
+                    }
+
+                    if (obj.elementType === "functionBtn") {
+                        console.log("FuncId set to:", obj.id)
+                        this.setState(() => {
+                            return { funcId: obj.id }
+                        })
+                    }
+
+                    const cursor = document.getElementsByClassName("cursor");
+
+                    for (let i = initial; i < end; i++) {
+                        if(ret){
+                            alert("return from for")
+                            console.log("for returned for:", obj)
+                            return 
+                        }
+
+                        await waitForRightArrowPress()
+
+                        
+                        if (!obj.inside[i].hasOwnProperty("elementType") || obj.inside[i].elementType === "inputField") {
+                            continue;
+                        }
+
+
+                        const rect = document.getElementById(obj.inside[i].id).getBoundingClientRect();
+                        const parent = document.getElementsByClassName('parent')[0];
+                        const top = parent.scrollTop;
+
+                        await delay(del);
+
+                        cursor[0].style.left = `${rect.left - 40}px`;
+                        cursor[0].style.top = `${rect.top + top}px`;
+
+                        cursor[1].style.left = `${rect.right - 40}px`;
+                        cursor[1].style.top = `${rect.top + top}px`;
+
+                        cursor[2].style.left = `${rect.right - 40}px`;
+                        cursor[2].style.top = `${rect.bottom + top}px`;
+
+                        cursor[3].style.left = `${rect.left - 40}px`;
+                        cursor[3].style.top = `${rect.bottom + top}px`;
+
+                        cursor[4].style.left = `${rect.left - 40}px`;
+                        cursor[4].style.top = `${rect.top + top + rect.height / 2}px`;
+
+                        switch (obj.inside[i].type) {
+                            case ("assignment"):                             
+                                 await handleAsignment(obj.inside[i])
+                                 alert("Asigned:"+ ret)
+                                break
+                            case ("cif"):                          
+                                 await handleIf(obj.inside[i])
+                                break
+                            case ("conditional"): break
+                            case ("arithmatic"): break
+                            case ("celse"): await handleElse(obj.inside[i])
+                                break
+                            case ("cfor"): await handleFor(obj.inside[i])
+                                break
+                            case ("cwhile"): await handleWhile(obj.inside[i])
+                                break
+                            case ("cdoWhile"): await handleDoWhile(obj.inside[i])
+                                break
+                            case ("return"):            
+                                await handleReturn(obj.inside[i])
+                                ret = true
+                                alert("return from ret")
+                                return 
+                            default:
+                                if (obj.inside[i].type.slice(0, 1) === '1') {
+                                    if (obj.inside[i].elementType === "functionBtn") {
+                                        await handleCalledFunc(obj.inside[i])
+                                    
+                                    }
+                                    else {
+                                        if (obj.inside[i].defination) {                                      
+                                            await handleFunction(obj.inside[i])
+                                            ret=false
+                                            alert("terminating")
+                                        }
+                                        else {
+                                            await handleUndefCalledFunc(obj.inside[i])
+                                        }
+
+                                    }
+                                }
+                                else {
+                                    
+                                    await handleVar(obj.inside[i])
+                                }
+
+                        }
+
+                    }
+                   
+                }
+
+                const process = async () => {
+                    const gVars = this.state.gVariables
+                    await processElements(gVars, 0, gVars.inside.length);
+
+                    const main = this.state.functions.inside[0]
+                    await processElements(main, 0, main.inside.length);
+
+                }
+                process()
+
+            }
+
+        })
+
+    };
+
+
+    handleSaveButtonClick = () => {
+        let state = cloneDeep(this.state)
+        fetch('http://localhost:8080/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: localStorage.getItem('email'),
+                codeId: localStorage.getItem('codeId'),
+                jsonData: state
+            })
+        })
+            .then(response => response.text())
+            .then(data => {
+                this.setState((prevState) => {
+                    return { responseData: data }
+                })
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    };
+
+    handleDeleteButtonClick = () => {
+        fetch('http://localhost:8080/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: localStorage.getItem('email'),
+                codeId: localStorage.getItem('codeId'),
+            })
+        })
+            .then(response => response.text())
+            .then(data => {
+                this.setState((prevState) => {
+                    return { responseData: data }
+                })
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
+
+    handleNewButtonClick = () => {
+        this.setState(stateVar)
+        localStorage.setItem('codeId', this.Uid(8))
+        /*const email = 'x';
+        fetch(`http://localhost:8080/codes/${email}`)
+            .then(response => response.json())
+            .then(jsonData => {
+                console.log("response code:", jsonData)
+                this.setState(jsonData[0].jsonData);
+                localStorage.setItem('codeId', this.Uid(8))
+                //ids=[];
+            })
+            .catch(error => {
+                console.error('Error fetching codes:', error);
+            });*/
+    };
+
+    handleOpenButtonClick = () => {
+        const email = localStorage.getItem('email');
+        fetch(`http://localhost:8080/codes/${email}`)
+            .then(response => response.json())
+            .then(jsonData => {
+                this.setState(() => ({ responseData: jsonData }), () => {
+                    console.log("response code:", this.state.responseData)
+                    this.setState(() => ({ showOpenOption: true }))
+                });
+                //ids=[];
+            })
+            .catch(error => {
+                console.error('Error fetching codes:', error);
+            });
+    };
+
+    handleFileChange = (event) => {
+        const selectedFile = event.target.files[0];
+        if (selectedFile) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const fileContent = reader.result;
+                    const jsonData = JSON.parse(fileContent);
+                    console.log('Parsed JSON data:', jsonData);
+                    localStorage.setItem('codeId', this.Uid(8))  //generate a new code id
+                    this.setState(jsonData)
+                    //ids=[];
+                } catch (error) {
+                    console.error('Error parsing JSON:', error);
+                }
+            };
+            reader.readAsText(selectedFile); // Read the file as text
+        } else {
+            console.log('No file selected');
+        }
+
+    };
+
+
+
+    downloadState = () => {
+        const text = JSON.stringify(this.state); // Convert state to JSON string
+        const blob = new Blob([text], { type: 'text/plain' }); // Create a blob with the text content
+        const url = URL.createObjectURL(blob); // Create a URL for the blob
+        const a = document.createElement('a'); // Create a link element
+        a.href = url; // Set the href attribute of the link to the URL
+        a.download = this.state.name + '.visc'; // Set the download attribute of the link to the desired file name
+        document.body.appendChild(a); // Append the link to the document body
+        a.click(); // Simulate a click on the link to trigger the download
+        document.body.removeChild(a); // Remove the link from the document body
+        URL.revokeObjectURL(url); // Revoke the URL to release memory
+    };
 
 
 
     render() {
-        const fileInputRef = this.Uid()
+        //const fileInputRef = this.Uid()
 
         /*function wrap(inputString) {
             const maxWordsPerLine = 5
@@ -1437,149 +2339,10 @@ class Code extends React.Component {
             return wrappedString.trim();
         }*/
 
-        const generateCode = () => {
-            let code =
-                `${this.state.cheaders.map((h) => ("#include<" + h.type + ">;")).join('\n')}\n
-${this.state.defines.inside.map((d) => ("#define " + d.type + " " + (d.value ?? 0))).join('\n')}\n
-${this.state.functions.inside.map((f) =>
-                    f.defination && f.type !== "1main" ?
-                        `${f.returnType} ${f.type.slice(1)}(${f.inside.map((p, i) => i < f.NumberOfParams ? (i !== 0 ? "," : "") + " " + p.dataType : null).join("")});\n`
-                        : null
-                ).join("")}
-${this.returnGlobalVariables()}
-${this.returnFunctions()}
-`
-            return code
-        }
-
-
-        // Function to handle API call
-        const handleRunButtonClick = () => {
-            console.log("Stttess:", this.state)
-            const code = generateCode()
-
-            this.setState((prevState) => {
-                return { showOutput: !prevState.showOutput, code: code }
-            })
-            // Get your code from state or wherever it's stored
-            const input = ""; // Get your input data from state or wherever it's stored
-
-            fetch('http://localhost:8080/compilecode', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    code: code,
-                    input: input,
-                })
-            })
-                .then(response => response.text())
-                .then(data => {
-                    this.setState((prevState) => {
-                        return { responseData: data }
-                    })
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
-        };
-
-
-        const handleSaveButtonClick = () => {
-            let state = cloneDeep(this.state)
-            fetch('http://localhost:8080/save', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    email: localStorage.getItem('email'),
-                    codeId: localStorage.getItem('codeId'),
-                    ids: ids,
-                    jsonData: state
-                })
-            })
-                .then(response => response.text())
-                .then(data => {
-                    this.setState((prevState) => {
-                        return { responseData: data }
-                    })
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
-        };
-
-        const handleNewButtonClick = () => {
-            const email = 'x';
-            fetch(`http://localhost:8080/codes/${email}`)
-                .then(response => response.json())
-                .then(jsonData => {
-                    console.log("response code:", jsonData)
-                    this.setState(jsonData[0].jsonData);
-                })
-                .catch(error => {
-                    console.error('Error fetching codes:', error);
-                });
-        };
-
-        const handleOpenButtonClick = () => {
-            const email = localStorage.getItem('email');
-            fetch(`http://localhost:8080/codes/${email}`)
-                .then(response => response.json())
-                .then(jsonData => {
-                    this.setState(() => ({ responseData: jsonData }), () => {
-                        console.log("response code:", this.state.responseData)
-                        this.setState(() => ({ showOpenOption: true }))
-                    });
-                })
-                .catch(error => {
-                    console.error('Error fetching codes:', error);
-                });
-        };
-
-        const handleFileChange = (event) => {
-            const selectedFile = event.target.files[0];
-            if (selectedFile) {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    try {
-                        const fileContent = reader.result;
-                        const jsonData = JSON.parse(fileContent);
-                        console.log('Parsed JSON data:', jsonData);
-                        localStorage.setItem('codeId', this.Uid(8))
-                        this.setState(jsonData)
-                    } catch (error) {
-                        console.error('Error parsing JSON:', error);
-                    }
-                };
-                reader.readAsText(selectedFile); // Read the file as text
-            } else {
-                console.log('No file selected');
-            }
-        };
-
-
         // Function to trigger file input click event when the button is clicked
         const handleButtonClick = () => {
-            document.getElementById(fileInputRef).click(); // Trigger click event of the hidden file input
+            document.getElementById("fileInput").click(); // Trigger click event of the hidden file input
         };
-
-
-        const downloadState = () => {
-            const text = JSON.stringify(this.state); // Convert state to JSON string
-            const blob = new Blob([text], { type: 'text/plain' }); // Create a blob with the text content
-            const url = URL.createObjectURL(blob); // Create a URL for the blob
-            const a = document.createElement('a'); // Create a link element
-            a.href = url; // Set the href attribute of the link to the URL
-            a.download = 'state.visc'; // Set the download attribute of the link to the desired file name
-            document.body.appendChild(a); // Append the link to the document body
-            a.click(); // Simulate a click on the link to trigger the download
-            document.body.removeChild(a); // Remove the link from the document body
-            URL.revokeObjectURL(url); // Revoke the URL to release memory
-        };
-
 
 
         const showArray = (obj, index, gVariables) => {
@@ -1628,7 +2391,7 @@ ${this.returnFunctions()}
                                         }
 
                                     }}
-                                    defaultValue={obj.value[i][j]}
+                                    value={obj.value[i][j] ?? 0}
                                 />)
                             }
                         }
@@ -1647,7 +2410,7 @@ ${this.returnFunctions()}
                                     this.updateVariablesValue(obj, index, e.target.value, 1, [i])
                                 }
                             }}
-                            defaultValue={obj.value[i]}
+                            value={obj.value[i] ?? 0}
                         />)
                     }
                 }
@@ -1688,9 +2451,7 @@ ${this.returnFunctions()}
 
                 {obj.inside.map((l, i) => {
                     if (i > 0) {
-                        //const divRef = React.createRef();
                         return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                            //ref={divRefs[l.id]}
                             id={l.id}
                             onDragOver={(e) => this.handleOnDragOver(e, l.id)}
                             onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
@@ -1726,10 +2487,8 @@ ${this.returnFunctions()}
                                                         this.updateVariablesValue(obj.inside[i], index, e.target.value, 0)
 
                                                     }
-
-
                                                 }}
-                                                value={obj.inside[i].value}
+                                                value={obj.inside[i].value ?? 0}
                                             />)
                                         case ("floatInput"): return (<input />)
                                         case ("charInput"): return (<input />)
@@ -1755,10 +2514,8 @@ ${this.returnFunctions()}
                 =
                 {obj.inside.length === 1 ?
                     (() => {
-                        //const divRef = React.createRef()
                         return (
                             <div className="bg-slate-200 flex w-max min-w-5  rounded-sm slot"
-                                //ref={divRefs[obj.inside[0].id]}
                                 id={obj.inside[0].id}
                                 onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
                                 onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
@@ -1801,6 +2558,7 @@ ${this.returnFunctions()}
                                                             this.updateEachVariable(index)
                                                         }
                                                     }}
+                                                    value={obj.value ?? 0}
                                                 />)
                                             case ("floatInput"): return (<input />)
                                             case ("charInput"): return (<input />)
@@ -1814,9 +2572,7 @@ ${this.returnFunctions()}
                                                     obj.inside[0].hasOwnProperty("inside") ?
                                                         obj.inside[0].inside.map((l, i) => {
                                                             if (i > 0) {
-                                                                //const divRef = React.createRef();
                                                                 tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                                    //ref={divRefs[l.id]}
                                                                     id={l.id}
                                                                     onDragOver={(e) => this.handleOnDragOver(e, l.id)}
                                                                     onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
@@ -1887,16 +2643,16 @@ ${this.returnFunctions()}
 
 
         const viewReturn = (obj, indexF) => {
-            //const divRef = React.createRef()
+            const id = this.Uid()
             return (<div className="flex">
                 <div className="mr-4">return</div>
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                    //ref={divRef}
-                    id={obj.id}
-                    onDragOver={(e) => this.handleOnDragOver(e, obj.id)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.id)}
+                    id={id}
+                    onDragOver={(e) => this.handleOnDragOver(e, id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, id)}
                     onDrop={(e) => {
                         let data = null
+                        console.log("dropping with value:", this.state.value)
                         this.state.value.type === "arithmatic" ?
                             data = this.state.value
                             :
@@ -1907,10 +2663,7 @@ ${this.returnFunctions()}
                                 inside: this.state.value.inside,
                                 value: this.state.value.value ?? null
                             }
-                        /*this.setState((prevState) => {
-                            return { id: prevState.id + 1 }
-                        })*/
-                        this.dropOnSlot(e, obj, data, obj.id, 0)
+                        this.dropOnSlot(e, obj, data, id, 0)
                     }}
                 >
 
@@ -1924,6 +2677,7 @@ ${this.returnFunctions()}
                                             this.adjustInputWidth()
                                             this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
                                         }}
+                                        value={obj.inside[0].value ?? 0}
                                     />)
                                 case ("floatInput"): return (<input />)
                                 case ("charInput"): return (<input />)
@@ -1933,16 +2687,16 @@ ${this.returnFunctions()}
                                         () => {
                                             const tmp = []
                                             const elmnt = this.findObjectWithID(obj.inside[0].refId, indexF)
+                                            console.log("Obj+emenr:", obj, obj.inside[0])
                                             tmp.push(elmnt.type)
 
                                             obj.inside[0].hasOwnProperty("inside") ?
                                                 obj.inside[0].inside.map((l, i) => {
                                                     if (i > 0) {
-                                                        const divRef = React.createRef();
                                                         tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                            ref={divRef}
-                                                            onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                                            onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                            id={l.id}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
                                                             onDrop={(e) => {
                                                                 const data = {
                                                                     id: this.Uid(),
@@ -1954,7 +2708,7 @@ ${this.returnFunctions()}
                                                                 /*this.setState((prevState) => {
                                                                     return { id: prevState.id + 1 }
                                                                 })*/
-                                                                this.dropOnSlot(e, obj.inside[0], data, divRef, i)
+                                                                this.dropOnSlot(e, obj.inside[0], data, l.id, i)
                                                             }}
                                                         >
 
@@ -2030,15 +2784,13 @@ ${this.returnFunctions()}
 
             return obj.inside && obj.inside.map((im, i) => {
                 if (i >= startingIndex) {
-                    //const divRef = React.createRef();
-                    //const divRef = divRefs[im.id]
+
 
                     const depth = this.findIndices(im).length
                     switch (im.type) {
                         case "assignment":
                             return <div
                                 draggable="true"
-                                //ref={divRef}
                                 id={im.id}
                                 className={`pl-2 py-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
@@ -2068,7 +2820,6 @@ ${this.returnFunctions()}
                             return <div
                                 draggable="true"
                                 id={im.id}
-                                //ref={divRef}
                                 className={`pl-2 rounded-lg  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
@@ -2100,7 +2851,6 @@ ${this.returnFunctions()}
                             return <div
                                 draggable="true"
                                 id={im.id}
-                                //ref={divRef}
                                 className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
@@ -2129,7 +2879,6 @@ ${this.returnFunctions()}
                             return <div
                                 draggable="true"
                                 id={im.id}
-                                //ref={divRef}
                                 className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
@@ -2161,7 +2910,6 @@ ${this.returnFunctions()}
                         case "cwhile":
                             return <div
                                 id={im.id}
-                                //ref={divRef}
                                 draggable="true"
                                 className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
@@ -2193,7 +2941,6 @@ ${this.returnFunctions()}
                         case "return":
                             return <div
                                 id={im.id}
-                                //ref={divRef}
                                 draggable="true"
                                 className={`pl-2 flex items-center min-h-10 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
@@ -2226,7 +2973,6 @@ ${this.returnFunctions()}
                         case "cdoWhile":
                             return <div
                                 id={im.id}
-                                //ref={divRef}
                                 draggable="true"
                                 className={`pl-2 rounded-lg my-1 border-gray-400 border-l-2  ${colorList[depth - 2]} sortable`}
                                 onDragOver={(e) => {
@@ -2261,7 +3007,6 @@ ${this.returnFunctions()}
                                     <div
 
                                         id={im.id}
-                                        //ref={divRef}
                                         draggable="true"
                                         className={`pl-2 rounded-lg my-1 border-gray-400 border-l-2  ${colorList[depth - 2]} sortable`}
                                         onDragOver={(e) => {
@@ -2286,7 +3031,6 @@ ${this.returnFunctions()}
                                 return < div
                                     id={im.id}
                                     draggable="true"
-                                    //ref={divRef}
                                     className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
                                     onDragOver={(e) => {
                                         this.handleOnDragOver(e, im.id)
@@ -2326,7 +3070,6 @@ ${this.returnFunctions()}
                                 const tmp = []
                                 func.inside.map((p, i) => {
                                     if (i < func.NumberOfParams) {
-                                        const divRef = React.createRef()
 
                                         if (i !== 0) {
                                             tmp.push(",")
@@ -2334,23 +3077,22 @@ ${this.returnFunctions()}
 
                                         tmp.push(<div className="flex min-w-4">
                                             <div className=" w-max min-w-4 rounded-sm slot"
-                                                ref={divRef}
-                                                onDragOver={(e) => this.handleOnDragOver(e, divRef)}
-                                                onDragLeave={(e) => this.handleOnDragLeave(e, divRef)}
+                                                id={p.id}
+                                                onDragOver={(e) => this.handleOnDragOver(e, p.id)}
+                                                onDragLeave={(e) => this.handleOnDragLeave(e, p.id)}
                                                 onDrop={(e) => {
                                                     const data = {
-                                                        id: this.Uid(),//this.state.id,
+                                                        id: this.Uid(),
                                                         refId: this.state.value.refId ?? null,
                                                         type: this.state.value.type,
                                                         value: this.state.value.value ?? null
                                                     }
-                                                    this.dropOnSlot(e, p, data, divRef, 0)
+                                                    this.dropOnSlot(e, p, data, p.id, 0)
                                                 }}
                                             >
 
                                                 {
                                                     (() => {
-                                                        console.log("p inside:", p)
                                                         switch (p.inside[0].type) {
                                                             case ("intInput"): return (
                                                                 <input
@@ -2392,12 +3134,10 @@ ${this.returnFunctions()}
 
 
         const showGVariables = () => {
-            //const divRef = React.createRef();
             const id = this.Uid()
             return <div
                 id={id}
                 className="bg-slate-200 my-1 mr-0  min-h-5 sortable"
-                //ref={divRef}
                 onDragOver={(e) => {
                     if (this.state.value.elementType === "variableBtn") {
                         this.handleOnDragOver(e, id)
@@ -2414,10 +3154,8 @@ ${this.returnFunctions()}
                     }
                 }}>
                 {this.state.gVariables.inside.map((v, i) => {
-                    //const divRef = React.createRef();
                     return (<div
                         className="bg-blue-200 pl-2 rounded-lg my-1  border-gray-400 border-l-2 sortable"
-                        //ref={divRefs[v.id]}
                         id={v.id}
                         draggable="true"
                         onDragOver={(e) => {
@@ -2447,12 +3185,10 @@ ${this.returnFunctions()}
         }
 
         const showHeaders = () => {
-            //const divRef = React.createRef();
             const id = this.Uid()
             return <div
                 id={id}
                 className="bg-slate-200 my-1 mr-0  min-h-5 "
-                //ref={divRef}
                 onDragOver={(e) => {
                     if (this.state.value.elementType === "header") {
                         this.handleOnDragOver(e, id)
@@ -2472,10 +3208,8 @@ ${this.returnFunctions()}
                     }
                 }}>
                 {this.state.cheaders.map((h, i) => {
-                    //const divRef = React.createRef();
                     return (<div
                         className=" flex items-center bg-blue-200 pl-2 rounded-lg my-1 min-h-10  border-gray-400 border-l-2 sortable"
-                        //ref={divRefs[h.id]}
                         id={h.id}
                         draggable="true"
                         onDragOver={(e) => {
@@ -2508,12 +3242,10 @@ ${this.returnFunctions()}
         }
 
         const showDefines = () => {
-            //const divRef = React.createRef();
             const id = this.Uid()
             return <div
                 id={id}
                 className="bg-slate-200 my-1 mr-0 min-h-5 sortable"
-                //ref={divRef}
                 onDragOver={(e) => {
                     if (this.state.value.elementType === "defineBtn") {
                         this.handleOnDragOver(e, id)
@@ -2533,12 +3265,10 @@ ${this.returnFunctions()}
                     }
                 }}>
                 {this.state.defines.inside.map((obj, i) => {
-                    //const divRef = React.createRef();
 
                     return (
                         <div
                             className="bg-blue-200 pl-2 rounded-lg my-1  border-gray-400 border-l-2 sortable"
-                            //ref={divRefs[obj.id]}
                             id={obj.id}
                             draggable="true"
                             onDragOver={(e) => {
@@ -2572,7 +3302,8 @@ ${this.returnFunctions()}
                                 value={obj.type}
                                 className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
                                 draggable="true"
-                                onDragStart={() => {
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
                                     const data = { id: this.Uid(), refId: obj.id, dataType: obj.dataType, type: obj.type, value: obj.value, inside: obj.inside, indicator: false, elementType: "variable" }
 
                                     console.log("Dataaaa:", data)
@@ -2582,7 +3313,6 @@ ${this.returnFunctions()}
 
 
                             <div className="bg-slate-200  w-max min-w-5  inline  rounded-sm slot"
-                                //ref={divRefs[obj.inside[0].id]}
                                 id={obj.inside[0].id}
                                 onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
                                 onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
@@ -2613,6 +3343,7 @@ ${this.returnFunctions()}
                                                         this.adjustInputWidth()
                                                         this.updateDefinesValue(e, i)
                                                     }}
+                                                    value={obj.value ?? 0}
                                                 />)
                                             case ("floatInput"): return (<input />)
                                             case ("charInput"): return (<input />)
@@ -2635,11 +3366,9 @@ ${this.returnFunctions()}
         }
 
         const showSubprograms = () => {
-            //const divRef = React.createRef();
             const id = this.Uid()
             return (
                 <div className="bg-slate-200 my-1 mr-0  min-h-5 sortable"
-                    //ref={divRef}
                     id={id}
                     onDragOver={(e) => {
                         if (this.state.value.elementType === "functionBtn") {
@@ -2657,12 +3386,10 @@ ${this.returnFunctions()}
                         }
                     }}>
                     {this.state.functions.inside.map((f, index) => {
-                        //const divRef = React.createRef()
                         return (
-                            index === 0 || !f.defination ? null :
+                            index === 0 ? null :
                                 <div
                                     className="bg-blue-200 rounded-lg my-1  border-gray-400 border-l-2 sortable"
-                                    //ref={divRefs[f.id]}
                                     id={f.id}
                                     draggable="true"
                                     onDragOver={(e) => {
@@ -2698,12 +3425,10 @@ ${this.returnFunctions()}
         const subP = (id) => {
             const obj = this.state.functions.inside.find((obj) => obj.id === id);
             const index = this.state.functions.inside.indexOf(obj);
-            //const divRef = React.createRef();
             return (
                 <div className=" pl-2 bg-blue-300 flex items-center rounded-lg sortable">
                     <code className="w-full">
                         <div
-                            //ref={divRefs[id]}
                             id={id}
                             className="flex">
                             {obj.returnType}
@@ -2721,7 +3446,6 @@ ${this.returnFunctions()}
                             {"("}
                             <div
                                 className="bg-blue-200 rounded-lg  min-w-5 min-h-4  sortable"
-                                //ref={divRef}
                                 id={id}
                                 onDragOver={(e) => {
                                     this.handleOnDragOver(e, id)
@@ -2735,12 +3459,10 @@ ${this.returnFunctions()}
 
                             >
                                 {obj.inside.map((p, i) => {
-                                    //const divRef = React.createRef()
                                     if (i < obj.NumberOfParams) {
                                         return (
                                             <div
                                                 className="items-center inline-flex bg-blue-200 rounded-lg min-w-4 sortableLR"
-                                                //ref={divRefs[p.id]}
                                                 id={p.id}
                                                 onDragOver={(e) => {
                                                     this.dragOverSortableLR(e, p.id)
@@ -2787,10 +3509,8 @@ ${this.returnFunctions()}
                             {") {"}
                         </div>
                         {(() => {
-                            //const divRef = React.createRef()
                             const id = this.Uid()
                             return (<div className="bg-slate-200 ml-4 mr-0 min-h-4"
-                                //ref={divRef}
                                 id={id}
                                 onDragOver={(e) => {
                                     const et = this.state.value.elementType
@@ -2826,11 +3546,8 @@ ${this.returnFunctions()}
 
 
         const conditional = (obj, indexF) => {
-            console.log("Conditional object got:", this.state)
-            //const divRef = React.createRef()
-            return (<div className="flex">
+            return (<div className="flex" id={obj.id}>
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                    //ref={divRef}
                     id={obj.inside[0].id}
                     onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
                     onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
@@ -2842,10 +3559,7 @@ ${this.returnFunctions()}
                             inside: this.state.value.inside,
                             value: this.state.value.value ?? null
                         }
-                        /*this.setState((prevState) => {
-                            return { id: prevState.id + 1 }
-                        })*/
-                        console.log("Dropped with the values:", obj, data, this.state.value)
+
                         this.dropOnSlot(e, obj, data, obj.inside[0].id, 0)
                     }}
                 >
@@ -2876,9 +3590,7 @@ ${this.returnFunctions()}
                                             obj.inside[0].hasOwnProperty("inside") ?
                                                 obj.inside[0].inside.map((l, i) => {
                                                     if (i > 0) {
-                                                        //const divRef = React.createRef();
                                                         tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                            //ref={divRef}
                                                             id={l.id}
                                                             onDragOver={(e) => this.handleOnDragOver(e, l.id)}
                                                             onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
@@ -2952,7 +3664,6 @@ ${this.returnFunctions()}
                     <option>{'!='}</option>
                 </select>
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                    //ref={divRef}
                     id={obj.inside[1].id}
                     onDragOver={(e) => this.handleOnDragOver(e, obj.inside[1].id)}
                     onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[1].id)}
@@ -2997,9 +3708,7 @@ ${this.returnFunctions()}
                                             obj.inside[1].hasOwnProperty("inside") ?
                                                 obj.inside[1].inside.map((l, i) => {
                                                     if (i > 0) {
-                                                        //const divRef = React.createRef();
                                                         tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                            //ref={divRef}
                                                             id={l.id}
                                                             onDragOver={(e) => this.handleOnDragOver(e, l.id)}
                                                             onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
@@ -3063,15 +3772,12 @@ ${this.returnFunctions()}
 
 
         const arithmatic = (obj, indexF) => {
-            console.log("Index of function inside updated arithmatic:", indexF)
-            //const divRef = React.createRef()
-            return (<div className="flex">
+            return (<div className="flex" id={obj.id}>
                 (
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                    //ref={divRef}
-                    id={obj.id}
-                    onDragOver={(e) => this.handleOnDragOver(e, obj.id)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.id)}
+                    id={obj.inside[0].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
                     onDrop={(e) => {
                         let data = null
                         this.state.value.type === "arithmatic" ?
@@ -3085,7 +3791,7 @@ ${this.returnFunctions()}
                                 value: this.state.value.value ?? null
                             }
 
-                        this.dropOnSlot(e, obj, data, obj.id, 0)
+                        this.dropOnSlot(e, obj, data, obj.inside[0].id, 0)
                     }}
                 >
 
@@ -3109,14 +3815,14 @@ ${this.returnFunctions()}
                                         () => {
                                             const tmp = []
                                             const elmnt = this.findObjectWithID(obj.inside[0].refId, indexF)
+                                            console.log("element found:", elmnt)
+
                                             tmp.push(elmnt.type)
 
                                             obj.inside[0].hasOwnProperty("inside") ?
                                                 obj.inside[0].inside.map((l, i) => {
                                                     if (i > 0) {
-                                                        //const divRef = React.createRef();
                                                         tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                            //ref={divRefs[l.id]}
                                                             id={l.id}
                                                             onDragOver={(e) => this.handleOnDragOver(e, l.id)}
                                                             onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
@@ -3186,10 +3892,9 @@ ${this.returnFunctions()}
                     <option>{'%'}</option>
                 </select>
                 <div className="bg-slate-200 flex w-max  rounded-sm slot"
-                    //ref={divRef}
-                    id={obj.inside[0].id}
-                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
+                    id={obj.inside[1].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[1].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[1].id)}
                     onDrop={(e) => {
                         let data = null
                         this.state.value.type === "arithmatic" ?
@@ -3203,7 +3908,7 @@ ${this.returnFunctions()}
                                 value: this.state.value.value ?? null
                             }
 
-                        this.dropOnSlot(e, obj, data, obj.inside[0].id, 1)
+                        this.dropOnSlot(e, obj, data, obj.inside[1].id, 1)
                     }}
                 >
 
@@ -3232,9 +3937,7 @@ ${this.returnFunctions()}
                                         obj.inside[1].hasOwnProperty("inside") ?
                                             obj.inside[1].inside.map((l, i) => {
                                                 if (i > 0) {
-                                                    //const divRef = React.createRef();
                                                     tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                        //ref={divRefs[l.id]}
                                                         id={l.id}
                                                         onDragOver={(e) => this.handleOnDragOver(e, l.id)}
                                                         onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
@@ -3299,14 +4002,11 @@ ${this.returnFunctions()}
 
 
         const assignment = (obj, indexF) => {
-            //const divRef = React.createRef()
-            return (<div className="flex ">
+            return (<div className="flex" id={obj.id}>
                 <div className="bg-slate-200 flex w-max min-w-4  rounded-sm slot"
-                    //ref={divRef}
                     id={obj.id}
                     onDragOver={(e) => {
-                        this.handleOnDragOver(e,obj.id)
-
+                        this.handleOnDragOver(e, obj.id)
                     }}
                     onDragLeave={(e) => {
                         this.handleOnDragLeave(e, obj.id)
@@ -3337,10 +4037,8 @@ ${this.returnFunctions()}
                         obj.inside[0].hasOwnProperty("inside") ?
                             obj.inside[0].inside.map((l, i) => {
                                 if (i > 0) {
-                                    //const divRef = React.createRef();
 
                                     return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                        //ref={divRefs[l.id]}
                                         id={l.id}
                                         onDragOver={(e) => this.handleOnDragOver(e, l.id)}
                                         onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
@@ -3400,14 +4098,14 @@ ${this.returnFunctions()}
                     <option>{'-='}</option>
                     <option>{'*='}</option>
                     <option>{'/='}</option>
-                    <option>{'++'}</option>
-                    <option>{'--'}</option>
+                    <option>{'%='}</option>
+                    {/*<option>{'++'}</option>
+                    <option>{'--'}</option>*/}
                 </select>
                 <div className="bg-slate-200 flex w-max min-w-5  rounded-sm slot"
-                    //ref={obj.id}
-                    id={obj.id}
-                    onDragOver={(e) => this.handleOnDragOver(e, obj.id)}
-                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.id)}
+                    id={obj.inside[1].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[1].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[1].id)}
                     onDrop={(e) => {
                         let data = null
                         this.state.value.type === "arithmatic" || this.state.value.elementType === "function" ?
@@ -3421,7 +4119,7 @@ ${this.returnFunctions()}
                                 value: this.state.value.value ?? null
                             }
 
-                        this.dropOnSlot(e, obj, data, obj.id, 1)
+                        this.dropOnSlot(e, obj, data, obj.inside[1].id, 1)
                     }}
                 >
 
@@ -3435,6 +4133,7 @@ ${this.returnFunctions()}
                                             this.adjustInputWidth()
                                             this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)
                                         }}
+                                        value={obj.inside[1].value}
                                     />)
                                 case ("floatInput"): return (<input />)
                                 case ("charInput"): return (<input />)
@@ -3453,9 +4152,7 @@ ${this.returnFunctions()}
                                                 obj.inside[1].hasOwnProperty("inside") ?
                                                     obj.inside[1].inside.map((l, i) => {
                                                         if (i > 0) {
-                                                            //const divRef = React.createRef();
                                                             tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                                //ref={divRefs[l.id]}
                                                                 id={l.id}
                                                                 onDragOver={(e) => this.handleOnDragOver(e, l.id)}
                                                                 onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
@@ -3520,8 +4217,7 @@ ${this.returnFunctions()}
 
 
         const cif = (obj, indexF) => {
-            //const divRef = React.createRef();
-            const id=this.Uid()
+            const id = this.Uid()
             return (
                 <div>
                     <div className="h-7 flex rounded-lg">
@@ -3530,7 +4226,6 @@ ${this.returnFunctions()}
                         <p className="inline-block">){"{"}</p>
                     </div>
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
-                        //ref={divRef}
                         id={id}
                         onDragOver={(e) => {
                             const et = this.state.value.elementType
@@ -3541,7 +4236,7 @@ ${this.returnFunctions()}
                         onDrop={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDrop(e, obj, indexF,id, true)
+                                this.handleOnDrop(e, obj, indexF, id, true)
                             }
                         }}
                         onDragLeave={(e) => {
@@ -3557,19 +4252,17 @@ ${this.returnFunctions()}
         }
 
         const celse = (obj, indexF) => {
-            //const divRef = React.createRef();
-            const id=this.Uid()
+            const id = this.Uid()
             return (
                 <div>
                     else{'{'}
 
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
                         id={id}
-                        //ref={divRef}
                         onDragOver={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDragOver(e,id)
+                                this.handleOnDragOver(e, id)
                             }
                         }}
                         onDrop={(e) => {
@@ -3594,22 +4287,20 @@ ${this.returnFunctions()}
 
 
         const cfor = (obj, indexF) => {
-            //const divRef = React.createRef();
-            const id=this.Uid()
+            const id = this.Uid()
             return (
                 <div>
                     <div className="h-7 flex rounded-lg">
                         for(
                         <div className="border-2 border-slate-100">{assignment(obj.inside[0], indexF)}</div>
-                        ;
+
                         <div className="border-2 border-slate-100">{conditional(obj.inside[1], indexF)}</div>
                         ;
                         <div className="border-2 border-slate-100">{assignment(obj.inside[2], indexF)}</div>
                         ){'{'}</div>
 
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
-                    id={id}
-                        //ref={divRef}
+                        id={id}
                         onDragOver={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
@@ -3640,8 +4331,7 @@ ${this.returnFunctions()}
 
 
         const cwhile = (obj, indexF) => {
-            //const divRef = React.createRef();
-            const id=this.Uid()
+            const id = this.Uid()
             return (
                 <div>
                     <div className="h-7 flex rounded-lg">
@@ -3649,7 +4339,6 @@ ${this.returnFunctions()}
                         <div className="border-2 border-slate-100">{conditional(obj.inside[0], indexF)}</div>
                         ){'{'}</div>
                     <div className="bg-slate-200 my-1 ml-5 mr-0 min-h-5"
-                        //ref={divRef}
                         id={id}
                         onDragOver={(e) => {
                             const et = this.state.value.elementType
@@ -3660,7 +4349,7 @@ ${this.returnFunctions()}
                         onDrop={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
-                                this.handleOnDrop(e, obj, indexF,id, true)
+                                this.handleOnDrop(e, obj, indexF, id, true)
                             }
                         }}
                         onDragLeave={(e) => {
@@ -3678,12 +4367,12 @@ ${this.returnFunctions()}
         }
 
         const cdoWhile = (obj, indexF) => {
-            const id=this.Uid()
+            const id = this.Uid()
             return (
                 <div>
                     do{'{'}
                     <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
-                    id={id}
+                        id={id}
                         onDragOver={(e) => {
                             const et = this.state.value.elementType
                             if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
@@ -3724,7 +4413,8 @@ ${this.returnFunctions()}
         const condition = (id) => { return { id: id, type: "conditional", sign: "==", inside: [inputField(), inputField()], indicator: false, elementType: "conditional" } }
 
         return (
-            <div className="bg-slate-700  flex">
+            <div className="bg-slate-700  flex ">
+
                 {!this.state.showOutput && (
                     <div className=" p-5  bg-slate-400 w-1/4 h-screen overflow-y-auto no-scrollbar" >
                         {/*headers */}
@@ -3798,7 +4488,7 @@ ${this.returnFunctions()}
                                                 className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
                                                 onDragStart={(e) => {
                                                     e.stopPropagation()
-                                                    const data = { id: this.Uid(), dataType: "int", type: 'var' + this.Uid(), value: null, inside: [inputField()], indicator: false, elementType: "variableBtn" }
+                                                    const data = { id: this.Uid(), dataType: "int", type: 'var' + this.Uid(), value: 0, inside: [inputField()], indicator: false, elementType: "variableBtn" }
                                                     this.handleonDragStart(data, 2)
                                                 }}>int</button>
                                             <button draggable="true"
@@ -4143,7 +4833,7 @@ or  variable/value  %  variable/value ;
                                                                 dataType: f.inside[i].dataType,
                                                                 type: null,
                                                                 value: null,
-                                                                inside: [{}],
+                                                                inside: [inputField()],
                                                                 indicator: false,
                                                                 elementType: "param"
                                                             }
@@ -4156,9 +4846,10 @@ or  variable/value  %  variable/value ;
                                                             type: f.type,
                                                             elementType: "function",
                                                             returnType: f.returnType,
-                                                            defination: false,
+                                                            defination: f.defination,
                                                             NumberOfParams: f.NumberOfParams,
-                                                            inside: tmp
+                                                            inside: tmp,
+
                                                         }
 
 
@@ -4191,8 +4882,21 @@ or  variable/value  %  variable/value ;
                     </div>
                 )}
 
-                <div className="space-y-4 p-10 m-10 mt-0 mb-0 bg-slate-200 w-3/4 h-screen overflow-y-auto no-scrollbar">
-                    <div className="flex justify-between mx-2 border-b-2 border-black pb-2 relative">
+                <div className="space-y-4 p-10 m-10 mt-0 mb-0 bg-slate-200 w-3/4 h-screen overflow-y-auto no-scrollbar relative parent">
+
+                    {this.state.showOutput && (
+                        <div >
+                            <div className="absolute w-2 h-2  bg-black rounded-full cursor"></div>
+                            <div className="absolute w-2 h-2  bg-black rounded-full cursor"></div>
+                            <div className="absolute w-2 h-2  bg-black rounded-full cursor"></div>
+                            <div className="absolute w-2 h-2  bg-black rounded-full cursor"></div>
+
+                            <div className="absolute w-2 h-2  bg-black rounded-full cursor"></div>
+                        </div>
+                    )}
+
+
+                    <div className="flex interactControlled justify-between mx-2 border-b-2 border-black pb-2 relative">
 
                         <div className="flex box-border">
                             <input
@@ -4208,8 +4912,8 @@ or  variable/value  %  variable/value ;
                         </div>
 
                         <button className="text-2xl font-semibold border-2 px-2 border-slate-500 rounded-md relative"
-                            onClick={() => {
-
+                            onClick={(e) => {
+                                e.stopPropagation()
                                 this.setState((prevState) => {
                                     return { showFileOptions: !prevState.showFileOptions, showOpenOption: false }
                                 })
@@ -4221,7 +4925,7 @@ or  variable/value  %  variable/value ;
                                     className="block"
                                     onClick={(e) => {
                                         e.stopPropagation()
-                                        handleNewButtonClick()
+                                        this.handleNewButtonClick()
                                         localStorage.setItem('codeId', this.Uid(8))
                                         this.setState(() => ({ showFileOptions: false }))
                                     }}
@@ -4231,7 +4935,7 @@ or  variable/value  %  variable/value ;
                                     className="block"
                                     onClick={(e) => {
                                         e.stopPropagation()
-                                        handleOpenButtonClick()
+                                        this.handleOpenButtonClick()
                                         this.setState(() => {
                                             return { showFileOptions: false }
                                         })
@@ -4241,29 +4945,49 @@ or  variable/value  %  variable/value ;
                                 <button
                                     className="block"
                                     onClick={() => {
-                                        handleSaveButtonClick()
+                                        this.handleSaveButtonClick()
                                     }}
                                 >
                                     Save
                                 </button>
 
+
+                                <button
+                                    className="block"
+                                    onClick={(e) => {
+                                        handleButtonClick();
+                                    }}
+                                >
+                                    Upload
+                                </button>
+
                                 <input
-                                    id={fileInputRef}
                                     type="file"
-                                    //ref={fileInputRef}
-                                    onChange={handleFileChange}
+                                    id={"fileInput"}
+                                    onChange={this.handleFileChange}
                                     style={{ display: 'none' }}
                                     accept=".visc"
                                 />
-                                <button className="block" onClick={() => { handleButtonClick() }}>Upload</button>
 
-                                <button className="block" onClick={() => { downloadState() }}>Download</button>
+                                <button className="block" onClick={(e) => {
+                                    this.downloadState()
+                                }}>Download</button>
+
+                                <button
+                                    className="block"
+                                    onClick={(e) => {
+                                        this.handleDeleteButtonClick()
+                                    }}
+                                >
+                                    Delete
+                                </button>
                             </div>)}
 
 
                             {this.state.showOpenOption && (<div className="absolute left-0 top-full bg-cyan-200 border border-gray-200 rounded-md mt-1 p-2 text-base text-left">
                                 {this.state.responseData.map((rd) => {
-                                    return (<button onClick={() => {
+                                    return (<button onClick={(e) => {
+                                        localStorage.setItem('codeId', rd.codeId)
                                         this.setState(rd.jsonData)
                                     }}>{rd.jsonData.name}</button>)
                                 })}
@@ -4273,8 +4997,7 @@ or  variable/value  %  variable/value ;
 
                     </div>
 
-
-                    <div className="bg-slate-300 p-4 rounded-lg">
+                    <div className=" interactControlled bg-slate-300 p-4 rounded-lg">
                         <p className="text-right">Documentation section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
@@ -4289,7 +5012,7 @@ or  variable/value  %  variable/value ;
                         </pre>
                     </div>
 
-                    <div className="bg-blue-100 p-4 rounded-lg">
+                    <div className=" interactControlled bg-blue-100 p-4 rounded-lg">
                         <p className="text-right">Link section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
@@ -4299,7 +5022,7 @@ or  variable/value  %  variable/value ;
                     </div>
 
 
-                    <div className="bg-amber-100 p-4 rounded-lg">
+                    <div className=" interactControlled bg-amber-100 p-4 rounded-lg">
                         <p className="text-right">Definition section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
@@ -4309,7 +5032,7 @@ or  variable/value  %  variable/value ;
                     </div>
 
 
-                    <div className="bg-lime-100 p-4 rounded-lg">
+                    <div className=" interactControlled bg-lime-100 p-4 rounded-lg">
                         <p className="text-right">Function declaration section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
@@ -4318,8 +5041,7 @@ or  variable/value  %  variable/value ;
                                         f.name === " " ? null
                                             :
                                             (<div
-                                                //ref={divRefs[f.id]}
-                                                id={f.id}
+                                                id={f.id + 1}
                                                 className="bg-blue-200 pl-2 rounded-lg my-1  border-gray-400 border-l-2">
                                                 {f.returnType} {f.type.slice(1)} ({f.inside.map((p, i) => {
                                                     if (i < f.NumberOfParams) {
@@ -4345,7 +5067,7 @@ or  variable/value  %  variable/value ;
 
 
 
-                    <div className="bg-green-100 p-4 rounded-lg">
+                    <div className=" interactControlled bg-green-100 p-4 rounded-lg">
                         <p className="text-right">Global variable section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
@@ -4356,7 +5078,7 @@ or  variable/value  %  variable/value ;
 
 
 
-                    <div className="bg-green-200 p-4 rounded-lg">
+                    <div className=" interactControlled bg-green-200 p-4 rounded-lg">
                         <p className="text-right">Main section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
@@ -4366,7 +5088,7 @@ or  variable/value  %  variable/value ;
                     </div>
 
 
-                    <div className="bg-purple-100 p-4 rounded-lg">
+                    <div className=" interactControlled bg-purple-100 p-4 rounded-lg">
                         <p className="text-right">Subprogram section</p>
 
                         <pre className="bg-white p-2 rounded-md">
@@ -4381,25 +5103,27 @@ or  variable/value  %  variable/value ;
 
 
                     <div className="flex justify-center">
-                        <button className="align-middle m-5 border-2 w-24 h-12 bg-lime-200" onClick={handleRunButtonClick}>
+                        <button className="align-middle m-5 border-2 w-24 h-12 bg-lime-200" onClick={() => { this.handleSimulateButtonClick() }}>
                             {this.state.showOutput ? "Stop" : "Run"}
                         </button>
                         {/* Display response data */}
 
                     </div>
 
-                    {(() => {
-                        const divRef = React.createRef();
+
+
+                    {!this.state.showOutput && (() => {
+                        const id = this.Uid()
 
                         const handleDragEnter = debounce(() => {
-                            if (divRef.current) {
-                                divRef.current.style.backgroundColor = "red";
+                            if (document.getElementById(id)) {
+                                document.getElementById(id).style.backgroundColor = "red";
                             }
                         }, 100);
 
                         const handleDragLeave = debounce(() => {
-                            if (divRef.current) {
-                                divRef.current.style.backgroundColor = "white";
+                            if (document.getElementById(id)) {
+                                document.getElementById(id).style.backgroundColor = "white";
                             }
                         }, 100);
 
@@ -4407,13 +5131,13 @@ or  variable/value  %  variable/value ;
                             <div>
                                 <FontAwesomeIcon
                                     icon={faTrash}
-                                    ref={divRef}
+                                    id={id}
                                     size="2x"
                                     className={`fixed bottom-8 right-8 p-3 rounded-full bg-white`}
                                     onDrop={(e) => {
                                         this.deleteItem();
-                                        if (divRef.current) {
-                                            divRef.current.style.backgroundColor = "white";
+                                        if (document.getElementById(id)) {
+                                            document.getElementById(id).style.backgroundColor = "white";
                                         }
                                     }}
                                     onDragEnter={(e) => {
@@ -4426,8 +5150,8 @@ or  variable/value  %  variable/value ;
                                     }}
                                     onDragOver={(e) => {
                                         e.preventDefault();
-                                        if (divRef.current) {
-                                            divRef.current.style.backgroundColor = "red";
+                                        if (document.getElementById(id)) {
+                                            document.getElementById(id).style.backgroundColor = "red";
                                         }
                                     }}
                                 />
@@ -4439,7 +5163,9 @@ or  variable/value  %  variable/value ;
 
 
                 </div>
-                {this.state.showOutput && (
+
+                {
+                /*this.state.showOutput && (
                     <div className="flex flex-col h-screen w-1/2 flex-grow text-white">
                         <p>Code:</p>
                         <div className="h-3/6 w-full bg-cyan-50  p-4 rounded-md font-mono text-black mb-4">
@@ -4452,184 +5178,122 @@ or  variable/value  %  variable/value ;
                             <pre>{this.state.responseData}</pre>
                         </div>
                     </div>
-                )}
+                )*/}
 
 
-                {/*          
-                <div id="memory" className="space-y-4 p-10 pb-20  m-10 mt-0 mb-0 bg-slate-200 w-1/2 h-screen">
-                    <p className="font-bold text-2xl border-b-2">Memory</p>
-                    <div className="flex h-full">
-                        <div className="w-1/2 mx-5 mb-10 p-2 h-full bg-cyan-200 rounded-md">
-                            <p className="font-bold text-lg align-middle">data</p>
-                            <div className="overflow-y-auto  max-h-[calc(100%-2rem-2.5rem)] no-scrollbar">
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
+                {this.state.showOutput && (
+                    <div className="flex flex-col h-screen w-1/2 flex-grow text-white">
+                        <p>Memory:</p>
+                        <div id="memory" className="h-4/6 py-4 w-full bg-cyan-50  rounded-md font-mono text-black mb-4">
+                            <div className="flex h-full">
+                                <div className="w-1/2 mx-4 p-2  h-full bg-cyan-200 rounded-md">
+                                    <p className="font-bold text-lg align-middle">data</p>
+
+                                    <div id="data" className="flex flex-col p-2 items-end overflow-y-auto max-h-[calc(100%-2.5rem)] no-scrollbar">
+
+                                        {
+                                            (() => {
+                                                const slots = []
+                                                const data = this.state.data
+                                                for (let i = 0; i < 20; i++) {
+                                                    if (i < data.length) {
+                                                        slots.push(<div className="flex mx-1 my-1px w-full">
+                                                            <p className="text-center text-wrap w-3/12 bg-white bg-opacity-40  border-2 border-slate-500 overflow-hidden">{i}</p>
+                                                            <p className="text-center text-wrap w-4/12 bg-white bg-opacity-40 border-x-0 border-2 border-slate-500 overflow-hidden">{data[i].type}</p>
+                                                            <p className="text-center text-wrap w-5/12 bg-white bg-opacity-40  border-2 border-slate-500 overflow-hidden">{data[i].value}</p>
+                                                        </div>
+                                                        )
+                                                    }
+                                                    else {
+                                                        slots.push(<div className="flex mx-1 my-1px w-full">
+                                                            <p className="text-center text-wrap w-3/12 bg-white bg-opacity-40  border-2 border-slate-500 overflow-hidden">{i}</p>
+                                                            <p className="text-center text-wrap w-4/12 bg-white bg-opacity-40 border-x-0 border-2 border-slate-500 overflow-hidden"></p>
+                                                            <p className="text-center text-wrap w-5/12 bg-white bg-opacity-40  border-2 border-slate-500 overflow-hidden"> </p>
+                                                        </div>
+                                                        )
+                                                    }
+
+                                                }
+                                                return slots
+                                            })()
+                                        }
+
+
+
+                                    </div>
+
                                 </div>
 
-                            </div>
-                        </div>
+                                <div className="w-1 bg-slate-500"></div>
 
-                        <div className="w-1 bg-slate-500"></div>
+                                {(() => {
+                                    return (
+                                        <div className="w-1/2 mx-4 p-2  h-full bg-blue-300 rounded-md relative">
+                                            <p className="font-bold text-lg align-middle">stack</p>
+                                            <div id="stack" className="flex flex-col items-center overflow-y-auto no-scrollbar max-h-[calc(100%-2.5rem)] border-2 border-black border-t-0 absolute bottom-0 w-[calc(100%-1rem)]">
+                                                {this.state.stackFrames.map((frame, index) => (
+                                                    <div key={index} className="flex flex-col w-full mt-2 ">
+                                                        <p className="text-center text-wrap bg-white bg-opacity-40 border-2 border-slate-500">
+                                                            {frame.ret ? frame.ret : null}
+                                                        </p>
+                                                        <p className="text-center text-wrap bg-white bg-opacity-40 border-2 border-slate-500">
+                                                            {frame.args ? frame.type + "(" +
 
-                        <div className="w-1/2 mx-5 mb-10 p-2 h-full bg-blue-300 rounded-md">
-                            <p className="font-bold text-lg align-middle">stack</p>
-                            <div id="stack" className="overflow-y-auto max-h-[calc(100%-2rem-2.5rem)] no-scrollbar">
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
+                                                                frame.args.map((arg) => arg.refId ? this.state.data.find((d) => (d.id === arg.refId))?.value
+                                                                    : arg.value).join(",")
 
+                                                                + ")" : null}
+                                                        </p>
+                                                        <p className="text-center text-wrap bg-white bg-opacity-40 border-2 border-slate-500">
+                                                            {frame.localVars ? frame.localVars.map((v) => v.type + " = " + v.value).join(",") : null}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                        </div>
+                                    )
+                                })()
+                                }
 
 
                             </div>
                         </div>
+                        {/*
+                        <p>Console:</p>
+                        <div className="h-2/6 w-full bg-slate-800 overflow-y-scroll text-slate-50 p-4 border-4 rounded-md font-mono">
+                           <pre>{this.state.responseData}</pre>
+                        </div>
+                            */}
+                        <p>Console:</p>
+                        {(() => {
+                            const handleKeyDown = (event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+
+                                    const values = event.target.value.split("\n").pop().split(" ");
+
+                                    consoleInputs = [...values]
+
+                                    consoleRef.current.value = event.target.value + "\n"
+
+                                }
+                            }
+
+
+                            return (<div className="h-2/6 w-full overflow-y-hidden text-slate-50 border-4 rounded-md font-mono">
+                                <ReactTextareaAutosize
+                                    ref={consoleRef}
+                                    className="bg-slate-800 p-1 w-full min-h-full"
+                                    onKeyDown={(e) => { handleKeyDown(e) }}
+
+                                />
+                            </div>)
+                        })()}
+
+
                     </div>
-                </div>*/}
-
-
+                )}
 
             </div>
         );
