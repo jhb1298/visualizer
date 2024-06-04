@@ -1015,7 +1015,6 @@ class Code extends React.Component {
                         x++;
                         update(updated.inside[indices[x - 1]]);
                     } else {
-                        console.log("Updated at:", updated)
                         updated.inside[index] = data
                     }
                 };
@@ -1025,7 +1024,7 @@ class Code extends React.Component {
                 return { functions: updatedFunc };
             }, () => {
                 this.updateEachVariable(index)
-                console.log("Value:", this.state.functions.inside);
+                console.log("Value after  data inserted:", this.state.functions.inside);
             });
         }
         else {
@@ -1040,7 +1039,7 @@ class Code extends React.Component {
                 return { gVariables: updatedGVars }
             }, () => {
                 this.updateEachGVariable()
-                console.log("Gvar updated :", this.state)
+                console.log("Gvar updated ddddddddddddddddddddd:", this.state)
             })
         }
 
@@ -1735,7 +1734,7 @@ ${this.returnFunctions()}
 
                 const handleFunction = async (func) => {
 
-                   
+
                     this.setState((prevState) => {
                         const nop = func.NumberOfParams;
                         const nog = prevState.gVariables.inside.length;
@@ -1805,7 +1804,7 @@ ${this.returnFunctions()}
 
 
                 const handleCalledFunc = async (func) => {
-                
+
 
                     await delay(del);
                     this.setState((prevState) => {
@@ -1830,7 +1829,7 @@ ${this.returnFunctions()}
 
                 };
 
-             
+
 
 
                 const checkCondition = async (obj) => {
@@ -1862,7 +1861,7 @@ ${this.returnFunctions()}
 
                 const handleIf = async (obj) => {
 
-                
+
                     await processElements(obj, 0, 1)
                     await delay(del)
 
@@ -1956,7 +1955,6 @@ ${this.returnFunctions()}
                     let l = 0;
                     let r = 0;
 
-                    console.log("Arithmatic equation:", arith)
 
                     const sign = arith.sign
 
@@ -1965,16 +1963,37 @@ ${this.returnFunctions()}
                         await processElements(arith, 0, 1)
                     }
                     else {
-                        l = parseInt(arith.inside[0].refId ? this.state.data.find((item) => (item.id === arith.inside[0].refId)).value : arith.inside[0].value, 10);
+                        /*l = parseInt(arith.inside[0].refId ? this.state.data.find((item) => (item.id === arith.inside[0].refId)).value : arith.inside[0].value, 10);*/
+                        await processElements(arith, 0, 1,true)
+                        l = parseInt(arith.inside[0].type.slice(0, 1) === "1" ?
+                            await handleFunction(arith.inside[0])                           
+                            : arith.inside[0].refId ?
+                                this.state.data.find((item) => (item.id === arith.inside[0].refId)).value
+                                : arith.inside[0].value, 10);
                     }
+
+                    ret = false
+
+                    alert("l=" + l)
 
                     if (arith.inside[1].type === "arithmatic") {
                         r = await arithmatic(arith.inside[1])
                         await processElements(arith, 1, 2)
                     }
                     else {
-                        r = parseInt(arith.inside[1].refId ? this.state.data.find((item) => (item.id === arith.inside[1].refId)).value : arith.inside[1].value, 10);
+                        /*r = parseInt(arith.inside[1].refId ? this.state.data.find((item) => (item.id === arith.inside[1].refId)).value : arith.inside[1].value, 10);*/
+                        await processElements(arith, 1, 2,true)
+                        r = parseInt(arith.inside[1].type.slice(0, 1) === "1" ?
+                            await handleFunction(arith.inside[1])                          
+                            : arith.inside[1].refId ?
+                                this.state.data.find((item) => (item.id === arith.inside[1].refId)).value
+                                : arith.inside[1].value, 10);
                     }
+
+                    ret = false
+
+                    alert("r=" + r)
+
 
                     switch (sign) {
                         case "+": return l + r;
@@ -1990,7 +2009,7 @@ ${this.returnFunctions()}
 
 
                 const asign = async (obj) => {
-       
+
 
                     let l = 0;
                     let r = 0;
@@ -2005,19 +2024,18 @@ ${this.returnFunctions()}
                         await processElements(obj, 1, 2)
                     }
                     else {
-                        let i = -1
+                        /**let i = -1
                         if (obj.inside[1].elementType === "function") {
                             i = this.state.functions.inside.findIndex((f) => (f.id === obj.inside[1].refId))
                             console.log("Index:", i)
-                        }
+                        }*/
 
                         r = parseInt(obj.inside[1].elementType === "function" ?
-                            /*await processElements(this.state.functions,i,i+1)*/
                             await handleFunction(obj.inside[1])
                             : obj.inside[1].refId ?
                                 this.state.data.find((item) => (item.id === obj.inside[1].refId)).value
                                 : obj.inside[1].value, 10);
-                        
+
                     }
 
                     const sign = obj.sign;
@@ -2045,7 +2063,7 @@ ${this.returnFunctions()}
                         return item;
                     });
                     this.setState({ data: updatedData });
-                    ret=false               //return to asign after function call thats why it needs to reset false
+                    ret = false               //return to asign after function call thats why it needs to reset false
                 }
 
                 const handleReturn = async (obj) => {
@@ -2056,20 +2074,20 @@ ${this.returnFunctions()}
                         await processElements(obj, 0, 1)
                     }
                     else {
-                        
+
                         r = parseInt(obj.inside[0].elementType === "function" ?
                             await handleFunction(obj.inside[0])
                             : obj.inside[0].refId ?
                                 this.state.data.find((item) => (item.id === obj.inside[0].refId)).value
                                 : obj.inside[0].value, 10);
-                        
+
                     }
 
                     this.setState((prevState) => {
                         let updatedFrame = [...prevState.stackFrames];
 
                         /**updatedFrame[0].ret = obj.inside[0].refId ? prevState.data.find((item) => (item.id === obj.inside[0].refId)).value : obj.inside[0].value ?? 0*/
-                        updatedFrame[0].ret=r
+                        updatedFrame[0].ret = r
 
                         return { stackFrames: updatedFrame };
                     });
@@ -2077,12 +2095,12 @@ ${this.returnFunctions()}
 
 
 
-                const processElements = async (obj, initial, end) => {
+                const processElements = async (obj, initial, end, onlyView) => {
 
-                    if(ret){
-                        console.log("outer returned for:", obj)
-                        alert("return from outer")
-                        return 
+                   
+
+                    if (ret) {
+                        return
                     }
 
                     if (obj.elementType === "functionBtn") {
@@ -2095,15 +2113,13 @@ ${this.returnFunctions()}
                     const cursor = document.getElementsByClassName("cursor");
 
                     for (let i = initial; i < end; i++) {
-                        if(ret){
-                            alert("return from for")
-                            console.log("for returned for:", obj)
-                            return 
+                        if (ret) {
+                            return
                         }
 
                         await waitForRightArrowPress()
 
-                        
+
                         if (!obj.inside[i].hasOwnProperty("elementType") || obj.inside[i].elementType === "inputField") {
                             continue;
                         }
@@ -2130,13 +2146,17 @@ ${this.returnFunctions()}
                         cursor[4].style.left = `${rect.left - 40}px`;
                         cursor[4].style.top = `${rect.top + top + rect.height / 2}px`;
 
+                        if(onlyView){
+                            await delay(del)
+                            return
+                        }
+
                         switch (obj.inside[i].type) {
-                            case ("assignment"):                             
-                                 await handleAsignment(obj.inside[i])
-                                 alert("Asigned:"+ ret)
+                            case ("assignment"):
+                                await handleAsignment(obj.inside[i])
                                 break
-                            case ("cif"):                          
-                                 await handleIf(obj.inside[i])
+                            case ("cif"):
+                                await handleIf(obj.inside[i])
                                 break
                             case ("conditional"): break
                             case ("arithmatic"): break
@@ -2148,22 +2168,20 @@ ${this.returnFunctions()}
                                 break
                             case ("cdoWhile"): await handleDoWhile(obj.inside[i])
                                 break
-                            case ("return"):            
+                            case ("return"):
                                 await handleReturn(obj.inside[i])
                                 ret = true
-                                alert("return from ret")
-                                return 
+                                return
                             default:
                                 if (obj.inside[i].type.slice(0, 1) === '1') {
                                     if (obj.inside[i].elementType === "functionBtn") {
                                         await handleCalledFunc(obj.inside[i])
-                                    
+
                                     }
                                     else {
-                                        if (obj.inside[i].defination) {                                      
+                                        if (obj.inside[i].defination) {
                                             await handleFunction(obj.inside[i])
-                                            ret=false
-                                            alert("terminating")
+                                            ret = false
                                         }
                                         else {
                                             await handleUndefCalledFunc(obj.inside[i])
@@ -2172,14 +2190,14 @@ ${this.returnFunctions()}
                                     }
                                 }
                                 else {
-                                    
+
                                     await handleVar(obj.inside[i])
                                 }
 
                         }
 
                     }
-                   
+
                 }
 
                 const process = async () => {
@@ -3057,6 +3075,7 @@ ${this.returnFunctions()}
 
 
         const funcCall = (func, indexF, assign) => {
+            console.log("Got from arith:",func)
             if (!func) {
                 return null;
             }
@@ -3127,7 +3146,8 @@ ${this.returnFunctions()}
                         }
 
                     </div>
-                    );
+                    )
+                    {assign ? null : ";"}
                 </div>
             );
         };
@@ -3780,7 +3800,7 @@ ${this.returnFunctions()}
                     onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
                     onDrop={(e) => {
                         let data = null
-                        this.state.value.type === "arithmatic" ?
+                        this.state.value.type === "arithmatic" || this.state.value.elementType === "function" ?
                             data = this.state.value
                             :
                             data = {
@@ -3797,6 +3817,7 @@ ${this.returnFunctions()}
 
                     {
                         (() => {
+                            console.log("aithmatic Object:",obj)
                             switch (obj.inside[0].type) {
                                 case ("intInput"): return (
                                     <input
@@ -3811,70 +3832,76 @@ ${this.returnFunctions()}
                                 case ("charInput"): return (<input />)
                                 case ("arithmatic"): return (arithmatic(obj.inside[0], indexF))
                                 default:
-                                    return obj.inside[0].hasOwnProperty("refId") ? (
-                                        () => {
-                                            const tmp = []
-                                            const elmnt = this.findObjectWithID(obj.inside[0].refId, indexF)
-                                            console.log("element found:", elmnt)
+                                    return obj.inside[0].type.slice(0,1)==="1" ?
+                                        funcCall(obj.inside[0], indexF, true)
+                                        : obj.inside[0].hasOwnProperty("refId") ? (
+                                            () => {
+                                                const tmp = []
+                                                const elmnt = this.findObjectWithID(obj.inside[0].refId, indexF)
+                                                console.log("element found:", elmnt)
 
-                                            tmp.push(elmnt.type)
+                                                tmp.push(elmnt.type)
 
-                                            obj.inside[0].hasOwnProperty("inside") ?
-                                                obj.inside[0].inside.map((l, i) => {
-                                                    if (i > 0) {
-                                                        tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                            id={l.id}
-                                                            onDragOver={(e) => this.handleOnDragOver(e, l.id)}
-                                                            onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
-                                                            onDrop={(e) => {
-                                                                const data = {
-                                                                    id: this.Uid(),
-                                                                    refId: this.state.value.refId ?? null,
-                                                                    type: this.state.value.type,
-                                                                    inside: this.state.value.inside,
-                                                                    value: this.state.value.value ?? null
+                                                obj.inside[0].hasOwnProperty("inside") ?
+                                                    obj.inside[0].inside.map((l, i) => {
+                                                        if (i > 0) {
+                                                            tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                                id={l.id}
+                                                                onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                                onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                                                onDrop={(e) => {
+
+                                                                    const data = {
+                                                                        id: this.Uid(),
+                                                                        refId: this.state.value.refId ?? null,
+                                                                        type: this.state.value.type,
+                                                                        inside: this.state.value.inside,
+                                                                        value: this.state.value.value ?? null
+                                                                    }
+
+
+
+                                                                    this.dropOnSlot(e, obj.inside[0], data, l.id, i)
+                                                                }}
+                                                            >
+
+
+                                                                {
+
+                                                                    (() => {
+                                                                        switch (obj.inside[0].inside[i].type) {
+                                                                            case ("intInput"): return (
+                                                                                <input
+                                                                                    className="w-5 bg-slate-200 autoAdjust"
+                                                                                    onChange={(e) => {
+                                                                                        this.adjustInputWidth()
+                                                                                        this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
+                                                                                    }}
+                                                                                />)
+                                                                            case ("floatInput"): return (<input />)
+                                                                            case ("charInput"): return (<input />)
+                                                                            case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i], indexF))
+                                                                            default:
+                                                                                return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                                                    this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
+                                                                                    : <p>{"   "}</p>
+                                                                        }
+                                                                    })()
                                                                 }
 
-                                                                this.dropOnSlot(e, obj.inside[0], data, l.id, i)
-                                                            }}
-                                                        >
+                                                            </div>)
+                                                            return null
+                                                        }
+                                                        else {
+                                                            return null
+                                                        }
 
+                                                    }) : <p>{"   "}</p>
 
-                                                            {
-
-                                                                (() => {
-                                                                    switch (obj.inside[0].inside[i].type) {
-                                                                        case ("intInput"): return (
-                                                                            <input
-                                                                                className="w-5 bg-slate-200 autoAdjust"
-                                                                                onChange={(e) => {
-                                                                                    this.adjustInputWidth()
-                                                                                    this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
-                                                                                }}
-                                                                            />)
-                                                                        case ("floatInput"): return (<input />)
-                                                                        case ("charInput"): return (<input />)
-                                                                        case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i], indexF))
-                                                                        default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
-                                                                            this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
-                                                                            : <p>{"   "}</p>
-                                                                    }
-                                                                })()
-                                                            }
-
-                                                        </div>)
-                                                        return null
-                                                    }
-                                                    else {
-                                                        return null
-                                                    }
-
-                                                }) : <p>{"   "}</p>
-
-                                            return tmp
-                                        }
-                                    )()
-                                        : <p>{"   "}</p>
+                                                return tmp
+                                            }
+                                        )()
+                                            : <p>{"   "}</p>
                             }
                         })()
                     }
@@ -3897,7 +3924,7 @@ ${this.returnFunctions()}
                     onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[1].id)}
                     onDrop={(e) => {
                         let data = null
-                        this.state.value.type === "arithmatic" ?
+                        this.state.value.type === "arithmatic" || this.state.value.elementType === "function" ?
                             data = this.state.value
                             :
                             data = {
@@ -3908,6 +3935,7 @@ ${this.returnFunctions()}
                                 value: this.state.value.value ?? null
                             }
 
+
                         this.dropOnSlot(e, obj, data, obj.inside[1].id, 1)
                     }}
                 >
@@ -3916,6 +3944,7 @@ ${this.returnFunctions()}
                     {
 
                         (() => {
+                          
                             switch (obj.inside[1].type) {
                                 case ("intInput"): return (
                                     <input
@@ -3928,68 +3957,71 @@ ${this.returnFunctions()}
                                 case ("floatInput"): return (<input />)
                                 case ("charInput"): return (<input />)
                                 case ("arithmatic"): return (arithmatic(obj.inside[1], indexF))
-                                default: return obj.inside[1].hasOwnProperty("refId") ? (
-                                    () => {
-                                        const tmp = []
-                                        const elmnt = this.findObjectWithID(obj.inside[1].refId, indexF)
-                                        tmp.push(elmnt.type)
+                                default:
+                                    return obj.inside[1].type.slice(0,1)==="1" ?
+                                        funcCall(obj.inside[1], indexF, true)
+                                        : obj.inside[1].hasOwnProperty("refId") ? (
+                                            () => {
+                                                const tmp = []
+                                                const elmnt = this.findObjectWithID(obj.inside[1].refId, indexF)
+                                                tmp.push(elmnt.type)
 
-                                        obj.inside[1].hasOwnProperty("inside") ?
-                                            obj.inside[1].inside.map((l, i) => {
-                                                if (i > 0) {
-                                                    tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
-                                                        id={l.id}
-                                                        onDragOver={(e) => this.handleOnDragOver(e, l.id)}
-                                                        onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
-                                                        onDrop={(e) => {
-                                                            const data = {
-                                                                id: this.Uid(),
-                                                                refId: this.state.value.refId ?? null,
-                                                                type: this.state.value.type,
-                                                                inside: this.state.value.inside,
-                                                                value: this.state.value.value ?? null
-                                                            }
+                                                obj.inside[1].hasOwnProperty("inside") ?
+                                                    obj.inside[1].inside.map((l, i) => {
+                                                        if (i > 0) {
+                                                            tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                                id={l.id}
+                                                                onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                                onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                                                onDrop={(e) => {
+                                                                    const data = {
+                                                                        id: this.Uid(),
+                                                                        refId: this.state.value.refId ?? null,
+                                                                        type: this.state.value.type,
+                                                                        inside: this.state.value.inside,
+                                                                        value: this.state.value.value ?? null
+                                                                    }
 
-                                                            this.dropOnSlot(e, obj.inside[1], data, l.id, i)
-                                                        }}
-                                                    >
+                                                                    this.dropOnSlot(e, obj.inside[1], data, l.id, i)
+                                                                }}
+                                                            >
 
 
-                                                        {
+                                                                {
 
-                                                            (() => {
-                                                                switch (obj.inside[1].inside[i].type) {
-                                                                    case ("intInput"): return (
-                                                                        <input
-                                                                            className="w-5 bg-slate-200 autoAdjust"
-                                                                            onChange={(e) => {
-                                                                                this.adjustInputWidth()
-                                                                                this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)
-                                                                            }}
-                                                                        />)
-                                                                    case ("floatInput"): return (<input />)
-                                                                    case ("charInput"): return (<input />)
-                                                                    case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i], indexF))
-                                                                    default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
-                                                                        this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
-                                                                        : <p>{"   "}</p>
+                                                                    (() => {
+                                                                        switch (obj.inside[1].inside[i].type) {
+                                                                            case ("intInput"): return (
+                                                                                <input
+                                                                                    className="w-5 bg-slate-200 autoAdjust"
+                                                                                    onChange={(e) => {
+                                                                                        this.adjustInputWidth()
+                                                                                        this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)
+                                                                                    }}
+                                                                                />)
+                                                                            case ("floatInput"): return (<input />)
+                                                                            case ("charInput"): return (<input />)
+                                                                            case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i], indexF))
+                                                                            default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
+                                                                                this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
+                                                                                : <p>{"   "}</p>
+                                                                        }
+                                                                    })()
                                                                 }
-                                                            })()
+
+                                                            </div>)
+                                                            return null
+                                                        }
+                                                        else {
+                                                            return null
                                                         }
 
-                                                    </div>)
-                                                    return null
-                                                }
-                                                else {
-                                                    return null
-                                                }
+                                                    }) : <p>{"   "}</p>
 
-                                            }) : <p>{"   "}</p>
-
-                                        return tmp
-                                    }
-                                )()
-                                    : <p>{"   "}</p>
+                                                return tmp
+                                            }
+                                        )()
+                                            : <p>{"   "}</p>
                             }
                         })()
                     }
@@ -5237,7 +5269,7 @@ or  variable/value  %  variable/value ;
                                                             {frame.ret ? frame.ret : null}
                                                         </p>
                                                         <p className="text-center text-wrap bg-white bg-opacity-40 border-2 border-slate-500">
-                                                            {frame.args ? frame.type + "(" +
+                                                            {frame.args ? frame.type.slice(1) + "(" +
 
                                                                 frame.args.map((arg) => arg.refId ? this.state.data.find((d) => (d.id === arg.refId))?.value
                                                                     : arg.value).join(",")
