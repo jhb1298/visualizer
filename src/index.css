@@ -53,6 +53,10 @@ input {
  border-color: black;
 }
 
+.cursor{
+  transition: transform 1s ease-in-out; 
+}
+
 
 
 
