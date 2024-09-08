@@ -112,7 +112,7 @@ class Code extends React.Component {
                         elementType: "functionBtn",
                         inside: [
                             { id: this.Uid(), dataType: "char[]", type: 'var' + 3, value: null, inside: [{}], indicator: false, elementType: "param" },
-                            { id: this.Uid(), dataType: "any", type: 'var' + 4, value: null, inside: [{}], indicator: false, elementType: "param" }
+
                         ],
 
 
@@ -127,7 +127,6 @@ class Code extends React.Component {
                         elementType: "functionBtn",
                         inside: [
                             { id: this.Uid(), dataType: "char[]", type: 'var' + 5, value: null, inside: [{}], indicator: false, elementType: "param" },
-                            { id: this.Uid(), dataType: "ref_any", type: 'var' + 6, value: null, inside: [{}], indicator: false, elementType: "param" }
                         ],
 
                     }
@@ -445,6 +444,38 @@ class Code extends React.Component {
             if (s.hasOwnProperty("inside")) {
                 for (let i = 0; i < s.inside.length; i++) {
                     if (s.inside[i].id === obj.id) {
+                        indices.push(i);
+                        flag = true
+                        return;
+                    } else {
+                        indices.push(i);
+                        searchInside(s.inside[i]);
+                        if (flag === false) {
+                            indices.pop();
+                        }
+                        else {
+                            return
+                        }
+                    }
+                }
+            }
+        };
+
+        searchInside(func);
+        return indices;
+    };
+
+    findIndicesWithRefId = (refId) => {
+        let indices = [];
+        let func = this.state.functions
+        let flag = false
+        const searchInside = (s) => {
+            console.log("Indices:", indices)
+            console.log("Passed Object:", s)
+            if (s.hasOwnProperty("inside")) {
+                for (let i = 0; i < s.inside.length; i++) {
+                    console.log("Compare:", s.inside[i], refId)
+                    if ((s.inside[i].hasOwnProperty("refId")) && (s.inside[i].refId === refId)) {
                         indices.push(i);
                         flag = true
                         return;
@@ -978,7 +1009,80 @@ class Code extends React.Component {
         }
     }
 
-    dropOnParams = (e, obj, indexF, id, empty) => {
+    updateAllReferencingFuncCall = (id, data) => {
+
+        let indices = this.findIndicesWithRefId(id);
+        console.log("Indices of the called function:",indices,id)
+        this.setState(prevState => {
+            const updatedFunc = cloneDeep(prevState.functions);
+            let x = 0;
+
+            const update = (updated) => {
+                if (x < indices.length) {
+                    x++;
+                    update(updated.inside[indices[x - 1]]);
+                } else {
+                    updated.inside.push({...data,id:this.Uid(),value:null})
+                    updated.NumberOfParams = updated.NumberOfParams + 1
+                }
+            };
+            update(updatedFunc);
+
+            return { functions: updatedFunc };
+        }, () => {
+            console.log("Value after updateAllReferencingFuncCall:", this.state.functions.inside);
+        });
+    }
+
+
+    updateIOReferencingFuncCall = (id, cCount) => {
+
+        let indices = this.findIndicesWithRefId(id);
+        this.setState(prevState => {
+            const updatedFunc = cloneDeep(prevState.functions);
+            let x = 0;
+
+            const update = (updated) => {
+                if (x < indices.length) {
+                    x++;
+                    update(updated.inside[indices[x - 1]]);
+                } else {
+                    updated.inside.splice(1)
+                    updated.NumberOfParams = 1
+                    for (let count = 0; count < cCount; count++) {
+                        const data = {
+                            dataType: "int",
+                            elementType: "param",
+                            id: this.Uid(),
+                            indicator: false,
+                            inside: [{
+                                dataType: "int",
+                                elementType: "inputField",
+                                id: this.Uid(),
+                                indicator: false,
+                                inside: [],
+                                refId: null,
+                                type: "intInput",
+                                value: 0
+                            }],
+                            type: null,
+                            value: null
+                        }
+                        updated.inside.push(data)
+                        updated.NumberOfParams = updated.NumberOfParams + 1
+                    }
+
+                }
+            };
+            update(updatedFunc);
+
+            return { functions: updatedFunc };
+        }, () => {
+            console.log("Value after name updated:", this.state.functions.inside);
+        });
+    }
+
+    dropOnParams = (e, obj, indexF, id, empty, funcId) => {
         let divs = document.querySelectorAll("div.sortable")
         divs.forEach((item) => {
             item.style.borderBottom = 'none'
@@ -1008,6 +1112,9 @@ class Code extends React.Component {
             funcs.inside[indexF].NumberOfParams += 1
             return { functions: funcs }
         })
+
+        console.log("Function Id Passed:",funcId)
+        this.updateAllReferencingFuncCall(funcId, data) //refFunc
 
     }
 
@@ -1792,10 +1899,10 @@ ${this.returnFunctions()}
                                     val = obj.value
                                 }
                                 else if (!Array.isArray(obj.value[0])) {
-                                    val = obj.value[arg.index[0]]
+                                    val = obj.value[arg.inside[1].refId ? this.state.data.find((ob) => (ob.id === arg.inside[1].refId)).value : arg.inside[1].value]
                                 }
                                 else if (Array.isArray(obj.value[0])) {
-                                    val = obj.value[arg.index[0]][arg.index[1]]
+                                    val = obj.value[arg.inside[1].refId ? this.state.data.find((ob) => (ob.id === arg.inside[1].refId)).value : arg.inside[1].value][arg.inside[2].refId ? this.state.data.find((ob) => (ob.id === arg.inside[2].refId)).value : arg.inside[2].value]
                                 }
 
                                 args.push({ type: obj.type, refId: null, value: val })
@@ -2031,8 +2138,14 @@ ${this.returnFunctions()}
                                 obj.inside[0].inside.length === 1 ?
                                     this.state.data.find((item) => (item.id === obj.inside[0].refId)).value :
                                     obj.inside[0].inside.length === 2 ?
-                                        this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].index[0]] :
-                                        this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].index[0]][obj.inside[0].index[1]]
+                                        this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value :
+                                            obj.inside[0].inside[1].value] :
+                                        this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value :
+                                            obj.inside[0].inside[1].value][obj.inside[0].inside[2].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[0].inside[2].refId)).value :
+                                            obj.inside[0].inside[2].value]
                                 : obj.inside[0].value, 10)
                     }
 
@@ -2059,8 +2172,14 @@ ${this.returnFunctions()}
                                 obj.inside[1].inside.length === 1 ?
                                     this.state.data.find((item) => (item.id === obj.inside[1].refId)).value :
                                     obj.inside[1].inside.length === 2 ?
-                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[obj.inside[1].index[0]] :
-                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[obj.inside[1].index[0]][obj.inside[1].index[1]]
+                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[obj.inside[1].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[1].refId)).value :
+                                            obj.inside[1].inside[1].value] :
+                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[obj.inside[1].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[1].refId)).value :
+                                            obj.inside[1].inside[1].value][obj.inside[1].inside[2].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[2].refId)).value :
+                                            obj.inside[1].inside[2].value]
                                 : obj.inside[1].value, 10)
                     }
 
@@ -2093,8 +2212,12 @@ ${this.returnFunctions()}
                         l = parseInt(obj.inside[0].inside.length === 1 ?
                             this.state.data.find((item) => (item.id === obj.inside[0].refId)).value :
                             obj.inside[0].inside.length === 2 ?
-                                this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].index[0]] :
-                                this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].index[0]][obj.inside[0].index[1]], 10);
+                                this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].inside[1].refId ?
+                                    this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value : obj.inside[0].inside[1].value] :
+                                this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].inside[1].refId ?
+                                    this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value : obj.inside[0].inside[1].value][obj.inside[0].inside[2].refId ?
+                                    this.state.data.find((ob) => (ob.id === obj.inside[0].inside[2].refId)).value : obj.inside[0].inside[2].value], 10);
+                        console.log("Left value:", l)
                     }
 
 
@@ -2110,8 +2233,14 @@ ${this.returnFunctions()}
                                 obj.inside[1].inside.length === 1 ?
                                     this.state.data.find((item) => (item.id === obj.inside[1].refId)).value :
                                     obj.inside[1].inside.length === 2 ?
-                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[obj.inside[1].index[0]] :
-                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[obj.inside[1].index[0]][obj.inside[1].index[1]]
+                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[
+                                        obj.inside[1].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[1].refId)).value :
+                                            obj.inside[1].inside[1].value]
+                                        :
+                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[obj.inside[1].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[1].refId)).value : obj.inside[1].inside[1].value][obj.inside[1].inside[2].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[2].refId)).value : obj.inside[1].inside[2].value]
                                 : obj.inside[1].value
                         console.log("Right of assignnnnnnnnnnnnnnnnnnnnnnnnnnnnnn:", this.state, obj.inside[1])
                         r = parseInt(r, 10)
@@ -2133,7 +2262,6 @@ ${this.returnFunctions()}
 
                 const handleAsignment = async (obj) => {
 
-
                     await processElements(obj, 0, 1)
                     const newValue = await asign(obj);
                     const updatedData = this.state.data.map(item => {
@@ -2143,10 +2271,10 @@ ${this.returnFunctions()}
                                 tmpValue = newValue
                             }
                             else if (!Array.isArray(item.value[0])) {
-                                tmpValue[obj.inside[0].index[0]] = newValue
+                                tmpValue[obj.inside[0].inside[1].refId ? this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value : obj.inside[0].inside[1].value] = newValue
                             }
                             else if (Array.isArray(item.value[0])) {
-                                tmpValue[obj.inside[0].index[0]][obj.inside[0].index[1]] = newValue
+                                tmpValue[obj.inside[0].inside[1].refId ? this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value : obj.inside[0].inside[1].value][obj.inside[0].inside[2].refId ? this.state.data.find((ob) => (ob.id === obj.inside[0].inside[2].refId)).value : obj.inside[0].inside[2].value] = newValue
                             }
                             return { ...item, value: tmpValue };
                         }
@@ -3165,7 +3293,7 @@ ${this.returnFunctions()}
 
 
         const funcCall = (func, indexF, assign) => {
-            console.log("Got from arith:", func)
+            console.log("Rerenderring function with:", func)
             if (!func) {
                 return null;
             }
@@ -3177,6 +3305,7 @@ ${this.returnFunctions()}
                         {
                             (() => {
                                 const tmp = []
+                                console.log("Retriggereddddddddddddddddddddddddddddddddddddddddddddddddd")
                                 func.inside.map((p, i) => {
                                     if (i < func.NumberOfParams) {
 
@@ -3199,8 +3328,7 @@ ${this.returnFunctions()}
                                                         id: this.Uid(),
                                                         refId: this.state.value.refId ?? null,
                                                         type: this.state.value.type,
-                                                        inside: this.state.value.inside,
-                                                        index: [0, 0],
+                                                        inside: this.state.value.inside.map((ob) => ({ ...ob, id: this.Uid() })),
                                                         value: this.state.value.value ?? null
                                                     }
 
@@ -3223,6 +3351,23 @@ ${this.returnFunctions()}
 
                                                                     this.adjustInputWidth()
                                                                     this.updateVariablesValue(p.inside[0], indexF, e.target.value, 0)
+
+                                                                    const funcName = func.type.slice(1)
+                                                                    if ((funcName === "printf" || funcName === "scanf") && i === 0) {
+                                                                        console.log("Function:", func.id)
+                                                                        const str = e.target.value
+                                                                        let dCount = 0
+                                                                        for (let k = 0; k < str.length - 1; k++) {
+                                                                            if (str[k] + [str[k + 1]] === "%d") {
+                                                                                console.log("Stringggggggggggggg:", str[k] + str[k + 1])
+                                                                                dCount++
+                                                                            }
+                                                                        }
+
+                                                                        this.updateIOReferencingFuncCall(func.refId, dCount)//refFunc
+
+
+                                                                    }
                                                                 }}
                                                             />)
                                                         case ("floatInput"): return (<input />)
@@ -3239,9 +3384,9 @@ ${this.returnFunctions()}
 
 
 
-                                                                        elmnt.hasOwnProperty("inside") ?
-                                                                            elmnt.inside.map((l, i) => {
-                                                                                console.log("Param and Stateeeeeeeeeeeeeeeeeeeeeeeeee:", p, l, this.state)
+                                                                        p.inside[0].hasOwnProperty("inside") ?
+                                                                            p.inside[0].inside.map((l, i) => {
+
                                                                                 if (i > 0) {
                                                                                     tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
                                                                                         id={l.id}
@@ -3252,11 +3397,11 @@ ${this.returnFunctions()}
                                                                                                 id: this.Uid(),
                                                                                                 refId: this.state.value.refId ?? null,
                                                                                                 type: this.state.value.type,
-                                                                                                inside: this.state.value.inside,
+                                                                                                inside: this.state.value.inside.map((ob) => ({ ...ob, id: this.Uid() })),
                                                                                                 value: this.state.value.value ?? null
                                                                                             }
+                                                                                            this.dropOnSlot(e, p.inside[0], data, null, i)
 
-                                                                                            this.dropOnSlot(e, p, data, l.id, i)
                                                                                         }}
                                                                                     >
 
@@ -3264,17 +3409,18 @@ ${this.returnFunctions()}
                                                                                         {
 
                                                                                             (() => {
+                                                                                                console.log("StateeeeeeeeeeeeeeeeeeeeeeeeeeL:", l)
                                                                                                 switch (l.type) {
                                                                                                     case ("intInput"): return (
                                                                                                         <input
                                                                                                             className="w-5 bg-slate-200 autoAdjust"
                                                                                                             onChange={(e) => {
                                                                                                                 this.adjustInputWidth()
-                                                                                                                /*this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)*/
-                                                                                                                this.updateArrayIndex(p.inside[0], i - 1, indexF, e.target.value)
+                                                                                                                this.updateVariablesValue(p.inside[0].inside[i], indexF, e.target.value, 0)
+
 
                                                                                                             }}
-                                                                                                            value={p.inside[0].index[i - 1]}
+                                                                                                            value={p.inside[0].inside[i].value}
                                                                                                         />)
                                                                                                     case ("floatInput"): return (<input />)
                                                                                                     case ("charInput"): return (<input />)
@@ -3684,7 +3830,7 @@ ${this.returnFunctions()}
                                     this.handleOnDragOver(e, id)
                                 }}
                                 onDrop={(e) => {
-                                    this.dropOnParams(e, obj, index, id, true)
+                                    this.dropOnParams(e, obj, index, id, true,id)
                                 }}
                                 onDragLeave={(e) => {
                                     this.handleOnDragLeave(e, id)
@@ -4021,8 +4167,7 @@ ${this.returnFunctions()}
                                 id: this.Uid(),
                                 refId: this.state.value.refId ?? null,
                                 type: this.state.value.type,
-                                inside: this.state.value.inside,
-                                index: [0, 0],
+                                inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
                                 value: this.state.value.value ?? null
                             }
 
@@ -4070,7 +4215,7 @@ ${this.returnFunctions()}
                                                                         id: this.Uid(),
                                                                         refId: this.state.value.refId ?? null,
                                                                         type: this.state.value.type,
-                                                                        inside: this.state.value.inside,
+                                                                        inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
                                                                         value: this.state.value.value ?? null
                                                                     }
 
@@ -4090,11 +4235,10 @@ ${this.returnFunctions()}
                                                                                     className="w-5 bg-slate-200 autoAdjust"
                                                                                     onChange={(e) => {
                                                                                         this.adjustInputWidth()
-                                                                                        /*this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)*/
-                                                                                        this.updateArrayIndex(obj.inside[0], i - 1, indexF, e.target.value)
-
+                                                                                        this.updateVariablesValue(obj.inside[0].inside[i], indexF, e.target.value, 0)
                                                                                     }}
-                                                                                    value={obj.inside[0].index[i - 1]}
+                                                                                    //value={obj.inside[0].index[i - 1]}
+                                                                                    value={obj.inside[0].inside[i].value}
                                                                                 />)
                                                                             case ("floatInput"): return (<input />)
                                                                             case ("charInput"): return (<input />)
@@ -4150,8 +4294,7 @@ ${this.returnFunctions()}
                                 id: this.Uid(),
                                 refId: this.state.value.refId ?? null,
                                 type: this.state.value.type,
-                                inside: this.state.value.inside,
-                                index: [0, 0],
+                                inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
                                 value: this.state.value.value ?? null
                             }
 
@@ -4199,7 +4342,7 @@ ${this.returnFunctions()}
                                                                         id: this.Uid(),
                                                                         refId: this.state.value.refId ?? null,
                                                                         type: this.state.value.type,
-                                                                        inside: this.state.value.inside,
+                                                                        inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
                                                                         value: this.state.value.value ?? null
                                                                     }
 
@@ -4217,11 +4360,11 @@ ${this.returnFunctions()}
                                                                                     className="w-5 bg-slate-200 autoAdjust"
                                                                                     onChange={(e) => {
                                                                                         this.adjustInputWidth()
-                                                                                        /*this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)*/
-                                                                                        this.updateArrayIndex(obj.inside[1], i - 1, indexF, e.target.value)
+                                                                                        this.updateVariablesValue(obj.inside[1].inside[i], indexF, e.target.value, 0)
+
 
                                                                                     }}
-                                                                                    value={obj.inside[1].index[i - 1]}
+                                                                                    value={obj.inside[1].inside[i].value}
                                                                                 />)
                                                                             case ("floatInput"): return (<input />)
                                                                             case ("charInput"): return (<input />)
@@ -4269,15 +4412,13 @@ ${this.returnFunctions()}
 
                     }}
                     onDrop={(e) => {
-                        const ins = []
                         let inc = 1
 
                         const data = {
                             id: this.Uid(),
                             refId: this.state.value.refId,
                             type: this.state.value.type,
-                            inside: this.state.value.inside,
-                            index: [0, 0],
+                            inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
                             value: this.state.value.value
                         }
                         this.setState((prevState) => ({ id: prevState.id + inc }))
@@ -4304,7 +4445,7 @@ ${this.returnFunctions()}
                                                 id: this.Uid(),
                                                 refId: this.state.value.refId ?? null,
                                                 type: this.state.value.type,
-                                                inside: this.state.value.inside,
+                                                inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
                                                 value: this.state.value.value ?? null
                                             }
 
@@ -4323,10 +4464,12 @@ ${this.returnFunctions()}
                                                             onChange={(e) => {
                                                                 this.adjustInputWidth()
                                                                 //this.updateVariablesValue(obj.inside[0].inside[i], indexF, e.target.value, 0)
-                                                                this.updateArrayIndex(obj.inside[0], i - 1, indexF, e.target.value)
+                                                                this.updateVariablesValue(obj.inside[0].inside[i], indexF, e.target.value, 0)
+                                                                //this.updateArrayIndex(obj.inside[0], i - 1, indexF, e.target.value)
 
                                                             }}
-                                                            value={obj.inside[0].index[i - 1]}
+                                                            //value={obj.inside[0].index[i - 1]}
+                                                            value={obj.inside[0].inside[i].value}
                                                         />)
                                                     case ("floatInput"): return (<input />)
                                                     case ("charInput"): return (<input />)
@@ -4376,8 +4519,7 @@ ${this.returnFunctions()}
                                 id: this.Uid(),
                                 refId: this.state.value.refId ?? null,
                                 type: this.state.value.type,
-                                inside: this.state.value.inside,
-                                index: [0, 0],
+                                inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
                                 value: this.state.value.value ?? null
                             }
 
@@ -4423,7 +4565,7 @@ ${this.returnFunctions()}
                                                                         id: this.Uid(),
                                                                         refId: this.state.value.refId ?? null,
                                                                         type: this.state.value.type,
-                                                                        inside: this.state.value.inside,
+                                                                        inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
                                                                         value: this.state.value.value ?? null
                                                                     }
 
@@ -4441,12 +4583,13 @@ ${this.returnFunctions()}
                                                                                     className="w-5 bg-slate-200 autoAdjust"
                                                                                     onChange={(e) => {
                                                                                         this.adjustInputWidth()
-                                                                                        this.updateArrayIndex(obj.inside[1], i - 1, indexF, e.target.value)
+                                                                                        this.updateVariablesValue(obj.inside[1].inside[i], indexF, e.target.value, 0)
+                                                                                        /*this.updateArrayIndex(obj.inside[1], i - 1, indexF, e.target.value)*/
 
 
 
                                                                                     }}
-                                                                                    value={obj.inside[1].index[i - 1]}
+                                                                                    value={obj.inside[1].inside[i].value}
 
                                                                                 />)
                                                                             case ("floatInput"): return (<input />)
