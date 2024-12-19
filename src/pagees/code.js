@@ -1,103 +1,340 @@
-//import { type } from "@testing-library/user-event/dist/type";
 import React from "react";
 import ReactTextareaAutosize from "react-textarea-autosize";
-const cloneDeep = require('lodash/cloneDeep');
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrash } from '@fortawesome/free-solid-svg-icons';
+import { debounce } from 'lodash';
+
+const cloneDeep = require('lodash/cloneDeep')
+let stateVar = {}
+let consoleRef = React.createRef()
+let consoleInputs = []
+
+let ret = false
+
+let singleStep = true
+
+
+const delay = async (ms) => {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+const waitForRightArrowPress = async () => {
+    return new Promise((resolve) => {
+        const handleKeyPress = (event) => {
+            if (event.key === 'ArrowRight') {
+                document.removeEventListener('keydown', handleKeyPress);
+                resolve();
+            }
+        };
+        document.addEventListener('keydown', handleKeyPress);
+    });
+};
+
+
+
+const del = 500
+
 
 class Code extends React.Component {
+
+
+
+
     constructor(props) {
         super(props);
         this.state = {
-            id: 0,
+            id: 10,
+            name: "Main",
+            tmp: [],
 
-            showDeclareVariable: false,
-            showConditionals: false,
-            showLoops: false,
-            showFunctions: false,
-            showOthers: false,
+            data: [],
+            stackFrames: [
+
+            ],
+            paramVals: [],
+            funcId: null,
 
 
-            value: "",
+            elseP: false,
 
-            showHeaderSelect: false,
+            code: "",
+            responseData: null,
+
+            showOpenOption: false,
+            showOutput: false,
+            showFileOptions: false,
+            //for sidebar
+            showHeaderlist: true,
+            showDefineSection: true,
+            showDeclareVariable: true,
+            showInputFields: true,
+            showConditionals: true,
+            showLoops: true,
+            showFunctions: true,
+            showOthers: true,
+
+            value: null,
+            inc: 0,
+
             showDataTypes: false,
             showParamTypes: false,
-            showFunctionTypes: false,
-            //showMainOptions: false,
-            showAssignmentOptions: true,
-            selectedHeader: "",
-            cheaders: ["stdio.h"],
-            definations: [],
-            gVariables: [],
-            insideMain: [],
-            functionKey: 1,
-            functions: [
-                {
-                    showParamTypes: false,
-                    showOptions: false,
-                    key: 0,
-                    type: "main",
-                    returnType: "int",
-                    params: [
+            headers: ["stdio.h", "math.h", "string.h"],
+            cheaders: [],
+            defines: {
+                inside: []
+            },
+            gVariables: {
+                inside: []
+            },
 
-                    ],
-                    inside: [
+            functions: {
+                inside: [
+                    {
 
-                    ]
-                },
-                {
-                    showParamTypes: false,
-                    showOptions: false,
-                    key: 1,
-                    type: "sum",
-                    returnType: "int",
-                    params: [
-                        {
-                            type: "int",
-                            name: "a",
-                            value: null
-                        },
-                        {
-                            type: "float",
-                            name: "b",
-                            value: null
-                        }
-                    ],
-                    inside: [
+                        id: this.Uid(),
+                        type: "1main",
+                        returnType: "int",
+                        defination: true,
+                        NumberOfParams: 0,
+                        elementType: "functionBtn",
+                        inside: [
 
-                    ]
-                },
-            ]
+
+                        ]
+                    },
+
+                    {
+
+                        id: this.Uid(),
+                        type: "1printf",
+                        returnType: "void",
+                        defination: false,
+                        NumberOfParams: 2,
+                        elementType: "functionBtn",
+                        inside: [
+                            { id: this.Uid(), dataType: "char[]", type: 'var' + 3, value: null, inside: [{}], indicator: false, elementType: "param" },
+
+                        ],
+
+
+                    },
+                    {
+
+                        id: this.Uid(),
+                        type: "1scanf",
+                        returnType: "void",
+                        defination: false,
+                        NumberOfParams: 2,
+                        elementType: "functionBtn",
+                        inside: [
+                            { id: this.Uid(), dataType: "char[]", type: 'var' + 5, value: null, inside: [{}], indicator: false, elementType: "param" },
+                        ],
+
+                    }
+                ]
+            }
+
         };
+        this.funcs = [{
+            type: "scanf",
+            fnc: async ([str, v]) => {
+
+                str = str.inside[0]
+                v = v.inside[0]
+
+                consoleRef.current.disabled = false
+                consoleRef.current.focus();
+
+
+                while (consoleInputs.length === 0) {
+                    await delay(del)
+                }
+
+
+                this.setState((prevState) => (
+                    { data: prevState.data.map(item => item.id === v.refId ? { ...item, value: consoleInputs.shift() ?? 404 } : item) }
+                ), () => {
+                    consoleRef.current.blur();
+                    consoleRef.current.disabled = true
+                });
+                return "updated";
+            }
+        },
+        {
+            type: "printf",
+            fnc: async ([str, ...args]) => {
+                let txt = ""
+                str = str.inside[0].value;
+                if (args[0].inside.length === 0) {
+                    txt = str.substring(1, str.length - 1).replace(/\\n/g, "\n");
+                    console.log(txt)
+                    consoleRef.current.value += txt
+                    return txt;
+                }
+
+                console.log("argesssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss:", args)
+                console.log("data:", this.state.data)
+
+                args = args.map(arg => arg.inside[0].refId ?
+                    this.state.data.find((d) => (d.id === arg.inside[0].refId)).value : arg.inside[0].value);
+
+                console.log("argesssss:", args)
+
+
+                let argIndex = 0;
+                let formattedString = str.replace(/%(-?\d*(?:\.\d+)?)([sdif])/g, (match, specifier, type) => {
+                    let value = args[argIndex++];
+                    let matchParts = specifier.match(/(-?\d*)(?:\.(\d+))?/);
+                    let width = parseInt(matchParts[1], 10) || 0;
+                    let precision = parseInt(matchParts[2], 10);
+
+                    switch (type) {
+                        case 's':
+                            value = String(value);
+                            break;
+                        case 'd':
+                        case 'i':
+                            value = parseInt(value, 10);
+                            break;
+                        case 'f':
+                            value = precision !== undefined ? parseFloat(value).toFixed(precision) : parseFloat(value).toFixed(6);
+                            break;
+                        default:
+                            return match;
+                    }
+
+                    if (width) {
+                        if (width > 0) {
+                            value = value.toString().padStart(width, ' ');
+                        } else {
+                            value = value.toString().padEnd(-width, ' ');
+                        }
+                    }
+                    return value;
+                });
+
+                txt = formattedString.substring(1, formattedString.length - 1).replace(/\\n/g, "\n");
+                console.log(txt)
+                consoleRef.current.value += txt
+
+                return txt;
+            }
+
+        }
+        ]
+
     }
 
 
-    toggleHeaderSelect = () => {
-        this.setState((prevState) => ({
-            showHeaderSelect: !prevState.showHeaderSelect,
-        }));
-    };
 
-    headerSelect = (event) => {
-        const selectedHeader = event.target.value;
 
-        if (!this.state.cheaders.includes(selectedHeader)) {
-            this.setState((prevState) => {
-                const cheaders = [...prevState.cheaders, selectedHeader];
-                return {
-                    cheaders,
-                    selectedHeader: "",
-                    showHeaderSelect: false,
-                };
-            });
+
+    Uid = (l) => {
+        let length = 4;
+        if (l) {
+            length = l;
         }
-    };
+        const characters = 'abcdefghijklmnopqrstuvwxyzBCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_';
+        let id = '';
+        for (let i = 0; i < length; i++) {
+            id += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        /*if (ids.includes(id)) {
+            return this.Uid();
+        } else {
 
-    dataTypeSelect = (event) => {
-        /*const selectedDataType = event.target.value;*/
-        this.setState((prevState) => ({
-            gVariables: [...prevState.gVariables, event.target.value]
-        }));
-    };
+            ids.push(id);
+
+            return id
+        }*/
+        return id;
+    }
+
+
+    componentDidMount() {
+        localStorage.setItem('codeId', this.Uid(8))
+        stateVar = {
+            id: 10,
+            name: "Main",
+            tmp: [],
+
+            code: "",
+            responseData: null,
+
+            showOpenOption: false,
+            showOutput: false,
+            showFileOptions: false,
+            //for sidebar
+            showHeaderlist: true,
+            showDefineSection: true,
+            showDeclareVariable: true,
+            showInputFields: true,
+            showConditionals: true,
+            showLoops: true,
+            showFunctions: true,
+            showOthers: true,
+
+            value: null,
+            inc: 0,
+
+            showDataTypes: false,
+            showParamTypes: false,
+            headers: ["stdio.h", "math.h", "string.h"],
+            cheaders: [],
+            defines: {
+                inside: []
+            },
+            gVariables: {
+                inside: []
+            },
+
+            functions: {
+                inside: [
+                    {
+                        showParamTypes: false,
+                        showOptions: false,
+                        id: this.Uid(),
+                        type: "1main",
+                        returnType: "int",
+                        defination: true,
+                        NumberOfParams: 0,
+                        inside: [
+
+
+                        ]
+                    },
+
+                    {
+                        showParamTypes: false,
+                        showOptions: false,
+                        id: this.Uid(),
+                        type: "1printf",
+                        returnType: "void",
+                        defination: false,
+                        NumberOfParams: 2,
+                        inside: [
+                            { id: this.Uid(), dataType: "char[]", type: 'var' + 3, value: null, inside: [{}], indicator: false, elementType: "param" },
+                            { id: this.Uid(), dataType: "any", type: 'var' + 4, value: null, inside: [{}], indicator: false, elementType: "param" }
+                        ]
+                    },
+                    {
+                        showParamTypes: false,
+                        showOptions: false,
+                        id: this.Uid(),
+                        type: "1scanf",
+                        returnType: "void",
+                        defination: false,
+                        NumberOfParams: 2,
+                        inside: [
+                            { id: this.Uid(), dataType: "char[]", type: 'var' + 5, value: null, inside: [{}], indicator: false, elementType: "param" },
+                            { id: this.Uid(), dataType: "ref_any", type: 'var' + 6, value: null, inside: [{}], indicator: false, elementType: "param" }
+                        ]
+                    }
+                ]
+            }
+
+        };
+    }
+
 
     adjustInputWidth = () => {
         const inputs = document.getElementsByClassName('autoAdjust'); // Replace 'myInput' with the actual class of your input fields
@@ -105,7 +342,7 @@ class Code extends React.Component {
         for (let i = 0; i < inputs.length; i++) {
             const input = inputs[i];
             input.style.width = '20px'; // Reset width to 'auto' to get the natural width
-            input.style.width = input.scrollWidth + 10 + 'px';
+            input.style.width = input.scrollWidth + 5 + 'px';
         }
     }
 
@@ -197,108 +434,317 @@ class Code extends React.Component {
         }
     }
 
-    createItem = (type, dataType) => {
-        let data = {}
-        switch (type) {
-            case ("int"): data = { id: this.state.id, type: type, var: null, value: 0 }
-                break;
-            case ("float"): data = { id: this.state.id, type: type, var: null, value: 0.0 }
-                break;
-            case ("char"): data = { id: this.state.id, type: type, var: null, value: '' }
-                break;
-            case ("asign"): data = { id: this.state.id, type: type, showAssignmentOptions: true, value: "", inside: [] }
-                break;
-            case ("cif"): data = { id: this.state.id, type: type, showOptions: false, l: null, sign: "==", r: null, inside: [] }
-                break;
-            case ("celse"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
-                break;
-            case ("cfor"): data = { id: this.state.id, type: type, lVar: null, lVal: null, mVar: null, mSign: "<", mVal: null, rVar: null, rSigh: "+=", rVal: null, inside: [] }
-                break;
-            case ("cwhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
-                break;
-            case ("cdoWhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
-                break;
-            case ("inc"): data = { id: this.state.id, type: type, var: null }
-                break;
-            case ("dec"): data = { id: this.state.id, type: type, var: null }
-                break;
-            default:
-                if (data[0] === 1) {
-                    data = { id: this.state.id, type: type.slice(1), params: [] }
-                }
-                else {
-                    data = { id: this.state.id, type: type, dataType: dataType, value: null }
-                }
 
-                break;
-        }
-        this.setState((prevState) => ({
-            id: prevState.id + 1
-        }));
 
-        return data
-    }
-
-    findIndices = (obj, indexF) => {
+    findIndices = (obj) => {
         let indices = [];
-        let func = this.state.functions[indexF];
+        let func = this.state.functions
         let flag = false
-
         const searchInside = (s) => {
-            for (let i = 0; i < s.inside.length; i++) {
-                if (s.inside[i].id === obj.id) {
-                    indices.push(i);
-                    flag = true
-                    return;
-                } else {
-                    indices.push(i);
-                    searchInside(s.inside[i]);
-                    if (flag === false) {
-                        indices.pop();
-                    }
-                    else {
-                        return
+            if (s.hasOwnProperty("inside")) {
+                for (let i = 0; i < s.inside.length; i++) {
+                    if (s.inside[i].id === obj.id) {
+                        indices.push(i);
+                        flag = true
+                        return;
+                    } else {
+                        indices.push(i);
+                        searchInside(s.inside[i]);
+                        if (flag === false) {
+                            indices.pop();
+                        }
+                        else {
+                            return
+                        }
                     }
                 }
             }
         };
 
         searchInside(func);
-
-        console.log("Indices:", indices);
         return indices;
     };
 
-    insertItem = (obj, indexF, data) => {
-        if (this.state.value != null) {
+    findIndicesWithRefId = (refId) => {
+        let indices = [];
+        let func = this.state.functions
+        let flag = false
+        const searchInside = (s) => {
+            console.log("Indices:", indices)
+            console.log("Passed Object:", s)
+            if (s.hasOwnProperty("inside")) {
+                for (let i = 0; i < s.inside.length; i++) {
+                    console.log("Compare:", s.inside[i], refId)
+                    if ((s.inside[i].hasOwnProperty("refId")) && (s.inside[i].refId === refId)) {
+                        indices.push(i);
+                        flag = true
+                        return;
+                    } else {
+                        indices.push(i);
+                        searchInside(s.inside[i]);
+                        if (flag === false) {
+                            indices.pop();
+                        }
+                        else {
+                            return
+                        }
+                    }
+                }
+            }
+        };
+
+        searchInside(func);
+        return indices;
+    };
+
+    findObjectWithID = (id, indexF, prevStateV) => {
+        let object = null
+        let stateV = null
+
+        if (prevStateV) {
+            stateV = prevStateV
+        }
+        else {
+            stateV = this.state
+        }
+
+        const findObj = (obj) => {
+            if (obj && obj.hasOwnProperty("inside")) {
+                for (let i = 0; i < obj.inside.length; i++) {
+                    if (obj.inside[i].id === id) {
+                        object = obj.inside[i]
+                        break
+                    } else if (obj.inside[i]) {
+                        findObj(obj.inside[i]);
+                    }
+                }
+            }
+        };
+
+        findObj(stateV.defines)
+
+
+        findObj(stateV.gVariables)
+
+        if (indexF) {
+            findObj(stateV.functions.inside[indexF])
+        }
+        else {
+            findObj(stateV.functions)
+        }
+
+        return object
+
+    }
+
+
+    insertItem = (obj, indexF, data, position, empty) => {
+        if (data != null) {
             let indices = this.findIndices(obj, indexF);
 
+            console.log("dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:", data)
+            let parent = null
             this.setState(prevState => {
-                const updatedFunc = cloneDeep(prevState.functions)
-                const updated = updatedFunc[indexF]
+                const updatedFunc = cloneDeep(prevState.functions);
                 let x = 0;
+                let addPos = 0
+
                 const update = (updated) => {
                     if (x < indices.length) {
                         x++;
-                        update(updated.inside[indices[x - 1]])
+                        parent = updated.inside
+                        update(updated.inside[indices[x - 1]]);
+                    } else {
+
+                        if (empty) {
+                            if (data.type !== "celse") {
+                                updated.inside.splice(updated.inside.length, 0, data)
+                            }
+                            return
+                        }
+                        if (position === "top") {
+                            addPos = 0
+                        } else {
+                            addPos = 1
+
+                        }
+
+                        if (data.type === "celse") {
+                            if (parent[indices[x - 1]].type === "cif") {
+                                if (parent.length > indices[x - 1] + 1) {
+                                    if (parent[indices[x - 1] + 1].type !== "celse") {
+                                        parent.splice(indices[x - 1] + addPos, 0, data);
+                                    }
+                                }
+                                else {
+                                    parent.splice(indices[x - 1] + addPos, 0, data);
+                                }
+                            }
+                        }
+                        else {
+                            parent.splice(indices[x - 1] + addPos, 0, data);
+                        }
+
+                        /* parent.splice(indices[x - 1] + 1, 0, data);*/
                     }
-                    else {
-                        updated.inside.push(data)
-                    }
-                }
-                update(updated)
+                };
+                update(updatedFunc);
 
                 return { functions: updatedFunc };
             }, () => {
-                console.log("Value:", this.state.functions);
+                console.log("Value after insertion:", this.state.functions.inside);
             });
-
-
         }
-    }
-    //----------------------------------------
-    handleonDragStart = () => {
+    };
 
+    insertItemOnParam = (obj, indexF, data, position, empty) => {
+        if (data != null) {
+            let indices = this.findIndices(obj, indexF);
+            let parent = null
+            this.setState(prevState => {
+                const updatedFunc = cloneDeep(prevState.functions);
+                let x = 0;
+                let addPos = 0
+
+                const update = (updated) => {
+                    if (x < indices.length) {
+                        x++;
+                        parent = updated.inside
+                        update(updated.inside[indices[x - 1]]);
+                    } else {
+
+                        if (empty) {
+
+                            if (updated.inside.length > 0) {
+                                updated.inside.splice(0, 0, data)
+                            }
+                            else {
+                                updated.inside.splice(updated.inside.length, 0, data)
+                            }
+
+
+                            return
+                        }
+                        if (position === "top") {
+                            addPos = 0
+                        } else {
+                            addPos = 1
+
+                        }
+
+
+                        parent.splice(indices[x - 1] + addPos, 0, data);
+
+
+                    }
+                };
+                update(updatedFunc);
+
+                return { functions: updatedFunc };
+            }, () => {
+                console.log("Value after insertion:", this.state.functions.inside);
+            });
+        }
+    };
+
+
+    deleteItem = () => {
+        const id = this.state.value.id
+        let deleted = false
+
+        this.setState((prevState) => {
+            let headers = prevState.cheaders
+            headers.map((h, i) => {
+                if (h.id === id) {
+                    headers.splice(i, 1)
+                    deleted = true
+                }
+                return null
+            })
+            return { cheaders: headers }
+        })
+
+
+        if (!deleted) {
+            this.setState((prevState) => {
+                let defines = prevState.defines
+                defines.inside.map((d, i) => {
+                    if (d.id === id) {
+                        defines.inside.splice(i, 1)
+                        deleted = true
+                    }
+                    return null
+                })
+                return { defines: defines }
+            })
+        }
+
+
+        if (!deleted) {
+            this.setState((prevState) => {
+                let gVars = prevState.gVariables
+                gVars.inside.map((v, i) => {
+                    if (v.id === id) {
+                        gVars.inside.splice(i, 1)
+                        deleted = true
+                    }
+                    return null
+                })
+                return { gVariables: gVars }
+            })
+        }
+
+        if (!deleted) {
+            this.setState((prevState) => {
+                let functions = prevState.functions
+                functions.inside.map((f, i) => {
+                    if (f.id === id) {
+                        functions.inside.splice(i, 1)
+                        deleted = true
+                    }
+                    return null
+                })
+                return { functions: functions }
+            })
+        }
+
+
+
+        if (!deleted) {
+            const indexF = this.state.value.indexF
+            const obj = this.findObjectWithID(this.state.value.id)
+            let indices = this.findIndices(obj, indexF);
+
+            let parent = null
+
+            this.setState(prevState => {
+                const updatedFunc = cloneDeep(prevState.functions);
+                let x = 0;
+
+                const update = (updated) => {
+                    if (x < indices.length) {
+                        x++;
+                        parent = updated.inside
+                        update(updated.inside[indices[x - 1]]);
+                    } else {
+                        parent.splice(indices[x - 1], 1);
+                    }
+                };
+                update(updatedFunc);
+
+                return { functions: updatedFunc };
+            }, () => {
+                console.log("Value after deletion:", this.state.functions.inside);
+            });
+        }
+
+    };
+
+
+
+    //----------------------------------------
+    handleonDragStart = (data, inc) => {
+        this.setState({ value: data, inc: inc ?? 0 })
     }
     handleOnDrag = () => {
 
@@ -312,14 +758,411 @@ class Code extends React.Component {
     handleOnDragEnter = () => {
 
     }
-    handleOnDragOver = () => {
+
+    handleOnDragOver = (e, id) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("HandledragOver Id:", id)
+        const div = document.getElementById(id);
+        const mouseY = e.clientY;
+
+        const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
+
+        if (div.offsetHeight >= 40) {
+            if (mouseY - objectCenterY < 0) {
+                div.style.borderTop = '5px solid blue';
+                div.style.borderBottom = 'none';
+            } else {
+                div.style.borderBottom = '5px solid blue';
+                div.style.borderTop = 'none';
+            }
+        }
+        else {
+            div.style.backgroundColor = "rgba(226,232,240,1)"
+        }
+    };
+
+    dragOverSortableLR = (e, id) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const div = document.getElementById(id);
+        const mouseY = e.clientX;
+        const objectCenterX = div.getBoundingClientRect().left + div.offsetWidth / 2;
+
+
+        if (mouseY - objectCenterX < 0) {
+            div.style.borderLeft = '5px solid blue';
+            div.style.borderRight = 'none';
+        } else {
+            div.style.borderRight = '5px solid blue';
+            div.style.borderLeft = 'none';
+        }
 
     }
-    handleOnDragLeave = () => {
+
+    dragLeaveSortableLR = (e, id) => {
+        const div = document.getElementById(id);
+
+
+        div.style.borderLeft = 'none';
+        div.style.borderRight = 'none';
+
+    }
+
+
+    handleOnDragLeave = (e, id) => {
+        const div = document.getElementById(id);
+
+        if (div.offsetHeight >= 40) {
+            div.style.borderTop = 'none';
+            div.style.borderBottom = 'none';
+        }
+        else {
+            div.style.backgroundColor = "rgba(226,232,240,0.6)";
+        }
 
     }
     //---------------------------------------------
-    handleOnDrop = () => {
+    handleOnDrop = (e, obj, indexF, id, empty) => {
+        let divs = document.querySelectorAll("div.sortable")
+        divs.forEach((item) => {
+            item.style.borderBottom = 'none'
+            item.style.borderTop = 'none'
+        })
+        e.stopPropagation();
+        let data = this.state.value
+        //this.setState((prevState) => ({ id: prevState.id + prevState.inc }))
+        let position = ""
+        const div = document.getElementById(id);
+        const mouseY = e.clientY;
+        const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
+        if (mouseY - objectCenterY < 0) {
+            position = "top"
+        } else {
+            position = "bottom"
+        }
+        this.insertItem(obj, indexF, data, position, empty)
+
+    }
+
+
+
+    dropOnGVariables = (e, index, id, empty) => {
+        let divs = document.querySelectorAll("div.sortable")
+        divs.forEach((item) => {
+            item.style.borderBottom = 'none'
+            item.style.borderTop = 'none'
+        })
+        e.stopPropagation();
+
+        let data = this.state.value
+        /*this.setState((prevState) => {
+            return { id: prevState.id + 1 }
+        })*/
+        if (empty) {
+            this.setState((prevState) => {
+                let g = cloneDeep(prevState.gVariables)
+
+                g.inside.push(data)
+
+                return { gVariables: g }
+            })
+        }
+
+        else {
+            const div = document.getElementById(id);
+            const mouseY = e.clientY;
+            let position = 0
+            const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
+            if (mouseY - objectCenterY < 0) {
+                position = 0
+            } else {
+                position = 1
+            }
+            this.setState((prevState) => {
+                const g = cloneDeep(prevState.gVariables)
+                g.inside.splice(index + position, 0, data)
+                return { gVariables: g }
+            }, () => {
+                console.log("State After dropping GVAr:", this.state)
+            })
+
+        }
+    }
+    dropOnHeaders = (e, index, id, empty) => {
+        let divs = document.querySelectorAll("div.sortable")
+        divs.forEach((item) => {
+            item.style.borderBottom = 'none'
+            item.style.borderTop = 'none'
+        })
+        e.stopPropagation();
+
+        let data = this.state.value
+
+
+        let position = 0
+        if (empty) {
+            this.setState((prevState) => {
+                return { cheaders: [...prevState.cheaders, data] }
+            }, () => {
+                console.log("state:", this.state)
+            })
+        }
+
+        else {
+            const div = document.getElementById(id);
+            const mouseY = e.clientY;
+            const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
+            if (mouseY - objectCenterY < 0) {
+                position = 0
+            } else {
+                position = 1
+            }
+            this.setState((prevState) => {
+                const g = [...prevState.cheaders]
+                g.splice(index + position, 0, data)
+                return { cheaders: g }
+            })
+
+        }
+    }
+
+    dropOnDefine = (e, index, id, empty) => {
+        let divs = document.querySelectorAll("div.sortable")
+        divs.forEach((item) => {
+            item.style.borderBottom = 'none'
+            item.style.borderTop = 'none'
+        })
+        e.stopPropagation();
+
+        const data = this.state.value
+        /*this.setState((prevState) => {
+            return { id: prevState.id + 1 }
+        })*/
+        let position = 0
+        if (empty) {
+            this.setState((prevState) => {
+                let prev = cloneDeep(prevState.defines)
+                prev.inside = [...prev.inside, data]
+                return { defines: prev }
+            }, () => {
+                console.log("state:", this.state)
+            })
+        }
+
+        else {
+            const div = document.getElementById(id);
+            const mouseY = e.clientY;
+            const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
+            if (mouseY - objectCenterY < 0) {
+                position = 0
+            } else {
+                position = 1
+            }
+            this.setState((prevState) => {
+                const g = cloneDeep(prevState.defines)
+                g.inside.splice(index + position, 0, data)
+                return { defines: g }
+            })
+
+        }
+    }
+
+    dropOnSubP = (e, index, id, empty) => {
+        let divs = document.querySelectorAll("div.sortable")
+        divs.forEach((item) => {
+            item.style.borderBottom = 'none'
+            item.style.borderTop = 'none'
+        })
+        e.stopPropagation();
+
+        let data = this.state.value
+        /*this.setState((prevState) => {
+            return { id: prevState.id + prevState.inc }
+        })*/
+        let position = 0
+        if (empty) {
+            this.setState((prevState) => {
+                const func = cloneDeep(prevState.functions)
+                func.inside.push(data)
+                return { functions: func }
+            }, () => {
+                console.log("state:", this.state)
+            })
+        }
+
+        else {
+            const div = document.getElementById(id);
+            const mouseY = e.clientY;
+            const objectCenterY = div.getBoundingClientRect().top + div.offsetHeight / 2;
+            if (mouseY - objectCenterY < 0) {
+                position = 0
+            } else {
+                position = 1
+            }
+            this.setState((prevState) => {
+                const func = cloneDeep(prevState.functions)
+                func.inside.splice(index + position, 0, data)
+                return { functions: func }
+            })
+
+        }
+    }
+
+    updateAllReferencingFuncCall = (id, data) => {
+
+        let indices = this.findIndicesWithRefId(id);
+        console.log("Indices of the called function:",indices,id)
+        this.setState(prevState => {
+            const updatedFunc = cloneDeep(prevState.functions);
+            let x = 0;
+
+            const update = (updated) => {
+                if (x < indices.length) {
+                    x++;
+                    update(updated.inside[indices[x - 1]]);
+                } else {
+                    updated.inside.push({...data,id:this.Uid(),value:null})
+                    updated.NumberOfParams = updated.NumberOfParams + 1
+                }
+            };
+            update(updatedFunc);
+
+            return { functions: updatedFunc };
+        }, () => {
+            console.log("Value after updateAllReferencingFuncCall:", this.state.functions.inside);
+        });
+    }
+
+
+    updateIOReferencingFuncCall = (id, cCount) => {
+
+        let indices = this.findIndicesWithRefId(id);
+        this.setState(prevState => {
+            const updatedFunc = cloneDeep(prevState.functions);
+            let x = 0;
+
+            const update = (updated) => {
+                if (x < indices.length) {
+                    x++;
+                    update(updated.inside[indices[x - 1]]);
+                } else {
+                    updated.inside.splice(1)
+                    updated.NumberOfParams = 1
+                    for (let count = 0; count < cCount; count++) {
+                        const data = {
+                            dataType: "int",
+                            elementType: "param",
+                            id: this.Uid(),
+                            indicator: false,
+                            inside: [{
+                                dataType: "int",
+                                elementType: "inputField",
+                                id: this.Uid(),
+                                indicator: false,
+                                inside: [],
+                                refId: null,
+                                type: "intInput",
+                                value: 0
+                            }],
+                            type: null,
+                            value: null
+                        }
+                        updated.inside.push(data)
+                        updated.NumberOfParams = updated.NumberOfParams + 1
+                    }
+
+                }
+            };
+            update(updatedFunc);
+
+            return { functions: updatedFunc };
+        }, () => {
+            console.log("Value after name updated:", this.state.functions.inside);
+        });
+    }
+
+    dropOnParams = (e, obj, indexF, id, empty, funcId) => {
+        let divs = document.querySelectorAll("div.sortable")
+        divs.forEach((item) => {
+            item.style.borderBottom = 'none'
+            item.style.borderTop = 'none'
+        })
+        divs = document.querySelectorAll("div.sortableLR")
+        divs.forEach((item) => {
+            item.style.borderLeft = 'none'
+            item.style.borderRight = 'none'
+        })
+        e.stopPropagation();
+        let data = this.state.value
+        data = { ...data, elementType: "param" }
+        //this.setState((prevState) => ({ id: prevState.id + prevState.inc }))
+        let position = ""
+        const div = document.getElementById(id);
+        const mouseX = e.clientX;
+        const objectCenterX = div.getBoundingClientRect().left + div.offsetWidth / 2;
+        if (mouseX - objectCenterX < 0) {
+            position = "top"
+        } else {
+            position = "bottom"
+        }
+        this.insertItemOnParam(obj, indexF, data, position, empty)
+        this.setState((prevState) => {
+            const funcs = cloneDeep(prevState.functions)
+            funcs.inside[indexF].NumberOfParams += 1
+            return { functions: funcs }
+        })
+
+        console.log("Function Id Passed:",funcId)
+        this.updateAllReferencingFuncCall(funcId, data) //refFunc
+
+    }
+
+    dropOnSlot = (e, obj, data, id, index) => {
+        e.stopPropagation()
+        const indices = this.findIndices(obj)
+
+
+        if (indices.length !== 0) {
+            this.setState(prevState => {
+                const updatedFunc = cloneDeep(prevState.functions);
+                let x = 0;
+
+                console.log("Indicess:", indices)
+
+                const update = (updated) => {
+                    if (x < indices.length) {
+                        x++;
+                        update(updated.inside[indices[x - 1]]);
+                    } else {
+                        updated.inside[index] = data
+                    }
+                };
+                update(updatedFunc);
+
+
+                return { functions: updatedFunc };
+            }, () => {
+                this.updateEachVariable(index)
+                console.log("Value after  data inserted:", this.state.functions.inside);
+            });
+        }
+        else {
+            this.setState((prevState) => {
+                const updatedGVars = cloneDeep(prevState.gVariables)
+                const i = updatedGVars.inside.findIndex((v) => {
+                    return v.id === obj.id
+                })
+
+                updatedGVars.inside[i].inside[index] = data
+
+                return { gVariables: updatedGVars }
+            }, () => {
+                this.updateEachGVariable()
+                console.log("Gvar updated ddddddddddddddddddddd:", this.state)
+            })
+        }
+
 
     }
     //------------------------------------------
@@ -330,493 +1173,2749 @@ class Code extends React.Component {
         }));
     }
 
-    addInsideMain = (e) => {
-        //const type = (e.target.value === "func") ? e.target.key : e.target.value;
-        const type = e.target.value;
-        let data = {}
-        switch (type) {
-            case ("int"): data = { id: this.state.id, type: type, var: null, value: 0 }
-                break;
-            case ("float"): data = { id: this.state.id, type: type, var: null, value: 0.0 }
-                break;
-            case ("char"): data = { id: this.state.id, type: type, var: null, value: '' }
-                break;
-            case ("asign"): data = { id: this.state.id, type: type, showAssignmentOptions: true, value: "" }
-                break;
-            case ("cif"): data = { id: this.state.id, type: type, showOptions: false, l: null, sign: "==", r: null, insideIf: [] }
-                break;
-            case ("celse"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideIf: [], insideElse: [] }
-                break;
-            case ("celseIf"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null }
-                break;
-            case ("cfor"): data = { id: this.state.id, type: type, lVar: null, lVal: null, mVar: null, mSign: "<", mVal: null, rVar: null, rSigh: "+=", rVal: null, inside: [] }
-                break;
-            case ("cwhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideWhile: [] }
-                break;
-            case ("cdoWhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, insideDo: [] }
-                break;
-            case ("inc"): data = { id: this.state.id, type: type, var: null }
-                break;
-            case ("dec"): data = { id: this.state.id, type: type, var: null }
-                break;
-            default: data = { id: this.state.id, type: type.slice(1), params: [] }
-                break;
-        }
-        this.setState((prevState) => ({
-            insideMain: [...prevState.insideMain, data],
-            showMainOptions: !prevState.showMainOptions,
-            id: prevState.id + 1
-        }));
+
+
+
+
+
+
+
+
+
+    setParamType = (id, i, e) => {
+        this.state.functions.inside.find((obj) => obj.id === id).params[i].type = e.target.value;
+
+    }
+    setFuncName = (id, e) => {
+        this.setState((prevState) => {
+            const funcs = cloneDeep(this.state.functions)
+            funcs.inside.find((obj => obj.id === id)).type = "1" + e.target.value;
+
+            return { functions: funcs }
+        })
+
     }
 
-    addInsideFunction = (key, value) => {
-        const updatedFunctions = this.state.functions.map((f) => {
-            if (f.key === key) {
-                const type = value
-                let data = {}
-                switch (type) {
-                    case ("int"): data = { id: this.state.id, type: type, var: null, value: 0 }
-                        break;
-                    case ("float"): data = { id: this.state.id, type: type, var: null, value: 0.0 }
-                        break;
-                    case ("char"): data = { id: this.state.id, type: type, var: null, value: '' }
-                        break;
-                    case ("asign"): data = { id: this.state.id, type: type, showAssignmentOptions: true, value: "", inside: [] }
-                        break;
-                    case ("cif"): data = { id: this.state.id, type: type, showOptions: false, l: null, sign: "==", r: null, inside: [] }
-                        break;
-                    case ("celse"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
-                        break;
-                    case ("cfor"): data = { id: this.state.id, type: type, lVar: null, lVal: null, mVar: null, mSign: "<", mVal: null, rVar: null, rSigh: "+=", rVal: null, inside: [] }
-                        break;
-                    case ("cwhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
-                        break;
-                    case ("cdoWhile"): data = { id: this.state.id, type: type, l: null, sign: "==", r: null, inside: [] }
-                        break;
-                    case ("inc"): data = { id: this.state.id, type: type, var: null }
-                        break;
-                    case ("dec"): data = { id: this.state.id, type: type, var: null }
-                        break;
-                    default: data = { id: this.state.id, type: type.slice(1), params: [] }
-                        break;
+    updateVariableName = (obj, indexF, e) => {
+
+        let indices = this.findIndices(obj, indexF);
+        this.setState(prevState => {
+            const updatedFunc = cloneDeep(prevState.functions);
+            let x = 0;
+
+            const update = (updated) => {
+                if (x < indices.length) {
+                    x++;
+                    update(updated.inside[indices[x - 1]]);
+                } else {
+                    updated.type = e.target.value
                 }
-                this.setState((prevState) => ({
-                    id: prevState.id + 1
-                }));
-                return {
-                    ...f,
-                    inside: [...f.inside, data],
-                    showOptions: !f.showOptions
-                };
-            }
-            return f;
+            };
+            update(updatedFunc);
+
+            return { functions: updatedFunc };
+        }, () => {
+            console.log("Value after name updated:", this.state.functions.inside);
         });
 
-        this.setState({
-            functions: updatedFunctions
-        });
-    };
+    }
 
+    updateVariablesDimention = (obj, indexF, e, i) => {
 
+        let indices = this.findIndices(obj, indexF);
+        this.setState(prevState => {
+            const updatedFunc = cloneDeep(prevState.functions);
+            let x = 0;
 
-
-    addFunction = (e) => {
-        this.setState((prevState) => ({
-            functions: [
-                ...prevState.functions,
-                {
-                    showOptions: false,
-                    key: this.state.functionKey + 1,
-                    name: " ",
-                    returnType: e.target.value,
-                    params: [
-
-                    ],
-                    inside: []
+            const update = (updated) => {
+                if (x < indices.length) {
+                    x++;
+                    update(updated.inside[indices[x - 1]]);
+                } else {
+                    updated.dimension[i].length = e.target.value
                 }
-            ],
-            functionKey: prevState.functionKey + 1
-        }));
-        this.setState((prevState) => ({
-            showFunctionTypes: false
-        }))
-    };
+            };
+            update(updatedFunc);
 
-    addParameter = (key, e) => {
-        let flag = false
+            return { functions: updatedFunc };
+        }, () => {
+            console.log("Value:", this.state.functions.inside);
+        });
+
+    }
+
+    updateVariablesValue = (obj, indexF, val, dimention, d) => {
+        let indices = this.findIndices(obj, indexF);
+        this.setState(prevState => {
+            const updatedFunc = cloneDeep(prevState.functions);
+            let x = 0;
+
+            const update = (updated) => {
+                if (x < indices.length) {
+                    x++;
+                    update(updated.inside[indices[x - 1]]);
+                } else {
+                    switch (dimention) {
+                        case (1): updated.value[d[0]] = val
+                            break
+                        case (2): updated.value[d[0]][d[1]] = val
+                            break
+                        default: updated.value = val
+                    }
+
+
+                }
+            };
+            update(updatedFunc);
+
+            return { functions: updatedFunc };
+        }, () => {
+            this.updateEachVariable(indexF)
+            console.log("After Updting Variaables value:", this.state.functions.inside);
+        });
+
+    }
+
+
+    updateArrayIndex = (obj, index, indexF, val) => {
+        let indices = this.findIndices(obj, indexF);
+        this.setState(prevState => {
+            const updatedFunc = cloneDeep(prevState.functions);
+            let x = 0;
+
+            const update = (updated) => {
+                if (x < indices.length) {
+                    x++;
+                    update(updated.inside[indices[x - 1]]);
+                } else {
+                    updated.index[index] = val  //for example x=arr[5]
+                }
+            };
+            update(updatedFunc);
+
+            return { functions: updatedFunc };
+        }, () => {
+            this.updateEachVariable(indexF)
+            console.log("After Updting Variaables value:", this.state.functions.inside);
+        });
+
+    }
+
+    updateSign = (e, obj, indexF) => {
+        let indices = this.findIndices(obj, indexF);
+        this.setState(prevState => {
+            const updatedFunc = cloneDeep(prevState.functions);
+            let x = 0;
+
+            const update = (updated) => {
+                if (x < indices.length) {
+                    x++;
+                    update(updated.inside[indices[x - 1]]);
+                } else {
+                    console.log("Updated elemetn:", updated)
+                    updated.sign = e.target.value
+                }
+            };
+            update(updatedFunc);
+
+            return { functions: updatedFunc };
+        }, () => {
+            console.log("After Updting Variaables value:", this.state.functions.inside);
+        });
+    }
+
+
+
+    updateDefinesName = (e, index) => {
+        this.setState((prevState) => {
+            const defs = cloneDeep(prevState.defines)
+            defs.inside[index].type = e.target.value
+            return { defines: defs }
+        })
+    }
+
+    updateDefinesValue = (e, index) => {
+        this.setState((prevState) => {
+            const defs = cloneDeep(prevState.defines)
+            defs.inside[index].value = e.target.value
+            return { defines: defs }
+        }, () => {
+            this.updateEachGVariable()
+            console.log("After Updating Defines Value:", this.state)
+        })
+    }
+
+    updateGVariablesName = (e, index) => {
+        this.setState((prevState) => {
+            const gVars = cloneDeep(prevState.gVariables)
+            gVars.inside[index].type = e.target.value
+            return { gVariables: gVars }
+        })
+    }
+
+    updateGVariablesValue = (obj, val, dimension, d) => {
+
         this.setState((prevState) => {
 
-            if (flag === false) {
-                flag = true
-                const updatedFunctions = [...prevState.functions];
-                const index = updatedFunctions.findIndex((obj) => obj.key === key);
+            const recurance = (ob) => {
+                if (ob.hasOwnProperty("inside")) {
+                    for (let j = 0; j < ob.inside.length; j++) {
+                        if (ob.inside[j].id === obj.id) {
+                            switch (dimension) {
+                                case (1): ob.inside[j].value[d[0]] = val
+                                    break
+                                case (2): ob.inside[j].value[d[0]][d[1]] = val
+                                    break
+                                default: ob.inside[j].value = val
+                            }
+                        }
+                        else {
+                            recurance(ob.inside[j])
+                        }
+                    }
+                }
+            }
 
-                if (index !== -1) {
-                    // Create a new parameters array with a single parameter
+            let gVars = cloneDeep(prevState.gVariables)
+            recurance(gVars)
+
+
+            return { gVariables: gVars }
+        }, () => {
+            this.updateEachGVariable();
+            console.log("After updating Gvariables Value:", this.state)
+        })
+    }
+
+
+
+
+    initializeArray = (obj, index, gVariables, value) => {
+
+        console.log("Initilizing:", obj, index, gVariables, value)
+
+        let val = []
+        let row = value[0]
+        let col = value[1]
+
+        if (obj.inside.length === 2) {
+            for (let i = 0; i < row; i++) {
+                val.push(0)
+            }
+
+        }
+        else if (obj.inside.length === 3) {
+            for (let i = 0; i < row; i++) {
+                let tmp = []
+                for (let j = 0; j < col; j++) {
+                    tmp.push(0)
+                }
+                val.push(tmp)
+            }
+        }
+
+
+        if (gVariables) {
+            this.updateGVariablesValue(obj, val)
+        }
+        else {
+            this.updateVariablesValue(obj, index, val, 0)
+        }
+
+    }
+
+
+    returnArry = (v) => {
+        return `{${v.value.map((r) => (Array.isArray(r) ? "{" + r.map((c) => (c)).join(",") + "}" : r)).join(",")}}`
+    }
+
+
+
+    returnGlobalVariables = () => {
+        return `${this.state.gVariables.inside.map((g) => {
+            return `${g.dataType} ${g.type}${g.inside.map((ins, i) => (i > 0 ? "[" + (ins.refId ? this.findObjectWithID(ins.refId).type : ins.value) + "]" : null)).join("")} = ${g.inside.length > 1 ? this.returnArry(g) : (g.value ?? 0)};\n`
+        }).join("")}`
+    }
+    returnParams = (func) => {
+        return func.inside.map((p, i) => (i < func.NumberOfParams ? `${(i !== 0 ? "," : "")} ${p.dataType} ${p.type}` : null)).join("")
+    }
+
+    showVar = (v, indexF) => {
+        return `${v.dataType} ${v.type}${v.inside.map((ins, i) => (i > 0 ? "[" + (ins.refId ? this.findObjectWithID(ins.refId).type : ins.value) + "]" : null)).join("")} = ${v.inside[0].type === "arithmatic" ? this.showArithmatic(v.inside[0], indexF) : (`${v.inside.length > 1 ? this.returnArry(v) : (v.value ?? 0)}`)};\n    `
+    }
+    showArray = (a) => {
+
+        return `${a.inside.map((ins, i) => (i > 0 ? "[" + (ins.refId ? this.findObjectWithID(ins.refId).type : ins.value) + "]" : null)).join("")}`
+    }
+    showCondition = (cond, i, indexF) => {
+        return `${cond.inside[i].inside[0].refId ? this.findObjectWithID(cond.inside[i].inside[0].refId, indexF).type + this.showArray(cond.inside[i].inside[0]) : cond.inside[i].inside[0].value} ${cond.inside[i].sign} ${cond.inside[i].inside[1].refId ? this.findObjectWithID(cond.inside[i].inside[1].refId, indexF).type + this.showArray(cond.inside[i].inside[1]) : cond.inside[i].inside[1].value}`
+    }
+    showConditionals = (cond, index) => {
+        if (cond.type === "cif") {
+            return `if(${this.showCondition(cond, 0, index)}){
+        ${cond.inside.filter((obj, i) => i > 0).map((obj) => {
+                return this.showInners(obj, index)
+            }).join("\n")}
+    }`
+        }
+        else {
+            return `else{
+        ${cond.inside.map((obj, i) => {
+                return this.showInners(obj, index)
+            }).join("\n")}
+    }`
+        }
+    }
+
+    showLoops = (l, index) => {
+        if (l.type === "cfor") {
+            return `for(${this.showCondition(l, 0, index)}; ${this.showCondition(l, 1, index)};${this.showCondition(l, 2, index)}){
+        ${l.inside.filter((obj, i) => i > 2).map((obj) => {
+                return this.showInners(obj, index)
+            }).join("\n")}
+    }`
+        }
+        else if (l.type === "cwhile") {
+            return `while(${this.showCondition(l, 0, index)}){
+        ${l.inside.filter((obj, i) => i > 0).map((obj) => {
+                return this.showInners(obj, index)
+            }).join("\n")}
+    }`
+        }
+        else {
+            return `do{
+        ${l.inside.filter((obj, i) => i > 0).map((obj) => {
+                return this.showInners(obj, index)
+            }).join("\n")}
+    }
+    while(${this.showCondition(l, 0, index)});`
+        }
+    }
+
+    showFunction = (func, indexF, withoutComma) => {
+        return `${func.type.slice(1)}(${func.inside.map((p) => (p.inside[0].refId ? this.findObjectWithID(p.inside[0].refId).type : p.inside[0].value))})${withoutComma ? null : ";"}`
+    }
+    showArithmatic = (obj, indexF) => {
+        return `(${obj.inside[0].type === "arithmatic" ? this.showArithmatic(obj.inside[0], indexF) : (`${obj.inside[0].refId ? this.findObjectWithID(obj.inside[0].refId, indexF).type : obj.inside[0].value}`)} ${obj.sign} ${obj.inside[1].type === "arithmatic" ? this.showArithmatic(obj.inside[1], indexF) : (`${obj.inside[1].refId ? this.findObjectWithID(obj.inside[1].refId, indexF).type : obj.inside[1].value}`)})`
+    }
+
+
+    showAssignment = (obj, indexF) => {
+        return `${obj.inside[0].refId ? this.findObjectWithID(obj.inside[0].refId, indexF).type : obj.inside[0].value} ${obj.sign} ${obj.inside[1].type === "arithmatic" ? this.showArithmatic(obj.inside[1], indexF) : obj.inside[1].elementType === "function" ? this.showFunction(obj.inside[1], indexF, true) : (`${obj.inside[1].refId ? this.findObjectWithID(obj.inside[1].refId, indexF).type : obj.inside[1].value}`)};`
+    }
+
+    showReturn = (obj, indexF) => {
+        return `return ${obj.inside[0].type === "arithmatic" ? this.showArithmatic(obj.inside[0], indexF) : (`${obj.inside[0].refId ? this.findObjectWithID(obj.inside[0].refId, indexF).type : obj.inside[0].value}`)};`
+    }
+
+    showInners = (obj, indexF) => {
+        switch (obj.elementType) {
+            case ("variableBtn"): return this.showVar(obj, indexF)
+            case ("conditional"): return this.showConditionals(obj, indexF)
+            case ("loop"): return this.showLoops(obj, indexF)
+            case ("function"): return this.showFunction(obj, indexF)
+            case ("expression"): return obj.type === "return" ? (this.showReturn(obj, indexF)) : (this.showAssignment(obj, indexF))
+            default: return ""
+        }
+    }
+
+    returnFunctions = () => {
+        return `${this.state.functions.inside.map((f, index) => {
+            return f.defination ? `${f.returnType} ${f.type.slice(1)}(${this.returnParams(f)}){         
+    ${f.inside.map((obj, i) => {
+                if (i >= f.NumberOfParams) {
+                    return this.showInners(obj, index)
+                }
+                else {
+                    return null
+                }
+            }).join("\n    ")}
+}\n` : null
+        }).join("")}`
+    }
+
+    updateEachGVariable = () => {
+        const l = this.state.gVariables.inside.length
+
+        const updateVar = (i) => {
+            this.setState((prevState) => {
+                let gVars = cloneDeep(prevState.gVariables)
+                let v = gVars.inside[i]
+
+                const findValue = (obj, i) => {
+                    return obj.inside[i].hasOwnProperty("refId") ? obj.inside[i].refId === null ? (obj.inside[i].value ?? 0) : this.findObjectWithID(obj.inside[i].refId).value : 0
+                }
+
+                switch (v.inside.length) {
+                    case (2): {
+                        const row = v.inside[1].refId === null ? v.inside[1].value : findValue(v, 1)
+                        const len = v.value.length
+
+                        if (len < parseInt(row)) {
+                            for (let i = len; i < row; i++) {
+                                v.value.push(0)
+                            }
+                        }
+                        else {
+                            v.value.splice(row - 1, len - row)
+                        }
+
+                    }
+                        break
+
+
+
+                    case (3): {
+                        const row = v.inside[1].refId === null ? v.inside[1].value : findValue(v, 1)
+                        const col = v.inside[2].refId === null ? v.inside[2].value : findValue(v, 2)
+
+                        const lenR = v.value.length
+
+                        console.log("lenR,row:", lenR, row)
+
+                        if (lenR < parseInt(row)) {
+                            for (let i = lenR; i < row; i++) {
+                                const lenC = Array.isArray(v.value[i]) ? v.value[i].length : 0
+                                console.log("lenC,col:", lenC, col)
+
+                                let tmp = Array.isArray(v.value[i]) ? v.value[i] : []
+
+
+                                if (lenC < parseInt(col)) {
+                                    console.log("Trreeeeeeeeeeeeeeue")
+                                    for (let j = lenC; j < col; j++) {
+                                        tmp.push(0)
+                                    }
+                                }
+                                else {
+                                    if (Array.isArray(v.value[i])) {
+                                        v.value[i].splice(col - 1, lenC - col)
+                                    }
+                                }
+
+                                v.value.push(tmp)
+                            }
+                        }
+                        else {
+                            v.value.splice(row - 1, lenR - row)
+                            for (let i = 0; i < row; i++) {
+                                const lenC = Array.isArray(v.value[i]) ? v.value[i].length : 0
+                                console.log("lenC,col:", lenC, col)
+
+                                let tmp = Array.isArray(v.value[i]) ? v.value[i] : []
+
+
+                                if (lenC < parseInt(col)) {
+                                    console.log("Trreeeeeeeeeeeeeeue")
+                                    for (let j = lenC; j < col; j++) {
+                                        tmp.push(0)
+                                    }
+                                }
+                                else {
+                                    if (Array.isArray(v.value[i])) {
+                                        v.value[i].splice(col - 1, lenC - col)
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+                        break
+
+
+
+                    default: {
+                        v.value = v.inside[0].refId === null ? v.inside[0].value : findValue(v, 0)
+                    }
+                }
+
+
+                return { gVariables: gVars }
+            }, () => {
+                if (i < l - 1) {
+                    updateVar(i + 1)
+                }
+                else {
+                    this.updateEachVariable(0)
+                }
+                console.log("gVariables Updateddddd:", this.state)
+            })
+
+        }
+
+        this.state.gVariables.inside.map((v, i) => {
+            updateVar(i)
+            return null
+        })
+
+    }
+
+    updateEachVariable = (indexF) => {
+        const l = this.state.functions.inside[indexF].inside.length
+
+        const updateVar = (i) => {
+            this.setState((prevState) => {
+                let funcs = cloneDeep(prevState.functions)
+                let v = funcs.inside[indexF].inside[i]
+
+                const findValue = (obj, i) => {
+                    return obj.inside[i].hasOwnProperty("refId") ? obj.inside[i].refId === null ? (obj.inside[i].value ?? 0) : this.findObjectWithID(obj.inside[i].refId, indexF).value : 0
+                }
+
+                if (v.elementType === "variableBtn") {
+                    switch (v.inside.length) {
+                        case (2): {
+                            const row = v.inside[1].refId === null ? v.inside[1].value : findValue(v, 1)
+                            const len = v.value.length
+
+                            if (len < parseInt(row)) {
+                                for (let i = len; i < row; i++) {
+                                    v.value.push(0)
+                                }
+                            }
+                            else {
+                                v.value.splice(row - 1, len - row)
+                            }
+
+                        }
+                            break
+
+
+
+                        case (3): {
+                            const row = v.inside[1].refId === null ? v.inside[1].value : findValue(v, 1)
+                            const col = v.inside[2].refId === null ? v.inside[2].value : findValue(v, 2)
+
+                            const lenR = v.value.length
+
+
+                            if (lenR < parseInt(row)) {
+                                for (let i = lenR; i < row; i++) {
+                                    const lenC = Array.isArray(v.value[i]) ? v.value[i].length : 0
+
+                                    let tmp = Array.isArray(v.value[i]) ? v.value[i] : []
+
+
+                                    if (lenC < parseInt(col)) {
+                                        for (let j = lenC; j < col; j++) {
+                                            tmp.push(0)
+                                        }
+                                    }
+                                    else {
+                                        if (Array.isArray(v.value[i])) {
+                                            v.value[i].splice(col - 1, lenC - col)
+                                        }
+                                    }
+
+                                    v.value.push(tmp)
+                                }
+                            }
+                            else {
+                                v.value.splice(row - 1, lenR - row)
+                                for (let i = 0; i < row; i++) {
+                                    const lenC = Array.isArray(v.value[i]) ? v.value[i].length : 0
+
+                                    let tmp = Array.isArray(v.value[i]) ? v.value[i] : []
+
+
+                                    if (lenC < parseInt(col)) {
+                                        for (let j = lenC; j < col; j++) {
+                                            tmp.push(0)
+                                        }
+                                    }
+                                    else {
+                                        if (Array.isArray(v.value[i])) {
+                                            v.value[i].splice(col - 1, lenC - col)
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+                            break
+
+
+
+                        default: {
+                            console.log("Updating local variable v:", v)
+                            v.value = v.inside[0].refId === null ? v.inside[0].value : findValue(v, 0)
+                        }
+                    }
+                    return { functions: funcs }
+                }
+
+            }, () => {
+                if (i + 1 < l) {
+                    updateVar(i + 1)
+                }
+                console.log("gVariables Updateddddd:", this.state)
+            })
+
+        }
+
+        this.state.functions.inside[indexF].inside.map((v, i) => {
+            updateVar(i)
+            return null
+        })
+
+    }
+
+    generateCode = () => {
+        let code =
+            `${this.state.cheaders.map((h) => ("#include<" + h.type + ">;")).join('\n')}\n
+${this.state.defines.inside.map((d) => ("#define " + d.type + " " + (d.value ?? 0))).join('\n')}\n
+${this.state.functions.inside.map((f) =>
+                f.defination && f.type !== "1main" ?
+                    `${f.returnType} ${f.type.slice(1)}(${f.inside.map((p, i) => i < f.NumberOfParams ? (i !== 0 ? "," : "") + " " + p.dataType : null).join("")});\n`
+                    : null
+            ).join("")}
+${this.returnGlobalVariables()}
+${this.returnFunctions()}
+`
+        return code
+    }
+
+    /*
+    // Function to handle API call
+    const handleRunButtonClick = () => {
+        const code = generateCode()
+        let elements=document.getElementsByClassName("interactControlled")
+
+        if(this.state.showOutput){     
+            
+            for(let i=0;i<elements.length;i++){
+                elements[i].style.pointerEvents ='auto'
+            }
+        }
+        else{
+            for(let i=0;i<elements.length;i++){
+                elements[i].style.pointerEvents ='none'
+            }
+        }
+
+        this.setState((prevState) => {
+            return { showOutput: !prevState.showOutput, code: code }
+        })
+        
+       // Get your code from state or wherever it's stored
+       const input = ""; // Get your input data from state or wherever it's stored
+
+       fetch('http://localhost:8080/compilecode', {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json',
+           },
+           body: JSON.stringify({
+               code: code,
+               input: input,
+           })
+       })
+           .then(response => response.text())
+           .then(data => {
+               this.setState((prevState) => {
+                   return { responseData: data }
+               })
+           })
+           .catch(error => {
+               console.error('Error:', error);
+           });
+    };*/
+
+
+    handleSimulateButtonClick = () => {
+        const code = this.generateCode()
+        let elements = document.getElementsByClassName("interactControlled")
+        this.setState(() => ({ stackFrames: [] }))
+
+
+        if (this.state.showOutput) {
+
+            for (let i = 0; i < elements.length; i++) {
+                elements[i].style.pointerEvents = 'auto'
+            }
+        }
+        else {
+            for (let i = 0; i < elements.length; i++) {
+                elements[i].style.pointerEvents = 'none'
+            }
+        }
+
+        this.setState((prevState) => {
+            return { showOutput: !prevState.showOutput, code: code, data: [] }
+        }, () => {
+
+            if (this.state.showOutput) {
+
+
+                const handleVar = async (obj) => {
+                    this.setState((prevState) => {
+                        let vars = [...prevState.data]
+
+                        const index = vars.findIndex((item) => (obj.id === item.id))
+                        if (index === -1) {
+                            const paramVals = [...this.state.paramVals]
+
+                            vars.push({
+                                id: obj.id,
+                                type: obj.type,
+                                value: paramVals.length > 0 ? paramVals.shift().value : obj.value ?? 0
+                            });
+
+                            this.setState(() => {
+                                return { paramVals: paramVals }
+                            })
+
+                        }
+                        else {
+                            vars[index].type = obj.type
+                            vars[index].value = obj.value ?? 0;
+                        }
+                        return { data: vars }
+                    }, () => {
+                        console.log("updatedddddddddddddddddddddddddddddddddddddddddddddddddddddd data:", this.state.data)
+                    })
+                }
+
+                const handleFunction = async (func) => {
+
+                    this.setState((prevState) => {
+                        const nop = func.NumberOfParams;
+                        const nog = prevState.gVariables.inside.length;
+
+                        let updatedData = [...prevState.data]
+
+                        const argOfFunc = func.inside.slice(0, nop)  //extract the args from function called
+                        let args = []
+
+
+
+                        for (let i = 0; i < argOfFunc.length; i++) {
+                            const arg = argOfFunc[i].inside[0]
+                            if (arg.refId) {
+                                const obj = this.state.data.find((d) => (d.id === arg.refId))
+                                console.log("Testing arguments:", arg, obj)
+                                let val = 0
+                                if (!Array.isArray(obj.value)) {
+                                    val = obj.value
+                                }
+                                else if (!Array.isArray(obj.value[0])) {
+                                    val = obj.value[arg.inside[1].refId ? this.state.data.find((ob) => (ob.id === arg.inside[1].refId)).value : arg.inside[1].value]
+                                }
+                                else if (Array.isArray(obj.value[0])) {
+                                    val = obj.value[arg.inside[1].refId ? this.state.data.find((ob) => (ob.id === arg.inside[1].refId)).value : arg.inside[1].value][arg.inside[2].refId ? this.state.data.find((ob) => (ob.id === arg.inside[2].refId)).value : arg.inside[2].value]
+                                }
+
+                                args.push({ type: obj.type, refId: null, value: val })
+                            }
+                            else {
+
+                                args.push({ type: arg.type, refId: null, value: arg.value })
+                            }
+                            /*args.push(arg.refId ?
+                                { type: this.state.data.find((d) => (d.id === arg.refId)).type, refId: null, value: this.state.data.find((d) => (d.id === arg.refId)).value }
+                                : { type: arg.type, refId: null, value: arg.value })*/
+
+                        }
+
+
+
+
+                        const localVars = updatedData.slice(nog);    //extract the local variables
+
+
+
+                        updatedData = updatedData.slice(0, nog)  //extract the global vars
+
+
+                        let stack = [
+                            {
+                                ret: "return Address",
+                                type: func.type,
+                                args: [...args],
+                                localVars: localVars
+                            }, ...prevState.stackFrames,
+                        ];
+
+
+                        return { stackFrames: stack, data: updatedData };    //push stackframe
+                    });
+
+                    await delay(del)
+
+                    const i = this.state.functions.inside.findIndex((f) => (f.id === func.refId))
+
+                    await processElements(this.state.functions, i, i + 1)   //go to the function and process through it
+
+                    let retVal = 0
+                    await delay(del)                   //pop the stackframe
+                    this.setState((prevState) => {
+                        let frames = [...prevState.stackFrames]
+                        const poppedFrame = frames.shift()
+                        retVal = poppedFrame.ret
+                        let updatedData = [...prevState.data]
+                        const nog = prevState.gVariables.inside.length;
+                        updatedData.splice(nog, updatedData.length - nog)
+                        updatedData = [...updatedData, ...poppedFrame.localVars]
+                        return ({ data: updatedData, stackFrames: frames })
+                    })
+
+                    await delay(del)
+
+                    return retVal
+
+                };
+
+
+                const handleCalledFunc = async (func) => {
+
+
+                    await delay(del);
+                    this.setState((prevState) => {
+                        let updatedFrame = [...prevState.stackFrames];
+                        updatedFrame[0].ret = null;
+                        let paramVals = prevState.paramVals
+                        if (updatedFrame[0].args) {
+                            paramVals = [...updatedFrame[0].args]
+                        }
+                        //updatedFrame[0].args = null;
+                        return { stackFrames: updatedFrame, paramVals: paramVals };
+                    });
+
+                    await processElements(func, 0, func.inside.length);
+                    await delay(del)
+                };
+
+
+                const handleUndefCalledFunc = async (func) => {
+
+                    await this.funcs.find((obj) => (obj.type === func.type.slice(1))).fnc(func.inside)
+
+                };
+
+
+
+
+                const checkCondition = async (obj) => {
+                    let l = obj.inside[0].refId ?
+                        this.state.data.find((item) => item.id === obj.inside[0].refId).value
+                        : obj.inside[0].value ?? 0
+
+                    l = parseInt(l, 10)
+
+                    let r = obj.inside[1].refId ?
+                        this.state.data.find((item) => item.id === obj.inside[1].refId).value
+                        : obj.inside[1].value ?? 0
+
+                    r = parseInt(r, 10)
+
+                    const sign = obj.sign
+
+                    console.log("Obj:", obj, l, r)
+
+                    switch (sign) {
+                        case ("<="): return (l <= r);
+                        case (">="): return (l >= r);
+                        case ("<"): return (l < r);
+                        case (">"): return (l > r);
+                        case ("!="): return (l !== r);
+                        default: return (l === r);
+                    }
+                }
+
+                const handleIf = async (obj) => {
+
+
+                    await processElements(obj, 0, 1)
+                    await delay(del)
+
+
+                    if (await checkCondition(obj.inside[0])) {
+                        this.setState(() => {
+                            return { elseP: true }
+                        })
+                        await processElements(obj, 1, obj.inside.length)
+                    }
+                    else {
+                        this.setState(() => {
+                            return { elseP: true }
+                        })
+                    }
+                }
+
+
+
+                const handleElse = async (obj) => {
+
+                    await processElements(obj, 0, 1)
+                    await delay(del)
+
+                    while (true) {
+                        if (await checkCondition(obj.inside[0])) {
+                            await processElements(obj, 1, obj.inside.length)
+                        }
+                        else {
+                            break
+                        }
+                    }
 
                 }
-                const newParameter = {
-                    type: e.target.value,
-                    name: "c",
-                    value: null,
-                };
-                updatedFunctions[index].params = [...updatedFunctions[index].params, newParameter];
 
-                return {
-                    functions: updatedFunctions,
+
+                const handleWhile = async (obj) => {
+
+                    while (true) {
+                        await processElements(obj, 0, 1)
+                        await delay(del)
+
+                        if (await checkCondition(obj.inside[0])) {
+                            await processElements(obj, 1, obj.inside.length)
+                        }
+                        else {
+                            break
+                        }
+                    }
+
+                }
+
+                const handleDoWhile = async (obj) => {
+
+                    while (true) {
+                        await processElements(obj, 0, 1)
+                        await delay(del)
+                        await processElements(obj, 1, obj.inside.length)
+
+                        if (!await checkCondition(obj.inside[0])) {
+                            break
+                        }
+                    }
+
+                }
+
+                const handleFor = async (obj) => {
+
+                    await processElements(obj, 0, 1)
+                    await delay(del)
+
+                    while (true) {
+                        await processElements(obj, 1, 2)
+                        await delay(del)
+
+                        if (await checkCondition(obj.inside[1])) {
+                            await processElements(obj, 3, obj.inside.length)
+                            await processElements(obj, 2, 3)
+                            await delay(del)
+                        }
+                        else {
+                            break
+                        }
+                    }
+
+                }
+
+
+                const arithmatic = async (obj) => {
+                    let l = 0;
+                    let r = 0;
+
+
+                    const sign = obj.sign
+
+                    if (obj.inside[0].type === "arithmatic") {
+                        l = await arithmatic(obj.inside[0])
+                        await processElements(obj, 0, 1)
+                    }
+                    else {
+
+                        await processElements(obj, 0, 1, true)
+                        /*l = parseInt(obj.inside[0].type.slice(0, 1) === "1" ?
+                            await handleFunction(obj.inside[0])
+                            : obj.inside[0].refId ?
+                                this.state.data.find((item) => (item.id === obj.inside[0].refId)).value
+                                : obj.inside[0].value, 10);*/
+                        l = parseInt(obj.inside[0].elementType === "function" ?
+                            await handleFunction(obj.inside[0])
+                            : obj.inside[0].refId ?
+                                obj.inside[0].inside.length === 1 ?
+                                    this.state.data.find((item) => (item.id === obj.inside[0].refId)).value :
+                                    obj.inside[0].inside.length === 2 ?
+                                        this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value :
+                                            obj.inside[0].inside[1].value] :
+                                        this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value :
+                                            obj.inside[0].inside[1].value][obj.inside[0].inside[2].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[0].inside[2].refId)).value :
+                                            obj.inside[0].inside[2].value]
+                                : obj.inside[0].value, 10)
+                    }
+
+                    console.log("Testing arithmatic expresion:", l, obj)
+
+                    ret = false
+
+
+                    if (obj.inside[1].type === "arithmatic") {
+                        r = await arithmatic(obj.inside[1])
+                        await processElements(obj, 1, 2)
+                    }
+                    else {
+
+                        await processElements(obj, 1, 2, true)
+                        /*r = parseInt(obj.inside[1].type.slice(0, 1) === "1" ?
+                            await handleFunction(obj.inside[1])
+                            : obj.inside[1].refId ?
+                                this.state.data.find((item) => (item.id === obj.inside[1].refId)).value
+                                : obj.inside[1].value, 10);*/
+                        r = parseInt(obj.inside[1].elementType === "function" ?
+                            await handleFunction(obj.inside[1])
+                            : obj.inside[1].refId ?
+                                obj.inside[1].inside.length === 1 ?
+                                    this.state.data.find((item) => (item.id === obj.inside[1].refId)).value :
+                                    obj.inside[1].inside.length === 2 ?
+                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[obj.inside[1].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[1].refId)).value :
+                                            obj.inside[1].inside[1].value] :
+                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[obj.inside[1].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[1].refId)).value :
+                                            obj.inside[1].inside[1].value][obj.inside[1].inside[2].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[2].refId)).value :
+                                            obj.inside[1].inside[2].value]
+                                : obj.inside[1].value, 10)
+                    }
+
+                    ret = false
+
+
+
+
+                    switch (sign) {
+                        case "+": return l + r;
+                        case "-": return l - r;
+                        case "*": return l * r;
+                        case "/": return Math.floor(l / r);
+                        case "%": return l % r;
+                        default: return 0;
+                    }
+
+                }
+
+
+
+                const asign = async (obj) => {
+
+
+                    let l = 0;
+                    let r = 0;
+                    if (obj.inside[0].refId) {
+                        //const foundObject = this.state.data.find((item) => (item.id === obj.inside[0].refId));
+                        console.log("left var:", obj)
+                        l = parseInt(obj.inside[0].inside.length === 1 ?
+                            this.state.data.find((item) => (item.id === obj.inside[0].refId)).value :
+                            obj.inside[0].inside.length === 2 ?
+                                this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].inside[1].refId ?
+                                    this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value : obj.inside[0].inside[1].value] :
+                                this.state.data.find((item) => (item.id === obj.inside[0].refId)).value[obj.inside[0].inside[1].refId ?
+                                    this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value : obj.inside[0].inside[1].value][obj.inside[0].inside[2].refId ?
+                                    this.state.data.find((ob) => (ob.id === obj.inside[0].inside[2].refId)).value : obj.inside[0].inside[2].value], 10);
+                        console.log("Left value:", l)
+                    }
+
+
+                    if (obj.inside[1].type === "arithmatic") {
+                        r = await arithmatic(obj.inside[1])
+                        await processElements(obj, 1, 2)
+                    }
+                    else {
+
+                        r = obj.inside[1].elementType === "function" ?
+                            await handleFunction(obj.inside[1])
+                            : obj.inside[1].refId ?
+                                obj.inside[1].inside.length === 1 ?
+                                    this.state.data.find((item) => (item.id === obj.inside[1].refId)).value :
+                                    obj.inside[1].inside.length === 2 ?
+                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[
+                                        obj.inside[1].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[1].refId)).value :
+                                            obj.inside[1].inside[1].value]
+                                        :
+                                        this.state.data.find((item) => (item.id === obj.inside[1].refId)).value[obj.inside[1].inside[1].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[1].refId)).value : obj.inside[1].inside[1].value][obj.inside[1].inside[2].refId ?
+                                            this.state.data.find((ob) => (ob.id === obj.inside[1].inside[2].refId)).value : obj.inside[1].inside[2].value]
+                                : obj.inside[1].value
+                        console.log("Right of assignnnnnnnnnnnnnnnnnnnnnnnnnnnnnn:", this.state, obj.inside[1])
+                        r = parseInt(r, 10)
+
+                    }
+
+                    const sign = obj.sign;
+
+                    switch (sign) {
+                        case "+=": return l + r;
+                        case "-=": return l - r;
+                        case "*=": return l * r;
+                        case "/=": return Math.floor(l / r);
+                        case "%=": return l % r;
+                        default: return r;
+                    }
+                }
+
+
+                const handleAsignment = async (obj) => {
+
+                    await processElements(obj, 0, 1)
+                    const newValue = await asign(obj);
+                    const updatedData = this.state.data.map(item => {
+                        if (item.id === obj.inside[0].refId) {
+                            let tmpValue = item.value
+                            if (!Array.isArray(tmpValue)) {
+                                tmpValue = newValue
+                            }
+                            else if (!Array.isArray(item.value[0])) {
+                                tmpValue[obj.inside[0].inside[1].refId ? this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value : obj.inside[0].inside[1].value] = newValue
+                            }
+                            else if (Array.isArray(item.value[0])) {
+                                tmpValue[obj.inside[0].inside[1].refId ? this.state.data.find((ob) => (ob.id === obj.inside[0].inside[1].refId)).value : obj.inside[0].inside[1].value][obj.inside[0].inside[2].refId ? this.state.data.find((ob) => (ob.id === obj.inside[0].inside[2].refId)).value : obj.inside[0].inside[2].value] = newValue
+                            }
+                            return { ...item, value: tmpValue };
+                        }
+                        return item;
+                    });
+                    this.setState({ data: updatedData });
+                    ret = false               //return to asign after function call thats why it needs to reset false
+                }
+
+                const handleReturn = async (obj) => {
+                    let r = 0;
+
+                    if (obj.inside[0].type === "arithmatic") {
+                        r = await arithmatic(obj.inside[0])
+                        await processElements(obj, 0, 1)
+                    }
+                    else {
+
+                        r = parseInt(obj.inside[0].elementType === "function" ?
+                            await handleFunction(obj.inside[0])
+                            : obj.inside[0].refId ?
+                                this.state.data.find((item) => (item.id === obj.inside[0].refId)).value
+                                : obj.inside[0].value, 10);
+
+                    }
+
+                    this.setState((prevState) => {
+                        let updatedFrame = [...prevState.stackFrames];
+
+
+                        updatedFrame[0].ret = r
+
+                        return { stackFrames: updatedFrame };
+                    });
                 };
+
+
+
+                const processElements = async (obj, initial, end, onlyView) => {
+
+
+
+                    if (ret) {
+                        return
+                    }
+
+                    if (obj.elementType === "functionBtn") {
+                        console.log("FuncId set to:", obj.id)
+                        this.setState(() => {
+                            return { funcId: obj.id }
+                        })
+                    }
+
+                    const cursor = document.getElementsByClassName("cursor");
+
+                    for (let i = initial; i < end; i++) {
+                        if (ret) {
+                            return
+                        }
+
+                        if (singleStep) {
+                            await waitForRightArrowPress()
+                        }
+
+
+                        if (!obj.inside[i].hasOwnProperty("elementType") || obj.inside[i].elementType === "inputField") {
+                            continue;
+                        }
+
+
+                        const rect = document.getElementById(obj.inside[i].id).getBoundingClientRect();
+                        const parent = document.getElementsByClassName('parent')[0];
+                        const top = parent.scrollTop;
+
+                        await delay(del);
+
+                        cursor[0].style.left = `${rect.left - 40}px`;
+                        cursor[0].style.top = `${rect.top + top}px`;
+
+                        cursor[1].style.left = `${rect.right - 40}px`;
+                        cursor[1].style.top = `${rect.top + top}px`;
+
+                        cursor[2].style.left = `${rect.right - 40}px`;
+                        cursor[2].style.top = `${rect.bottom + top}px`;
+
+                        cursor[3].style.left = `${rect.left - 40}px`;
+                        cursor[3].style.top = `${rect.bottom + top}px`;
+
+                        cursor[4].style.left = `${rect.left - 40}px`;
+                        cursor[4].style.top = `${rect.top + top + rect.height / 2}px`;
+
+                        if (onlyView) {
+                            await delay(del)
+                            return
+                        }
+
+                        switch (obj.inside[i].type) {
+                            case ("assignment"):
+                                await handleAsignment(obj.inside[i])
+                                break
+                            case ("cif"):
+                                await handleIf(obj.inside[i])
+                                break
+                            case ("conditional"): break
+                            case ("arithmatic"): break
+                            case ("celse"): await handleElse(obj.inside[i])
+                                break
+                            case ("cfor"): await handleFor(obj.inside[i])
+                                break
+                            case ("cwhile"): await handleWhile(obj.inside[i])
+                                break
+                            case ("cdoWhile"): await handleDoWhile(obj.inside[i])
+                                break
+                            case ("return"):
+                                await handleReturn(obj.inside[i])
+                                ret = true
+                                return
+                            default:
+                                if (obj.inside[i].type.slice(0, 1) === '1') {
+                                    if (obj.inside[i].elementType === "functionBtn") {
+                                        await handleCalledFunc(obj.inside[i])
+
+                                    }
+                                    else {
+                                        if (obj.inside[i].defination) {
+                                            await handleFunction(obj.inside[i])
+                                            ret = false
+                                        }
+                                        else {
+                                            await handleUndefCalledFunc(obj.inside[i])
+                                        }
+
+                                    }
+                                }
+                                else {
+
+                                    await handleVar(obj.inside[i])
+                                }
+
+                        }
+
+                    }
+
+                }
+
+                const process = async () => {
+                    const gVars = this.state.gVariables
+                    await processElements(gVars, 0, gVars.inside.length);
+
+                    const main = this.state.functions.inside[0]
+                    await processElements(main, 0, main.inside.length);
+
+                }
+                process()
+
             }
-        });
-        this.setState((prevState) => ({
-            showParamTypes: false
-        }))
-    };
-    setParamType = (key, i, e) => {
-        this.state.functions.find((obj) => obj.key === key).params[i].type = e.target.value;
 
+        })
+
+    };
+
+
+    handleSaveButtonClick = () => {
+        let state = cloneDeep(this.state)
+        fetch('http://localhost:8080/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: localStorage.getItem('email'),
+                codeId: localStorage.getItem('codeId'),
+                jsonData: state
+            })
+        })
+            .then(response => response.text())
+            .then(data => {
+                this.setState((prevState) => {
+                    return { responseData: data }
+                })
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    };
+
+    handleDeleteButtonClick = () => {
+        fetch('http://localhost:8080/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: localStorage.getItem('email'),
+                codeId: localStorage.getItem('codeId'),
+            })
+        })
+            .then(response => response.text())
+            .then(data => {
+                this.setState((prevState) => {
+                    return { responseData: data }
+                })
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
     }
-    setFuncName = (key, e) => {
-        this.state.functions.find((obj => obj.key === key)).name = e.target.value;
-    }
+
+    handleNewButtonClick = () => {
+        this.setState(stateVar)
+        localStorage.setItem('codeId', this.Uid(8))
+        /*const email = 'x';
+        fetch(`http://localhost:8080/codes/${email}`)
+            .then(response => response.json())
+            .then(jsonData => {
+                console.log("response code:", jsonData)
+                this.setState(jsonData[0].jsonData);
+                localStorage.setItem('codeId', this.Uid(8))
+                //ids=[];
+            })
+            .catch(error => {
+                console.error('Error fetching codes:', error);
+            });*/
+    };
+
+    handleOpenButtonClick = () => {
+        const email = localStorage.getItem('email');
+        fetch(`http://localhost:8080/codes/${email}`)
+            .then(response => response.json())
+            .then(jsonData => {
+                this.setState(() => ({ responseData: jsonData }), () => {
+                    console.log("response code:", this.state.responseData)
+                    this.setState(() => ({ showOpenOption: true }))
+                });
+                //ids=[];
+            })
+            .catch(error => {
+                console.error('Error fetching codes:', error);
+            });
+    };
+
+    handleFileChange = (event) => {
+        const selectedFile = event.target.files[0];
+        if (selectedFile) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const fileContent = reader.result;
+                    const jsonData = JSON.parse(fileContent);
+                    console.log('Parsed JSON data:', jsonData);
+                    localStorage.setItem('codeId', this.Uid(8))  //generate a new code id
+                    this.setState(jsonData)
+                    //ids=[];
+                } catch (error) {
+                    console.error('Error parsing JSON:', error);
+                }
+            };
+            reader.readAsText(selectedFile); // Read the file as text
+        } else {
+            console.log('No file selected');
+        }
+
+    };
+
+
+
+    downloadState = () => {
+        const text = JSON.stringify(this.state); // Convert state to JSON string
+        const blob = new Blob([text], { type: 'text/plain' }); // Create a blob with the text content
+        const url = URL.createObjectURL(blob); // Create a URL for the blob
+        const a = document.createElement('a'); // Create a link element
+        a.href = url; // Set the href attribute of the link to the URL
+        a.download = this.state.name + '.visc'; // Set the download attribute of the link to the desired file name
+        document.body.appendChild(a); // Append the link to the document body
+        a.click(); // Simulate a click on the link to trigger the download
+        document.body.removeChild(a); // Remove the link from the document body
+        URL.revokeObjectURL(url); // Revoke the URL to release memory
+    };
+
 
 
     render() {
+        //const fileInputRef = this.Uid()
 
-        const headers = ["stdio.h", "math.h", "string.h"];
-        const dataTypes = ["int", "char", "float"]
+        /*function wrap(inputString) {
+            const maxWordsPerLine = 5
+            const words = inputString.split(/\s+/);
+            let wrappedString = '';
+            let line = '';
+
+            for (let i = 0; i < words.length; i++) {
+                line += words[i] + ' ';
+
+                if ((i + 1) % maxWordsPerLine === 0 || i === words.length - 1) {
+                    wrappedString += line.trim() + '\n';
+                    line = '';
+                }
+            }
+
+            return wrappedString.trim();
+        }*/
+
+        // Function to trigger file input click event when the button is clicked
+        const handleButtonClick = () => {
+            document.getElementById("fileInput").click(); // Trigger click event of the hidden file input
+        };
 
 
-        const int = (<div>
-            int
-            <input
-                onChange={(e) => {
-                    this.variableName(e);
-                    this.adjustInputWidth(e);
-                }}
-                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-            />
-            =
-            <input
-                onChange={(e) => {
-                    this.intValue(e);
-                    this.adjustInputWidth(e);
-                }}
-                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-            />;
-        </div>)
+        const showArray = (obj, index, gVariables) => {
 
-        const float = (<div>
-            float
-            <input
-                onChange={(e) => {
-                    this.variableName(e);
-                    this.adjustInputWidth(e);
-                }}
-                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-            />
-            =
-            <input
-                onChange={(e) => {
-                    this.floatValue(e);
-                    this.adjustInputWidth(e);
-                }}
-                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-            />;
-        </div>)
 
-        const char = (<div>
-            char
-            <input
-                onChange={(e) => {
-                    this.variableName(e);
-                    this.adjustInputWidth(e);
-                }}
-                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-            />
-            = '
-            <input
-                onChange={(e) => {
-                    this.charValue(e);
-                    this.adjustInputWidth(e);
-                }}
-                className="w-5 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-            />' ;
-        </div>)
+            let items = []
+            items.push("{")
 
-        const showInside = (obj, indexF) => {
-            return obj.inside && obj.inside.map((im, i) => {
-                switch (im.type) {
-                    case "int":
-                        return < div >{int}</div>;
-                    case "float":
-                        return <div>{float}</div>;
-                    case "char":
-                        return <div>{char}</div>;
-                    case "inc":
-                        return <div>{inc}</div>;
-                    case "dec":
-                        return <div>{dec}</div>;
-                    case "asign":
-                        return <div>{asign(obj, i)}</div>;
-                    case "cif":
-                        return <div className="my-2 p-2 bg-blue-300">{cif(im, indexF)}</div>;
-                    case "celse":
-                        return <div className="my-2 p-2 bg-blue-300">{celse(im, indexF)}</div>;
-                    case "cfor":
-                        return <div className="my-2 p-2 bg-amber-600">{cfor(im, indexF)}</div>;
-                    case "cwhile":
-                        return <div className="my-2 p-2 bg-amber-600">{cwhile(im, indexF)}</div>;
-                    case "cdoWhile":
-                        return <div className="my-2 p-2 bg-amber-600">{cdoWhile(im, indexF)}</div>
-                    default:
+
+
+            let val0 = obj.inside[1].refId === null ? obj.inside[1].value
+                : this.findObjectWithID(obj.inside[1].refId, index).value
+
+            let val1 = null
+
+            if (obj.inside.length === 3) {
+                val1 = obj.inside[2].refId === null ? obj.inside[2].value
+                    : this.findObjectWithID(obj.inside[2].refId, index).value
+            }
+
+
+            if (obj.value.length === parseInt(val0)) {
+
+                for (let i = 0; i < val0; i++) {
+                    if (i !== 0) {
+                        items.push(",")
+                    }
+                    if (obj.inside.length === 3) {
+                        items.push("{")
+
+
+                        if (Array.isArray(obj.value[i]) && obj.value[i].length === parseInt(val1)) {
+                            for (let j = 0; j < val1; j++) {
+                                if (j !== 0) {
+                                    items.push(",")
+                                }
+                                items.push(<input
+                                    className="w-4 rounded-md autoAdjust"
+                                    onChange={(e) => {
+                                        this.adjustInputWidth()
+                                        if (gVariables) {
+                                            this.updateGVariablesValue(obj, e.target.value, 2, [i, j])
+                                        }
+                                        else {
+                                            this.updateVariablesValue(obj, index, e.target.value, 2, [i, j])
+                                        }
+
+                                    }}
+                                    value={obj.value[i][j] ?? 0}
+                                />)
+                            }
+                        }
+                        items.push("}")
+
+                    }
+                    else {
+                        items.push(<input
+                            className="w-4 rounded-md autoAdjust"
+                            onChange={(e) => {
+                                this.adjustInputWidth()
+                                if (gVariables) {
+                                    this.updateGVariablesValue(obj, e.target.value, 1, [i])
+                                }
+                                else {
+                                    this.updateVariablesValue(obj, index, e.target.value, 1, [i])
+                                }
+                            }}
+                            value={obj.value[i] ?? 0}
+                        />)
+                    }
+                }
+
+            }
+
+            items.push("}")
+            return items;
+
+        }
+
+
+        const variable = (obj, index, gVariables) => {
+
+            return (<div className="flex items-center">
+                {obj.dataType}
+                <input
+                    onChange={(e) => {
+                        this.variableName(e);
+                        this.adjustInputWidth(e);
+                        if (gVariables) {
+                            this.updateGVariablesName(e, index)
+                        }
+                        else {
+                            this.updateVariableName(obj, index, e)
+                        }
+
+                    }}
+                    value={obj.type}
+                    className="w-10  bg-transparent outline-none border-2 border-slate-50 m-2 autoAdjust"
+                    draggable="true"
+                    onDragStart={(e) => {
+                        e.stopPropagation()
+                        const data = { id: this.Uid(), refId: obj.id, dataType: obj.dataType, type: obj.type, value: obj.value, inside: obj.inside, indicator: false, elementType: "variable" }
+                        this.handleonDragStart(data, 1)
+                    }}
+                />
+
+                {obj.inside.map((l, i) => {
+                    if (i > 0) {
+                        return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                            id={l.id}
+                            onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                            onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                            onDrop={(e) => {
+                                const data = {
+                                    id: this.Uid(),
+                                    refId: this.state.value.refId ?? null,
+                                    type: this.state.value.type,
+                                    inside: this.state.value.inside,
+                                    value: this.state.value.value ?? null
+                                }
+
+                                this.dropOnSlot(e, obj, data, l.id, i)
+                            }}
+                        >
+
+
+                            {
+
+                                (() => {
+                                    switch (obj.inside[i].type) {
+                                        case ("intInput"): return (
+                                            <input
+                                                className="w-5 bg-slate-200 text-center autoAdjust"
+                                                onChange={(e) => {
+                                                    this.adjustInputWidth()
+                                                    if (gVariables) {
+                                                        this.updateGVariablesValue(obj.inside[i], e.target.value)
+                                                    }
+                                                    else {
+                                                        this.updateVariablesValue(obj.inside[i], index, e.target.value, 0)
+
+                                                    }
+                                                }}
+                                                value={obj.inside[i].value ?? 0}
+                                            />)
+                                        case ("floatInput"): return (<input />)
+                                        case ("charInput"): return (<input />)
+                                        default: {
+                                            const refVer = this.findObjectWithID(obj.inside[i].refId, index)
+                                            return obj.inside[i].hasOwnProperty("refId") ?
+                                                refVer.type
+                                                : <p>{"   "}</p>
+                                        }
+                                    }
+                                })()
+                            }
+
+
+                        </div>
+                    }
+                    else {
+                        return null
+                    }
+
+                })}
+
+                =
+                {obj.inside.length === 1 ?
+                    (() => {
                         return (
-                            <div key={i}>
-                                {func(im.type)}
+                            <div className="bg-slate-200 flex w-max min-w-5  rounded-sm slot"
+                                id={obj.inside[0].id}
+                                onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
+                                onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
+                                onDrop={(e) => {
+                                    let data = null
+                                    this.state.value.type === "arithmatic" ?
+                                        data = this.state.value
+                                        :
+                                        data = {
+                                            id: this.Uid(),
+                                            refId: this.state.value.refId ?? null,
+                                            type: this.state.value.type,
+                                            inside: [{}],//this.state.value.inside,
+                                            value: 0//this.state.value.value
+                                        }
+                                    /*this.setState((prevState) => {
+                                        return { id: prevState.id + 1 }
+                                    })*/
+                                    this.dropOnSlot(e, obj, data, obj.inside[0].id, 0)
+                                }}
+                            >
+
+                                {
+                                    (() => {
+                                        switch (obj.inside[0].type) {
+                                            case ("intInput"): return (
+                                                <input
+                                                    className="w-5 bg-slate-200 autoAdjust"
+                                                    onChange={(e) => {
+                                                        this.adjustInputWidth()
+                                                        if (gVariables) {
+                                                            this.updateGVariablesValue(obj.inside[0], e.target.value, 0)
+                                                            this.updateEachGVariable();
+
+
+                                                        }
+                                                        else {
+                                                            this.updateVariablesValue(obj.inside[0], index, e.target.value, 0)
+
+                                                            this.updateEachVariable(index)
+                                                        }
+                                                    }}
+                                                    value={obj.value ?? 0}
+                                                />)
+                                            case ("floatInput"): return (<input />)
+                                            case ("charInput"): return (<input />)
+                                            case ("arithmatic"): return (arithmatic(obj.inside[0], index))
+                                            default: return obj.inside[0].hasOwnProperty("refId") ? (
+                                                () => {
+                                                    const tmp = []
+                                                    const elmnt = this.findObjectWithID(obj.inside[0].refId, index)
+                                                    tmp.push(elmnt.type)
+
+                                                    obj.inside[0].hasOwnProperty("inside") ?
+                                                        obj.inside[0].inside.map((l, i) => {
+                                                            if (i > 0) {
+                                                                tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                                    id={l.id}
+                                                                    onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                                    onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                                                    onDrop={(e) => {
+                                                                        const data = {
+                                                                            id: this.Uid(),
+                                                                            refId: this.state.value.refId ?? null,
+                                                                            type: this.state.value.type,
+                                                                            inside: this.state.value.inside,
+                                                                            value: this.state.value.value ?? null
+                                                                        }
+
+                                                                        this.dropOnSlot(e, obj.inside[0], data, l.id, i)
+                                                                    }}
+                                                                >
+
+
+                                                                    {
+
+                                                                        (() => {
+                                                                            switch (obj.inside[0].inside[i].type) {
+                                                                                case ("intInput"): return (
+                                                                                    <input
+                                                                                        className="w-5 bg-slate-200 autoAdjust"
+                                                                                        onChange={(e) => {
+                                                                                            this.adjustInputWidth()
+                                                                                            this.updateVariablesValue(obj.inside[0].inside[i], index, e.target.value, 0)
+                                                                                        }}
+                                                                                    />)
+                                                                                case ("floatInput"): return (<input />)
+                                                                                case ("charInput"): return (<input />)
+                                                                                case ("arithmatic"): return (arithmatic(obj.inside[0].inside[i], index))
+                                                                                default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                                                    this.findObjectWithID(obj.inside[0].inside[i].refId, index).type
+                                                                                    : <p>{"   "}</p>
+                                                                            }
+                                                                        })()
+                                                                    }
+
+                                                                </div>)
+                                                                return null
+                                                            }
+                                                            else {
+                                                                return null
+                                                            }
+
+                                                        }) : <p>{"   "}</p>
+
+                                                    return tmp
+                                                }
+                                            )()
+                                                : <p>{"   "}</p>
+                                        }
+                                    })()
+                                }
+
+
+                            </div>)
+                    })()
+                    :
+                    showArray(obj, index, gVariables)
+                }
+
+                ;
+            </div>)
+        }
+
+
+
+        const viewReturn = (obj, indexF) => {
+            const id = this.Uid()
+            return (<div className="flex">
+                <div className="mr-4">return</div>
+                <div className="bg-slate-200 flex w-max  rounded-sm slot"
+                    id={id}
+                    onDragOver={(e) => this.handleOnDragOver(e, id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, id)}
+                    onDrop={(e) => {
+                        let data = null
+                        console.log("dropping with value:", this.state.value)
+                        this.state.value.type === "arithmatic" ?
+                            data = this.state.value
+                            :
+                            data = {
+                                id: this.Uid(),
+                                refId: this.state.value.refId ?? null,
+                                type: this.state.value.type,
+                                inside: this.state.value.inside,
+                                value: this.state.value.value ?? null
+                            }
+                        this.dropOnSlot(e, obj, data, id, 0)
+                    }}
+                >
+
+                    {
+                        (() => {
+                            switch (obj.inside[0].type) {
+                                case ("intInput"): return (
+                                    <input
+                                        className="w-5 bg-slate-200 autoAdjust"
+                                        onChange={(e) => {
+                                            this.adjustInputWidth()
+                                            this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
+                                        }}
+                                        value={obj.inside[0].value ?? 0}
+                                    />)
+                                case ("floatInput"): return (<input />)
+                                case ("charInput"): return (<input />)
+                                case ("arithmatic"): return (arithmatic(obj.inside[0], indexF))
+                                default:
+                                    return obj.inside[0].hasOwnProperty("refId") ? (
+                                        () => {
+                                            const tmp = []
+                                            const elmnt = this.findObjectWithID(obj.inside[0].refId, indexF)
+                                            console.log("Obj+emenr:", obj, obj.inside[0])
+                                            tmp.push(elmnt.type)
+
+                                            obj.inside[0].hasOwnProperty("inside") ?
+                                                obj.inside[0].inside.map((l, i) => {
+                                                    if (i > 0) {
+                                                        tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                            id={l.id}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                                            onDrop={(e) => {
+                                                                const data = {
+                                                                    id: this.Uid(),
+                                                                    refId: this.state.value.refId ?? null,
+                                                                    type: this.state.value.type,
+                                                                    inside: this.state.value.inside,
+                                                                    value: this.state.value.value ?? null
+                                                                }
+                                                                /*this.setState((prevState) => {
+                                                                    return { id: prevState.id + 1 }
+                                                                })*/
+                                                                this.dropOnSlot(e, obj.inside[0], data, l.id, i)
+                                                            }}
+                                                        >
+
+
+                                                            {
+
+                                                                (() => {
+                                                                    switch (obj.inside[0].inside[i].type) {
+                                                                        case ("intInput"): return (
+                                                                            <input
+                                                                                className="w-5 bg-slate-200 autoAdjust"
+                                                                                onChange={(e) => {
+                                                                                    this.adjustInputWidth()
+                                                                                    this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
+                                                                                }}
+                                                                            />)
+                                                                        case ("floatInput"): return (<input />)
+                                                                        case ("charInput"): return (<input />)
+                                                                        case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i], indexF))
+                                                                        default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                                            this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
+                                                                            : <p>{"   "}</p>
+                                                                    }
+                                                                })()
+                                                            }
+
+                                                        </div>)
+                                                        return null
+                                                    }
+                                                    else {
+                                                        return null
+                                                    }
+
+                                                }) : <p>{"   "}</p>
+
+                                            return tmp
+                                        }
+                                    )()
+                                        : <p>{"   "}</p>
+                            }
+                        })()
+                    }
+
+                </div>
+
+            </div>)
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+        const showInside = (obj, indexF, startingIndex) => {
+            const colorList = [
+                "bg-blue-200",
+                "bg-cyan-200",
+                "bg-sky-200",
+                "bg-blue-300",
+                "bg-cyan-300",
+                "bg-sky-300",
+                "bg-blue-400",
+                "bg-cyan-400",
+                "bg-sky-400",
+            ];
+
+
+            return obj.inside && obj.inside.map((im, i) => {
+                if (i >= startingIndex) {
+
+
+                    const depth = this.findIndices(im).length
+                    switch (im.type) {
+                        case "assignment":
+                            return <div
+                                draggable="true"
+                                id={im.id}
+                                className={`pl-2 py-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
+                                onDragOver={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, im.id)
+                                    }
+                                }}
+                                onDrop={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, im.id)
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, im.id)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
+                                }}>{assignment(im, indexF)}</div>;
+                        case "cif":
+                            return <div
+                                draggable="true"
+                                id={im.id}
+                                className={`pl-2 rounded-lg  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
+                                onDragOver={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, im.id)
+                                    }
+                                }}
+                                onDrop={(e) => {
+
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, im.id)
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, im.id)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
+                                }}
+                            >{cif(im, indexF)}</div>;
+                        case "celse":
+                            return <div
+                                draggable="true"
+                                id={im.id}
+                                className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
+                                onDragOver={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, im.id)
+                                    }
+                                }}
+                                onDrop={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, im.id)
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, im.id)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
+                                }}>{celse(im, indexF)}</div>;
+                        case "cfor":
+                            return <div
+                                draggable="true"
+                                id={im.id}
+                                className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
+                                onDragOver={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, im.id)
+                                    }
+                                }}
+                                onDrop={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, im.id)
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, im.id)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
+                                }}
+                            >
+                                {cfor(im, indexF)}
                             </div>
-                        );
+
+                        case "cwhile":
+                            return <div
+                                id={im.id}
+                                draggable="true"
+                                className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
+                                onDragOver={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, im.id)
+                                    }
+                                }}
+                                onDrop={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, im.id)
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, im.id)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
+                                }}
+                            >
+                                {cwhile(im, indexF)}
+                            </div>;
+                        case "return":
+                            return <div
+                                id={im.id}
+                                draggable="true"
+                                className={`pl-2 flex items-center min-h-10 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
+                                onDragOver={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, im.id)
+                                    }
+                                }}
+                                onDrop={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, im.id)
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, im.id)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
+                                }}
+                            >
+                                {viewReturn(im, indexF)}
+                            </div>;
+
+                        case "cdoWhile":
+                            return <div
+                                id={im.id}
+                                draggable="true"
+                                className={`pl-2 rounded-lg my-1 border-gray-400 border-l-2  ${colorList[depth - 2]} sortable`}
+                                onDragOver={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, im.id)
+                                    }
+                                }}
+                                onDrop={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, im, indexF, im.id)
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, im.id)
+                                    }
+                                }}
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                    this.handleonDragStart(data, 0)
+                                }}
+                            >
+                                {cdoWhile(im, indexF)}
+                            </div>
+                        default:
+                            if (im.type[0] === '1') {
+                                return (
+                                    <div
+
+                                        id={im.id}
+                                        draggable="true"
+                                        className={`pl-2 rounded-lg my-1 border-gray-400 border-l-2  ${colorList[depth - 2]} sortable`}
+                                        onDragOver={(e) => {
+                                            this.handleOnDragOver(e, im.id)
+                                        }}
+                                        onDrop={(e) => {
+                                            this.handleOnDrop(e, im, indexF, im.id)
+                                        }}
+                                        onDragLeave={(e) => {
+                                            this.handleOnDragLeave(e, im.id)
+                                        }}
+                                        onDragStart={(e) => {
+                                            e.stopPropagation()
+                                            const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                            this.handleonDragStart(data, 0)
+                                        }}>
+                                        {funcCall(im, indexF, false)}
+                                    </div>
+                                );
+                            }
+                            else {
+                                return < div
+                                    id={im.id}
+                                    draggable="true"
+                                    className={`pl-2 rounded-lg my-1  border-gray-400 border-l-2 ${colorList[depth - 2]} sortable`}
+                                    onDragOver={(e) => {
+                                        this.handleOnDragOver(e, im.id)
+                                    }}
+                                    onDrop={(e) => {
+                                        this.handleOnDrop(e, im, indexF, im.id)
+                                    }}
+                                    onDragLeave={(e) => {
+                                        this.handleOnDragLeave(e, im.id)
+                                    }}
+                                    onDragStart={(e) => {
+                                        e.stopPropagation()
+                                        const data = { id: im.id, indexF: indexF, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                        this.handleonDragStart(data, 0)
+                                    }}>{variable(im, indexF, false)}</div>;
+                            }
+                    }
+                }
+                else {
+                    return null
                 }
             })
         }
 
-        /*const asign = (key, i) => {
-            const inside = this.state.functions.find(fn => fn.key === key).inside[i];
 
-            const handleChange = (e) => {
-                const { value } = e.target;
-                this.setState(prevState => {
-                    const updatedFunctions = prevState.functions.map(fn => {
-                        if (fn.key === key) {
-                            const updatedInside = [...fn.inside];
-                            updatedInside[i] = {
-                                ...updatedInside[i],
-                                value: value,
-                                showAssignmentOptions: false
-                            };
-                            return {
-                                ...fn,
-                                inside: updatedInside
-                            };
-                        }
-                        return fn;
-                    });
-                    return { functions: updatedFunctions };
-                }, () => {
-                    console.log("Value:", value);
-                });
-            };
-
-            return (
-                <code>
-                    <input
-                        className="w-20 bg-transparent outline-none border-2 autoAdjust"
-                        onChange={() => {
-                            this.adjustInputWidth();
-                        }}
-                    />
-                    =
-                    {inside.showAssignmentOptions && (
-                        <select
-                            onChange={handleChange}
-                            value={inside.value} // Set the value attribute to ensure proper initial value
-                        >
-                            <option value="">Choose an option</option>
-                            <option value="exp">Expression</option>
-                            {this.state.functions.map((f) =>
-                                f.name !== " " && (
-                                    <option value={f.key} key={f.name}>
-                                        Call: {f.returnType} {f.name} ({f.params.map((p, i) =>
-                                            i === 0 ? <span key={i}>{p.type}</span> : <span key={i}>, {p.type}</span>
-                                        )})
-                                    </option>
-                                )
-                            )}
-                        </select>
-                    )}
-
-                    {inside.value === "exp" ? (
-                        <input
-                            className="w-20 bg-transparent outline-none border-2 autoAdjust"
-                            onChange={() => {
-                                this.adjustInputWidth();
-                            }}
-                        />
-                    ) :
-                        inside.value === "" ? null : (
-                            this.state.functions.map((f, index) => {
-                                const funcName = f.name;
-                                return (
-                                    <div key={index} className="inline-block">
-                                        {func(funcName)}
-                                    </div>
-                                );
-                            })
-                        )}
-                </code>
-            );
-        };*/
-
-        const asign = (obj, i) => {
-            //const inside = obj.inside[i];
-
-            return (
-                <code>
-                    <input
-                        className="w-20 bg-transparent outline-none border-2 autoAdjust"
-                        onChange={() => {
-                            this.adjustInputWidth();
-                        }}
-                    />
-                    =
-                    <button
-                        className="font-bold text-cyan-800 text-xl"
-                        onClick={(e) => {
-
-                        }}
-                    >
-                        +
-                    </button>
-
-                </code>
-            );
-        };
-
-
-
-
-        const func = (functionName) => {
-            const selectedFunction = this.state.functions.find(func => func.type === functionName);
-
-            if (!selectedFunction) {
+        const funcCall = (func, indexF, assign) => {
+            console.log("Rerenderring function with:", func)
+            if (!func) {
                 return null;
             }
 
             return (
-                <div className="inline-block">
-                    {functionName} (
-                    {selectedFunction.params.map((p, i) => (
-                        <span key={i}>
-                            {i !== 0 && <span>,</span>}
-                            <input
-                                onChange={(e) => {
-                                    this.floatValue(e);
-                                    this.adjustInputWidth();
-                                }}
-                                className="w-5 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                            />
-                        </span>
-                    ))}
-                    );
+                <div className={` ${assign ? "py-0" : "py-2 min-h-10"} flex`}>
+                    {func.type.slice(1)}(
+                    <div className=" flex">
+                        {
+                            (() => {
+                                const tmp = []
+                                console.log("Retriggereddddddddddddddddddddddddddddddddddddddddddddddddd")
+                                func.inside.map((p, i) => {
+                                    if (i < func.NumberOfParams) {
+
+                                        if (i !== 0) {
+                                            tmp.push(",")
+                                        }
+
+                                        console.log("Test the parameterssssssssssssssssssss:", p)
+
+                                        tmp.push(<div className="bg-slate-200 flex w-max  rounded-sm slot"
+                                            id={p.id}
+                                            onDragOver={(e) => this.handleOnDragOver(e, p.id)}
+                                            onDragLeave={(e) => this.handleOnDragLeave(e, p.id)}
+                                            onDrop={(e) => {
+                                                let data = null
+                                                this.state.value.type === "arithmatic" || this.state.value.elementType === "function" ?
+                                                    data = this.state.value
+                                                    :
+                                                    data = {
+                                                        id: this.Uid(),
+                                                        refId: this.state.value.refId ?? null,
+                                                        type: this.state.value.type,
+                                                        inside: this.state.value.inside.map((ob) => ({ ...ob, id: this.Uid() })),
+                                                        value: this.state.value.value ?? null
+                                                    }
+
+
+                                                this.dropOnSlot(e, p, data, p.id, 0)
+                                            }}
+                                        >
+
+
+                                            {
+
+                                                (() => {
+
+                                                    switch (p.inside[0].type) {
+                                                        case ("intInput"): return (
+                                                            <input
+                                                                value={p.inside[0].value}
+                                                                className="w-5 bg-slate-200 autoAdjust"
+                                                                onChange={(e) => {
+
+                                                                    this.adjustInputWidth()
+                                                                    this.updateVariablesValue(p.inside[0], indexF, e.target.value, 0)
+
+                                                                    const funcName = func.type.slice(1)
+                                                                    if ((funcName === "printf" || funcName === "scanf") && i === 0) {
+                                                                        console.log("Function:", func.id)
+                                                                        const str = e.target.value
+                                                                        let dCount = 0
+                                                                        for (let k = 0; k < str.length - 1; k++) {
+                                                                            if (str[k] + [str[k + 1]] === "%d") {
+                                                                                console.log("Stringggggggggggggg:", str[k] + str[k + 1])
+                                                                                dCount++
+                                                                            }
+                                                                        }
+
+                                                                        this.updateIOReferencingFuncCall(func.refId, dCount)//refFunc
+
+
+                                                                    }
+                                                                }}
+                                                            />)
+                                                        case ("floatInput"): return (<input />)
+                                                        case ("charInput"): return (<input />)
+                                                        case ("arithmatic"): return (arithmatic(p.inside[0], indexF))
+                                                        default:
+                                                            return p.dataType.slice(0, 4) === "ref_" ? ("&" + this.findObjectWithID(p.inside[0].refId, indexF).type) :
+                                                                p.inside[0].hasOwnProperty("refId") ? (
+                                                                    () => {
+
+                                                                        const tmp = []
+                                                                        const elmnt = this.findObjectWithID(p.inside[0].refId, indexF)
+                                                                        tmp.push(elmnt.type)
+
+
+
+                                                                        p.inside[0].hasOwnProperty("inside") ?
+                                                                            p.inside[0].inside.map((l, i) => {
+
+                                                                                if (i > 0) {
+                                                                                    tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                                                        id={l.id}
+                                                                                        onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                                                        onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                                                                        onDrop={(e) => {
+                                                                                            const data = {
+                                                                                                id: this.Uid(),
+                                                                                                refId: this.state.value.refId ?? null,
+                                                                                                type: this.state.value.type,
+                                                                                                inside: this.state.value.inside.map((ob) => ({ ...ob, id: this.Uid() })),
+                                                                                                value: this.state.value.value ?? null
+                                                                                            }
+                                                                                            this.dropOnSlot(e, p.inside[0], data, null, i)
+
+                                                                                        }}
+                                                                                    >
+
+
+                                                                                        {
+
+                                                                                            (() => {
+                                                                                                console.log("StateeeeeeeeeeeeeeeeeeeeeeeeeeL:", l)
+                                                                                                switch (l.type) {
+                                                                                                    case ("intInput"): return (
+                                                                                                        <input
+                                                                                                            className="w-5 bg-slate-200 autoAdjust"
+                                                                                                            onChange={(e) => {
+                                                                                                                this.adjustInputWidth()
+                                                                                                                this.updateVariablesValue(p.inside[0].inside[i], indexF, e.target.value, 0)
+
+
+                                                                                                            }}
+                                                                                                            value={p.inside[0].inside[i].value}
+                                                                                                        />)
+                                                                                                    case ("floatInput"): return (<input />)
+                                                                                                    case ("charInput"): return (<input />)
+                                                                                                    case ("arithmatic"): return (arithmatic(l, indexF))
+                                                                                                    default: return l.hasOwnProperty("refId") ?
+                                                                                                        this.findObjectWithID(l.refId, indexF).type
+                                                                                                        : <p>{"   "}</p>
+                                                                                                }
+                                                                                            })()
+                                                                                        }
+
+                                                                                    </div>)
+                                                                                    return null
+                                                                                }
+                                                                                else {
+                                                                                    return null
+                                                                                }
+
+                                                                            }) : <p>{"   "}</p>
+
+                                                                        return tmp
+                                                                    }
+                                                                )()
+                                                                    : <p>{"   "}</p>
+                                                    }
+                                                })()
+                                            }
+
+
+                                        </div>
+                                        /*<div className="flex min-w-4">
+                                            <div className=" w-max min-w-4 rounded-sm slot"
+                                                id={p.id}
+                                                onDragOver={(e) => this.handleOnDragOver(e, p.id)}
+                                                onDragLeave={(e) => this.handleOnDragLeave(e, p.id)}
+                                                onDrop={(e) => {
+                                                    const data = {
+                                                        id: this.Uid(),
+                                                        refId: this.state.value.refId ?? null,
+                                                        type: this.state.value.type ?? null,
+                                                        inside:this.state.value.type,
+                                                        index:[0,0],
+                                                        value: this.state.value.value ?? null
+                                                    }
+                                                    this.dropOnSlot(e, p, data, p.id, 0)
+                                                }}
+                                            >
+
+                                                {
+                                                    (() => {
+                                                        switch (p.inside[0].type) {
+                                                            case ("intInput"): return (
+                                                                <input
+                                                                    className="min-w-5 bg-slate-200 autoAdjust"
+                                                                    onChange={(e) => {
+                                                                        this.adjustInputWidth()
+                                                                        this.updateVariablesValue(p.inside[0], indexF, e.target.value)
+                                                                    }}
+                                                                    value={p.inside[0].value}
+                                                                />)
+                                                            case ("floatInput"): return (<input />)
+                                                            case ("charInput"): return (<input />)
+                                                            default: return p.inside[0].refId !== null ?
+                                                                p.dataType.slice(0, 4) === "ref_" ?
+                                                                    ("&" + this.findObjectWithID(p.inside[0].refId, indexF).type) :
+                                                                    this.findObjectWithID(p.inside[0].refId, indexF).type
+                                                                : <p>{"   "}</p>
+                                                        }
+                                                    })()
+                                                }
+                                            </div>
+                                        </div>*/)
+                                        return null
+                                    }
+                                    else {
+                                        return null
+                                    }
+
+                                })
+                                return tmp
+                            })()
+                        }
+
+                    </div>
+                    )
+                    {assign ? null : ";"}
                 </div>
             );
         };
 
-        const subP = (key) => {
-            const obj = this.state.functions.find((obj) => obj.key === key);
-            const index = this.state.functions.indexOf(obj);
-            return (
-                <div>
-                    <code>
-                        {obj.returnType}
-                        <input
-                            className="w-20 bg-transparent outline-none border-2 autoAdjust ml-5"
-                            defaultValue={obj.type}
-                            onChange={(e) => {
-                                this.setFuncName(key, e);
-                                this.adjustInputWidth();
-                            }}
-                        ></input>
-                        {"("}
-                        {obj.params && obj.params.map((p, i) => (
-                            <div key={i} className="items-center inline-flex">
-                                {i !== 0 && <p>,</p>}
-                                {p.type}
-                                <input
-                                    className="w-20 bg-transparent outline-none border-2 autoAdjust ml-2"
-                                    defaultValue={p.type}
-                                    onChange={(e) => {
-                                        this.adjustInputWidth();
-                                    }}
-                                />
 
-                            </div>
-                        ))}
-                        <button className="font-bold text-cyan-800 text-xl" onClick={() => {
-                            this.setState((prevState) => {
-                                const updated = prevState.functions.map((f) => {
-                                    if (f.key === key) {
-                                        return {
-                                            ...f,
-                                            showParamTypes: !f.showParamTypes
-                                        };
-                                    } else {
-                                        return f;
-                                    }
-                                });
+        const showGVariables = () => {
+            const id = this.Uid()
+            return <div
+                id={id}
+                className="bg-slate-200 my-1 mr-0  min-h-5 sortable"
+                onDragOver={(e) => {
+                    if (this.state.value.elementType === "variableBtn") {
+                        this.handleOnDragOver(e, id)
+                    }
+                }}
+                onDrop={(e) => {
+                    if (this.state.value.elementType === "variableBtn") {
+                        this.dropOnGVariables(e, null, id, true) //empty=true as empty section
+                    }
+                }}
+                onDragLeave={(e) => {
+                    if (this.state.value.elementType === "variableBtn") {
+                        this.handleOnDragLeave(e, id)
+                    }
+                }}>
+                {this.state.gVariables.inside.map((v, i) => {
+                    return (<div
+                        className="bg-blue-200 pl-2 rounded-lg my-1  border-gray-400 border-l-2 sortable"
+                        id={v.id}
+                        draggable="true"
+                        onDragOver={(e) => {
+                            if (this.state.value.elementType === "variableBtn") {
+                                this.handleOnDragOver(e, v.id)
+                            }
+                        }}
+                        onDrop={(e) => {
+                            if (this.state.value.elementType === "variableBtn") {
+                                this.dropOnGVariables(e, i, v.id, false) //empty=false as non empty section
+                            }
+                        }}
+                        onDragLeave={(e) => {
+                            if (this.state.value.elementType === "variableBtn") {
+                                this.handleOnDragLeave(e, v.id)
+                            }
+                        }}
+                        onDragStart={(e) => {
+                            e.stopPropagation()
+                            const data = { id: v.id, indexF: null, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                            this.handleonDragStart(data, 0)
+                        }}>
+                        {variable(v, i, true)}
+                    </div>)
+                })}
+            </div>
+        }
 
-                                return { functions: updated };
-                            });
-                        }}> + </button>
+        const showHeaders = () => {
+            const id = this.Uid()
+            return <div
+                id={id}
+                className="bg-slate-200 my-1 mr-0  min-h-5 "
+                onDragOver={(e) => {
+                    if (this.state.value.elementType === "header") {
+                        this.handleOnDragOver(e, id)
 
-                        {obj.showParamTypes && (
-                            <select onChange={(e) => { this.addParameter(key, e) }}>
-                                <option value="">Type</option>
-                                <option value="int">int</option>
-                                <option value="bool">bool</option>
-                                <option value="char">char</option>
-                            </select>
-                        )}
-                        {") {"}
+                    }
+                }}
+                onDrop={(e) => {
+                    if (this.state.value.elementType === "header") {
+                        this.dropOnHeaders(e, null, id, true) //empty=true as empty section
 
+                    }
+                }}
+                onDragLeave={(e) => {
+                    if (this.state.value.elementType === "header") {
+                        this.handleOnDragLeave(e, id)
 
-
-
-
-                        {obj.inside && obj.inside.map((im, i) => {
-                            switch (im.type) {
-                                case "int":
-                                    return <div >{int}</div>;
-                                case "float":
-                                    return <div>{float}</div>;
-                                case "char":
-                                    return <div>{char}</div>;
-                                case "inc":
-                                    return <div>{inc}</div>;
-                                case "dec":
-                                    return <div>{dec}</div>;
-                                case "asign":
-                                    return <div>{asign(this.state.functions.find(fn => fn.key === key), i)}</div>;
-                                case "cif":
-                                    return <div className="my-2 p-2 bg-blue-300">{cif(im, index)}</div>;
-                                case "celse":
-                                    return <div className="my-2 p-2 bg-blue-300">{celse(im, index)}</div>;
-                                case "cfor":
-                                    return <div className="my-2 p-2 bg-amber-600">{cfor(im, index)}</div>;
-                                case "cwhile":
-                                    return <div className="my-2 p-2 bg-amber-600">{cwhile(im, index)}</div>;
-                                case "cdoWhile":
-                                    return <div className="my-2 p-2 bg-amber-600">{cdoWhile(im, index)}</div>
-                                default:
-                                    return (
-                                        <div key={i}>
-                                            {func(im.type)}
-                                        </div>
-                                    );
-
+                    }
+                }}>
+                {this.state.cheaders.map((h, i) => {
+                    return (<div
+                        className=" flex items-center bg-blue-200 pl-2 rounded-lg my-1 min-h-10  border-gray-400 border-l-2 sortable"
+                        id={h.id}
+                        draggable="true"
+                        onDragOver={(e) => {
+                            if (this.state.value.elementType === "header") {
+                                this.handleOnDragOver(e, h.id)
 
                             }
-                        })}
+                        }}
+                        onDrop={(e) => {
+                            if (this.state.value.elementType === "header") {
+                                this.dropOnHeaders(e, i, h.id, false) //empty=false as non empty section
 
-                        <button
-                            className="font-bold text-cyan-800 text-xl block"
-                            onClick={(e) => {
-                                if (this.state.value != null) {
-                                    this.addInsideFunction(key, this.state.value)
+                            }
+                        }}
+                        onDragLeave={(e) => {
+                            if (this.state.value.elementType === "header") {
+                                this.handleOnDragLeave(e, h.id)
+
+                            }
+                        }}
+                        onDragStart={(e) => {
+                            e.stopPropagation()
+                            const data = { id: h.id, indexF: null, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                            this.handleonDragStart(data, 0)
+                        }}>
+                        {<p>#include &lt;{h.type}&gt;</p>}
+                    </div>)
+                })}
+            </div>
+        }
+
+        const showDefines = () => {
+            const id = this.Uid()
+            return <div
+                id={id}
+                className="bg-slate-200 my-1 mr-0 min-h-5 sortable"
+                onDragOver={(e) => {
+                    if (this.state.value.elementType === "defineBtn") {
+                        this.handleOnDragOver(e, id)
+
+                    }
+                }}
+                onDrop={(e) => {
+                    if (this.state.value.elementType === "defineBtn") {
+                        this.dropOnDefine(e, null, id, true) //empty=true as empty section
+
+                    }
+                }}
+                onDragLeave={(e) => {
+                    if (this.state.value.elementType === "defineBtn") {
+                        this.handleOnDragLeave(e, id)
+
+                    }
+                }}>
+                {this.state.defines.inside.map((obj, i) => {
+
+                    return (
+                        <div
+                            className="bg-blue-200 pl-2 rounded-lg my-1  border-gray-400 border-l-2 sortable"
+                            id={obj.id}
+                            draggable="true"
+                            onDragOver={(e) => {
+                                if (this.state.value.elementType === "defineBtn") {
+                                    this.handleOnDragOver(e, obj.id)
+                                }
+                            }}
+                            onDrop={(e) => {
+                                if (this.state.value.elementType === "defineBtn") {
+                                    this.dropOnDefine(e, i, obj.id, false) //empty=false as non empty section
+                                }
+                            }}
+                            onDragLeave={(e) => {
+                                if (this.state.value.elementType === "defineBtn") {
+                                    this.handleOnDragLeave(e, obj.id)
+                                }
+                            }}
+                            onDragStart={(e) => {
+                                e.stopPropagation()
+                                const data = { id: obj.id, indexF: null, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                this.handleonDragStart(data, 0)
+                            }}>
+
+                            #define
+                            <input
+                                onChange={(e) => {
+                                    this.variableName(e);
+                                    this.adjustInputWidth(e);
+                                    this.updateDefinesName(e, i);
+                                }}
+                                value={obj.type}
+                                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
+                                draggable="true"
+                                onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    const data = { id: this.Uid(), refId: obj.id, dataType: obj.dataType, type: obj.type, value: obj.value, inside: obj.inside, indicator: false, elementType: "variable" }
+
+                                    console.log("Dataaaa:", data)
+                                    this.handleonDragStart(data, 1)
+                                }}
+                            />
+
+
+                            <div className="bg-slate-200  w-max min-w-5  inline  rounded-sm slot"
+                                id={obj.inside[0].id}
+                                onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
+                                onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
+                                onDrop={(e) => {
+                                    let data = null
+                                    this.state.value.type === "arithmatic" ?
+                                        data = this.state.value
+                                        :
+                                        data = {
+                                            id: this.Uid(),
+                                            refId: this.state.value.refId ?? null,
+                                            type: this.state.value.type,
+                                            inside: [{}],//this.state.value.inside,
+                                            value: 0//this.state.value.value
+                                        }
+
+                                    this.dropOnSlot(e, obj, data, obj.inside[0].id, 0)
+                                }}
+                            >
+
+                                {
+                                    (() => {
+                                        switch (obj.inside[0].type) {
+                                            case ("intInput"): return (
+                                                <input
+                                                    className="w-5 bg-slate-200 autoAdjust"
+                                                    onChange={(e) => {
+                                                        this.adjustInputWidth()
+                                                        this.updateDefinesValue(e, i)
+                                                    }}
+                                                    value={obj.value ?? 0}
+                                                />)
+                                            case ("floatInput"): return (<input />)
+                                            case ("charInput"): return (<input />)
+                                            default: return null
+
+                                        }
+                                    })()
                                 }
 
-                            }}
-                        >
-                            +
-                        </button>
+
+                            </div>
+
+                            ;
+
+                        </div>
+                    )
+                })}
+            </div>
+
+        }
+
+        const showSubprograms = () => {
+            const id = this.Uid()
+            return (
+                <div className="bg-slate-200 my-1 mr-0  min-h-5 sortable"
+                    id={id}
+                    onDragOver={(e) => {
+                        if (this.state.value.elementType === "functionBtn") {
+                            this.handleOnDragOver(e, id)
+                        }
+                    }}
+                    onDrop={(e) => {
+                        if (this.state.value.elementType === "functionBtn") {
+                            this.dropOnSubP(e, null, id, true) //empty=true as empty section
+                        }
+                    }}
+                    onDragLeave={(e) => {
+                        if (this.state.value.elementType === "functionBtn") {
+                            this.handleOnDragLeave(e, id)
+                        }
+                    }}>
+                    {this.state.functions.inside.map((f, index) => {
+                        return (
+                            index === 0 ? null :
+                                <div
+                                    className="bg-blue-200 rounded-lg my-1  border-gray-400 border-l-2 sortable"
+                                    id={f.id}
+                                    draggable="true"
+                                    onDragOver={(e) => {
+                                        if (this.state.value.elementType === "functionBtn") {
+                                            this.handleOnDragOver(e, f.id)
+                                        }
+                                    }}
+                                    onDrop={(e) => {
+                                        if (this.state.value.elementType === "functionBtn") {
+                                            this.dropOnSubP(e, index, f.id, false) //empty=false as non empty section
+                                        }
+                                    }}
+                                    onDragLeave={(e) => {
+                                        if (this.state.value.elementType === "functionBtn") {
+                                            this.handleOnDragLeave(e, f.id)
+                                        }
+                                    }}
+                                    onDragStart={(e) => {
+                                        e.stopPropagation()
+                                        const data = { id: f.id, indexF: null, dataType: "", type: '', value: null, inside: [{}], indicator: false, elementType: "floating" }
+                                        this.handleonDragStart(data, 0)
+                                    }}
+                                >
+                                    {subP(f.id)}
+                                </div>
+                        )
+                    })}
+                </div>
+            )
+        }
+
+
+        const subP = (id) => {
+            const obj = this.state.functions.inside.find((obj) => obj.id === id);
+            const index = this.state.functions.inside.indexOf(obj);
+            return (
+                <div className=" pl-2 bg-blue-300 flex items-center rounded-lg sortable">
+                    <code className="w-full">
+                        <div
+                            id={id}
+                            className="flex">
+                            {obj.returnType}
+                            <input
+                                className="w-10 bg-transparent outline-none border-2 autoAdjust ml-5"
+
+                                onChange={(e) => {
+                                    if (id !== 0) {
+                                        this.setFuncName(id, e);
+                                        this.adjustInputWidth();
+                                    }
+                                }}
+                                value={obj.type.slice(1)}
+                            ></input>
+                            {"("}
+                            <div
+                                className="bg-blue-200 rounded-lg  min-w-5 min-h-4  sortable"
+                                id={id}
+                                onDragOver={(e) => {
+                                    this.handleOnDragOver(e, id)
+                                }}
+                                onDrop={(e) => {
+                                    this.dropOnParams(e, obj, index, id, true,id)
+                                }}
+                                onDragLeave={(e) => {
+                                    this.handleOnDragLeave(e, id)
+                                }}
+
+                            >
+                                {obj.inside.map((p, i) => {
+                                    if (i < obj.NumberOfParams) {
+                                        return (
+                                            <div
+                                                className="items-center inline-flex bg-blue-200 rounded-lg min-w-4 sortableLR"
+                                                id={p.id}
+                                                onDragOver={(e) => {
+                                                    this.dragOverSortableLR(e, p.id)
+                                                }}
+                                                onDrop={(e) => {
+                                                    this.dropOnParams(e, p, index, p.id, false)
+                                                }}
+                                                onDragLeave={(e) => {
+                                                    this.dragLeaveSortableLR(e, p.id)
+                                                }}
+                                                draggable="true"
+                                                onDragStart={(e) => {
+                                                    e.stopPropagation()
+                                                    const data = { id: this.Uid(), refId: p.id, dataType: p.dataType, type: p.type, value: p.value, inside: p.inside, indicator: false, elementType: "variable" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}
+                                            >
+                                                {i !== 0 && <p>,</p>}
+                                                {p.dataType}
+                                                <input
+                                                    draggable="true"
+                                                    className="w-20 bg-transparent outline-none border-2 autoAdjust ml-2"
+                                                    defaultValue={p.type}
+                                                    onChange={(e) => {
+                                                        this.adjustInputWidth();
+                                                        this.updateVariableName(p, index, e);
+                                                    }}
+                                                    onDragStart={(e) => {
+                                                        e.stopPropagation()
+                                                        const data = { id: this.Uid(), refId: p.id, dataType: p.dataType, type: p.type, value: p.value, inside: p.inside, indicator: false, elementType: "variable" }
+                                                        this.handleonDragStart(data, 1)
+                                                    }}
+                                                />
+
+                                            </div>
+                                        )
+                                    }
+                                    else {
+                                        return null
+                                    }
+                                })}
+
+                            </div>
+                            {") {"}
+                        </div>
+                        {(() => {
+                            const id = this.Uid()
+                            return (<div className="bg-slate-200 ml-4 mr-0 min-h-4"
+                                id={id}
+                                onDragOver={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragOver(e, id)
+                                    }
+                                }}
+                                onDrop={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDrop(e, obj, index, id, true)
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+                                    const et = this.state.value.elementType
+                                    if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                        this.handleOnDragLeave(e, id)
+                                    }
+                                }}
+                            >
+
+                                {
+                                    showInside(obj, index, obj.NumberOfParams)    //show the elements inside subP
+                                }
+                            </div>)
+                        })()}
 
                         <p>{"}"}</p>
                     </code>
@@ -825,90 +3924,771 @@ class Code extends React.Component {
         };
 
 
-        const inc = (
-            <div>
-                <input
-                    onChange={(e) => {
-                        this.variableName(e);
-                        this.adjustInputWidth(e);
-                    }}
-                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                />
-                ++;
-            </div>
-        )
+        const conditional = (obj, indexF) => {
+            return (<div className="flex" id={obj.id}>
+                <div className="bg-slate-200 flex w-max  rounded-sm slot"
+                    id={obj.inside[0].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
+                    onDrop={(e) => {
+                        const data = {
+                            id: this.Uid(),
+                            refId: this.state.value.refId ?? null,
+                            type: this.state.value.type,
+                            inside: this.state.value.inside,
+                            value: this.state.value.value ?? null
+                        }
 
-        const dec = (
-            <div>
-                <input
-                    onChange={(e) => {
-                        this.variableName(e);
-                        this.adjustInputWidth(e);
+                        this.dropOnSlot(e, obj, data, obj.inside[0].id, 0)
                     }}
-                    className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                />
-                --;
-            </div>
-        )
+                >
+
+                    {
+                        (() => {
+                            if (obj.inside[0] && obj.inside[0].hasOwnProperty("type")) {
+                                switch (obj.inside[0].type) {
+                                    case ("intInput"): return (
+                                        <input
+                                            className="w-5 bg-slate-200 autoAdjust"
+                                            onChange={(e) => {
+                                                this.adjustInputWidth()
+                                                this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
+                                            }}
+                                            value={obj.inside[0].value}
+                                        />)
+                                    case ("floatInput"): return (<input />)
+                                    case ("charInput"): return (<input />)
+                                    case ("arithmatic"): return (arithmatic(obj.inside[0], indexF))
+                                    default: return obj.inside[0].hasOwnProperty("refId") ? (
+                                        () => {
+                                            const tmp = []
+                                            const elmnt = this.findObjectWithID(obj.inside[0].refId, indexF)
+                                            console.log("dfskkf skjfhskhfksdhfshfdksfks dkdf:", obj.inside[0], elmnt)
+                                            tmp.push(elmnt.type)
+
+                                            obj.inside[0].hasOwnProperty("inside") ?
+                                                obj.inside[0].inside.map((l, i) => {
+                                                    if (i > 0) {
+                                                        tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                            id={l.id}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                                            onDrop={(e) => {
+                                                                const data = {
+                                                                    id: this.Uid(),
+                                                                    refId: this.state.value.refId ?? null,
+                                                                    type: this.state.value.type,
+                                                                    inside: this.state.value.inside,
+                                                                    value: this.state.value.value ?? null
+                                                                }
+                                                                /*this.setState((prevState) => {
+                                                                    return { id: prevState.id + 1 }
+                                                                })*/
+                                                                this.dropOnSlot(e, obj.inside[0], data, l.id, i)
+                                                            }}
+                                                        >
+
+
+                                                            {
+
+                                                                (() => {
+                                                                    switch (obj.inside[0].inside[i].type) {
+                                                                        case ("intInput"): return (
+                                                                            <input
+                                                                                className="w-5 bg-slate-200 autoAdjust"
+                                                                                onChange={(e) => {
+                                                                                    this.adjustInputWidth()
+                                                                                    this.updateVariablesValue(obj.inside[0].inside[i], indexF, e.target.value)
+                                                                                }}
+                                                                            />)
+                                                                        case ("floatInput"): return (<input />)
+                                                                        case ("charInput"): return (<input />)
+                                                                        case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i], indexF))
+                                                                        default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                                            this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
+                                                                            : <p>{"   "}</p>
+                                                                    }
+                                                                })()
+                                                            }
+
+                                                        </div>)
+
+                                                    }
+                                                    return null
+                                                }) : <p>{"   "}</p>
+
+                                            return tmp
+                                        }
+                                    )()
+                                        : <p>{"   "}</p>
+                                }
+                            }
+                        })()
+                    }
+
+
+                </div>
+                <select
+                    className="appearance-none bg-slate-200"
+                    onChange={(e) => {
+                        this.updateSign(e, obj, indexF)
+                    }}
+                    //value={this.findObjectWithID(obj, indexF)}
+                    value={obj.sign}
+                >
+                    <option>{'=='}</option>
+                    <option>{'<='}</option>
+                    <option>{'>='}</option>
+                    <option>{'<'}</option>
+                    <option>{'>'}</option>
+                    <option>{'!='}</option>
+                </select>
+                <div className="bg-slate-200 flex w-max  rounded-sm slot"
+                    id={obj.inside[1].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[1].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[1].id)}
+                    onDrop={(e) => {
+                        const data = {
+                            id: this.Uid(),
+                            refId: this.state.value.refId ?? null,
+                            type: this.state.value.type,
+                            inside: this.state.value.inside,
+                            value: this.state.value.value ?? null
+                        }
+                        /*this.setState((prevState) => {
+                            return { id: prevState.id + 1 }
+                        })*/
+                        this.dropOnSlot(e, obj, data, obj.inside[1].id, 1)
+                    }}
+                >
+
+
+                    {
+                        (() => {
+                            if (obj.inside[1] && obj.inside[1].hasOwnProperty("type")) {
+                                switch (obj.inside[1].type) {
+                                    case ("intInput"): return (
+                                        <input
+                                            className="w-5 bg-slate-200 autoAdjust"
+                                            onChange={(e) => {
+                                                this.adjustInputWidth()
+                                                this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)
+                                            }}
+                                            value={obj.inside[1].value}
+                                        />)
+                                    case ("floatInput"): return (<input />)
+                                    case ("charInput"): return (<input />)
+                                    case ("arithmatic"): return (arithmatic(obj.inside[1], indexF))
+                                    default: return obj.inside[1].hasOwnProperty("refId") ? (
+                                        () => {
+                                            const tmp = []
+                                            const elmnt = this.findObjectWithID(obj.inside[1].refId, indexF)
+                                            tmp.push(elmnt.type)
+
+                                            obj.inside[1].hasOwnProperty("inside") ?
+                                                obj.inside[1].inside.map((l, i) => {
+                                                    if (i > 0) {
+                                                        tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                            id={l.id}
+                                                            onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                            onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                                            onDrop={(e) => {
+                                                                const data = {
+                                                                    id: this.Uid(),
+                                                                    refId: this.state.value.refId ?? null,
+                                                                    type: this.state.value.type,
+                                                                    inside: this.state.value.inside,
+                                                                    value: this.state.value.value ?? null
+                                                                }
+                                                                /*this.setState((prevState) => {
+                                                                    return { id: prevState.id + 1 }
+                                                                })*/
+                                                                this.dropOnSlot(e, obj.inside[1], data, l.id, i)
+                                                            }}
+                                                        >
+
+
+                                                            {
+
+                                                                (() => {
+                                                                    switch (obj.inside[1].inside[i].type) {
+                                                                        case ("intInput"): return (
+                                                                            <input
+                                                                                className="w-5 bg-slate-200 autoAdjust"
+                                                                                onChange={(e) => {
+                                                                                    this.adjustInputWidth()
+                                                                                    this.updateVariablesValue(obj.inside[1].inside[i], indexF, e.target.value)
+                                                                                }}
+                                                                            />)
+                                                                        case ("floatInput"): return (<input />)
+                                                                        case ("charInput"): return (<input />)
+                                                                        case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i], indexF))
+                                                                        default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
+                                                                            this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
+                                                                            : <p>{"   "}</p>
+                                                                    }
+                                                                })()
+                                                            }
+
+                                                        </div>)
+                                                    }
+
+                                                    return null
+                                                }) : <p>{"   "}</p>
+
+                                            return tmp
+                                        }
+                                    )()
+                                        : <p>{"   "}</p>
+                                }
+                            }
+                        })()
+                    }
+
+                </div>
+            </div>)
+        }
+
+
+
+        const arithmatic = (obj, indexF) => {
+            return (<div className="flex" id={obj.id}>
+                (
+                <div className="bg-slate-200 flex w-max  rounded-sm slot"
+                    id={obj.inside[0].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[0].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[0].id)}
+                    onDrop={(e) => {
+                        let data = null
+                        this.state.value.type === "arithmatic" || this.state.value.elementType === "function" ?
+                            data = this.state.value
+                            :
+                            data = {
+                                id: this.Uid(),
+                                refId: this.state.value.refId ?? null,
+                                type: this.state.value.type,
+                                inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
+                                value: this.state.value.value ?? null
+                            }
+
+                        this.dropOnSlot(e, obj, data, obj.inside[0].id, 0)
+                    }}
+                >
+
+                    {
+                        (() => {
+                            console.log("aithmatic Object:", obj)
+                            switch (obj.inside[0].type) {
+                                case ("intInput"): return (
+                                    <input
+                                        className="w-5 bg-slate-200 autoAdjust"
+                                        onChange={(e) => {
+                                            this.adjustInputWidth()
+                                            console.log("Index of function inside updated:", indexF)
+                                            this.updateVariablesValue(obj.inside[0], indexF, e.target.value, 0)
+                                        }}
+                                    />)
+                                case ("floatInput"): return (<input />)
+                                case ("charInput"): return (<input />)
+                                case ("arithmatic"): return (arithmatic(obj.inside[0], indexF))
+                                default:
+                                    return obj.inside[0].type.slice(0, 1) === "1" ?
+                                        funcCall(obj.inside[0], indexF, true)
+                                        : obj.inside[0].hasOwnProperty("refId") ? (
+                                            () => {
+                                                const tmp = []
+                                                const elmnt = this.findObjectWithID(obj.inside[0].refId, indexF)
+                                                console.log("element found:", elmnt)
+
+                                                tmp.push(elmnt.type)
+
+                                                obj.inside[0].hasOwnProperty("inside") ?
+                                                    obj.inside[0].inside.map((l, i) => {
+                                                        if (i > 0) {
+                                                            tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                                id={l.id}
+                                                                onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                                onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                                                onDrop={(e) => {
+
+                                                                    const data = {
+                                                                        id: this.Uid(),
+                                                                        refId: this.state.value.refId ?? null,
+                                                                        type: this.state.value.type,
+                                                                        inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
+                                                                        value: this.state.value.value ?? null
+                                                                    }
+
+
+
+                                                                    this.dropOnSlot(e, obj.inside[0], data, l.id, i)
+                                                                }}
+                                                            >
+
+
+                                                                {
+
+                                                                    (() => {
+                                                                        switch (obj.inside[0].inside[i].type) {
+                                                                            case ("intInput"): return (
+                                                                                <input
+                                                                                    className="w-5 bg-slate-200 autoAdjust"
+                                                                                    onChange={(e) => {
+                                                                                        this.adjustInputWidth()
+                                                                                        this.updateVariablesValue(obj.inside[0].inside[i], indexF, e.target.value, 0)
+                                                                                    }}
+                                                                                    //value={obj.inside[0].index[i - 1]}
+                                                                                    value={obj.inside[0].inside[i].value}
+                                                                                />)
+                                                                            case ("floatInput"): return (<input />)
+                                                                            case ("charInput"): return (<input />)
+                                                                            case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i], indexF))
+                                                                            default:
+                                                                                return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                                                    this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
+                                                                                    : <p>{"   "}</p>
+                                                                        }
+                                                                    })()
+                                                                }
+
+                                                            </div>)
+                                                            return null
+                                                        }
+                                                        else {
+                                                            return null
+                                                        }
+
+                                                    }) : <p>{"   "}</p>
+
+                                                return tmp
+                                            }
+                                        )()
+                                            : <p>{"   "}</p>
+                            }
+                        })()
+                    }
+
+                </div>
+                <select className="appearance-none bg-slate-200 px-1 "
+                    value={obj.sign}
+                    onChange={(e) => {
+                        this.updateSign(e, obj, indexF)
+                    }}
+                >
+                    <option value={"-"}>{'-'}</option>
+                    <option value={"+"}>{'+'}</option>
+                    <option value={"*"}>{'*'}</option>
+                    <option value={"/"}>{'/'}</option>
+                    <option value={"%"}>{'%'}</option>
+                </select>
+                <div className="bg-slate-200 flex w-max  rounded-sm slot"
+                    id={obj.inside[1].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[1].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[1].id)}
+                    onDrop={(e) => {
+                        let data = null
+                        this.state.value.type === "arithmatic" || this.state.value.elementType === "function" ?
+                            data = this.state.value
+                            :
+                            data = {
+                                id: this.Uid(),
+                                refId: this.state.value.refId ?? null,
+                                type: this.state.value.type,
+                                inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
+                                value: this.state.value.value ?? null
+                            }
+
+
+                        this.dropOnSlot(e, obj, data, obj.inside[1].id, 1)
+                    }}
+                >
+
+
+                    {
+
+                        (() => {
+                            switch (obj.inside[1].type) {
+                                case ("intInput"): return (
+                                    <input
+                                        value={obj.inside[1].value}
+                                        className="w-5 bg-slate-200 autoAdjust"
+                                        onChange={(e) => {
+
+                                            this.adjustInputWidth()
+                                            this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)
+                                        }}
+                                    />)
+                                case ("floatInput"): return (<input />)
+                                case ("charInput"): return (<input />)
+                                case ("arithmatic"): return (arithmatic(obj.inside[1], indexF))
+                                default:
+                                    return obj.inside[1].type.slice(0, 1) === "1" ?
+                                        funcCall(obj.inside[1], indexF, true)
+                                        : obj.inside[1].hasOwnProperty("refId") ? (
+                                            () => {
+                                                const tmp = []
+                                                const elmnt = this.findObjectWithID(obj.inside[1].refId, indexF)
+                                                tmp.push(elmnt.type)
+
+                                                obj.inside[1].hasOwnProperty("inside") ?
+                                                    obj.inside[1].inside.map((l, i) => {
+                                                        if (i > 0) {
+                                                            tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                                id={l.id}
+                                                                onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                                onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                                                onDrop={(e) => {
+                                                                    const data = {
+                                                                        id: this.Uid(),
+                                                                        refId: this.state.value.refId ?? null,
+                                                                        type: this.state.value.type,
+                                                                        inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
+                                                                        value: this.state.value.value ?? null
+                                                                    }
+
+                                                                    this.dropOnSlot(e, obj.inside[1], data, l.id, i)
+                                                                }}
+                                                            >
+
+
+                                                                {
+
+                                                                    (() => {
+                                                                        switch (obj.inside[1].inside[i].type) {
+                                                                            case ("intInput"): return (
+                                                                                <input
+                                                                                    className="w-5 bg-slate-200 autoAdjust"
+                                                                                    onChange={(e) => {
+                                                                                        this.adjustInputWidth()
+                                                                                        this.updateVariablesValue(obj.inside[1].inside[i], indexF, e.target.value, 0)
+
+
+                                                                                    }}
+                                                                                    value={obj.inside[1].inside[i].value}
+                                                                                />)
+                                                                            case ("floatInput"): return (<input />)
+                                                                            case ("charInput"): return (<input />)
+                                                                            case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i], indexF))
+                                                                            default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
+                                                                                this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
+                                                                                : <p>{"   "}</p>
+                                                                        }
+                                                                    })()
+                                                                }
+
+                                                            </div>)
+                                                            return null
+                                                        }
+                                                        else {
+                                                            return null
+                                                        }
+
+                                                    }) : <p>{"   "}</p>
+
+                                                return tmp
+                                            }
+                                        )()
+                                            : <p>{"   "}</p>
+                            }
+                        })()
+                    }
+
+
+                </div>)
+            </div>)
+        }
+
+
+
+        const assignment = (obj, indexF) => {
+            return (<div className="flex" id={obj.id}>
+                <div className="bg-slate-200 flex w-max min-w-4  rounded-sm slot"
+                    id={obj.id}
+                    onDragOver={(e) => {
+                        this.handleOnDragOver(e, obj.id)
+                    }}
+                    onDragLeave={(e) => {
+                        this.handleOnDragLeave(e, obj.id)
+
+                    }}
+                    onDrop={(e) => {
+                        let inc = 1
+
+                        const data = {
+                            id: this.Uid(),
+                            refId: this.state.value.refId,
+                            type: this.state.value.type,
+                            inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
+                            value: this.state.value.value
+                        }
+                        this.setState((prevState) => ({ id: prevState.id + inc }))
+                        this.dropOnSlot(e, obj, data, obj.id, 0)
+
+                    }}
+                >
+
+                    {obj.inside[0].refId !== null ?
+                        this.findObjectWithID(obj.inside[0].refId, indexF).type
+                        : null}
+
+                    {
+                        obj.inside[0].hasOwnProperty("inside") ?
+                            obj.inside[0].inside.map((l, i) => {
+                                if (i > 0) {
+
+                                    return <div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                        id={l.id}
+                                        onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                        onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                        onDrop={(e) => {
+                                            const data = {
+                                                id: this.Uid(),
+                                                refId: this.state.value.refId ?? null,
+                                                type: this.state.value.type,
+                                                inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
+                                                value: this.state.value.value ?? null
+                                            }
+
+                                            this.dropOnSlot(e, obj.inside[0], data, l.id, i)
+                                        }}
+                                    >
+
+
+                                        {
+
+                                            (() => {
+                                                switch (obj.inside[0].inside[i].type) {
+                                                    case ("intInput"): return (
+                                                        <input
+                                                            className="w-5 bg-slate-200 autoAdjust"
+                                                            onChange={(e) => {
+                                                                this.adjustInputWidth()
+                                                                //this.updateVariablesValue(obj.inside[0].inside[i], indexF, e.target.value, 0)
+                                                                this.updateVariablesValue(obj.inside[0].inside[i], indexF, e.target.value, 0)
+                                                                //this.updateArrayIndex(obj.inside[0], i - 1, indexF, e.target.value)
+
+                                                            }}
+                                                            //value={obj.inside[0].index[i - 1]}
+                                                            value={obj.inside[0].inside[i].value}
+                                                        />)
+                                                    case ("floatInput"): return (<input />)
+                                                    case ("charInput"): return (<input />)
+                                                    default: return obj.inside[0].inside[i].hasOwnProperty("refId") ?
+                                                        this.findObjectWithID(obj.inside[0].inside[i].refId, indexF).type
+                                                        : <p>{"   "}</p>
+                                                }
+                                            })()
+                                        }
+
+                                    </div>
+                                }
+                                else {
+                                    return null
+                                }
+
+
+                            }) : <p>{"   "}</p>}
+
+                </div>
+                <select className="appearance-none bg-slate-200 px-1 "
+                    onChange={(e) => {
+                        this.updateSign(e, obj, indexF)
+                    }}
+                    //value={this.findObjectWithID(obj, indexF)}
+                    value={obj.sign}
+                >
+                    <option>{'='}</option>
+                    <option>{'+='}</option>
+                    <option>{'-='}</option>
+                    <option>{'*='}</option>
+                    <option>{'/='}</option>
+                    <option>{'%='}</option>
+                    {/*<option>{'++'}</option>
+                    <option>{'--'}</option>*/}
+                </select>
+                <div className="bg-slate-200 flex w-max min-w-5  rounded-sm slot"
+                    id={obj.inside[1].id}
+                    onDragOver={(e) => this.handleOnDragOver(e, obj.inside[1].id)}
+                    onDragLeave={(e) => this.handleOnDragLeave(e, obj.inside[1].id)}
+                    onDrop={(e) => {
+                        let data = null
+                        this.state.value.type === "arithmatic" || this.state.value.elementType === "function" ?
+                            data = this.state.value
+                            :
+                            data = {
+                                id: this.Uid(),
+                                refId: this.state.value.refId ?? null,
+                                type: this.state.value.type,
+                                inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
+                                value: this.state.value.value ?? null
+                            }
+
+                        this.dropOnSlot(e, obj, data, obj.inside[1].id, 1)
+                    }}
+                >
+
+                    {
+                        (() => {
+                            switch (obj.inside[1].type) {
+                                case ("intInput"): return (
+                                    <input
+                                        className="w-5 bg-slate-200 autoAdjust"
+                                        onChange={(e) => {
+                                            this.adjustInputWidth()
+                                            this.updateVariablesValue(obj.inside[1], indexF, e.target.value, 0)
+                                        }}
+                                        value={obj.inside[1].value}
+                                    />)
+                                case ("floatInput"): return (<input />)
+                                case ("charInput"): return (<input />)
+                                case ("arithmatic"): return (arithmatic(obj.inside[1], indexF))
+                                default:
+                                    if (obj.inside[1].elementType === "function") {
+                                        return funcCall(obj.inside[1], indexF, true)
+                                    }
+                                    else {
+                                        return obj.inside[1].hasOwnProperty("refId") ? (
+                                            () => {
+                                                const tmp = []
+                                                const elmnt = this.findObjectWithID(obj.inside[1].refId, indexF)
+                                                tmp.push(elmnt.type)
+
+                                                obj.inside[1].hasOwnProperty("inside") ?
+                                                    obj.inside[1].inside.map((l, i) => {
+                                                        if (i > 0) {
+                                                            tmp.push(<div className="bg-slate-200 flex w-max px-1  rounded-md border-x-2 border-black slot"
+                                                                id={l.id}
+                                                                onDragOver={(e) => this.handleOnDragOver(e, l.id)}
+                                                                onDragLeave={(e) => this.handleOnDragLeave(e, l.id)}
+                                                                onDrop={(e) => {
+                                                                    const data = {
+                                                                        id: this.Uid(),
+                                                                        refId: this.state.value.refId ?? null,
+                                                                        type: this.state.value.type,
+                                                                        inside: this.state.value.inside.map((obj) => ({ ...obj, id: this.Uid() })),
+                                                                        value: this.state.value.value ?? null
+                                                                    }
+
+                                                                    this.dropOnSlot(e, obj.inside[1], data, l.id, i)
+                                                                }}
+                                                            >
+
+
+                                                                {
+
+                                                                    (() => {
+                                                                        switch (obj.inside[1].inside[i].type) {
+                                                                            case ("intInput"): return (
+                                                                                <input
+                                                                                    className="w-5 bg-slate-200 autoAdjust"
+                                                                                    onChange={(e) => {
+                                                                                        this.adjustInputWidth()
+                                                                                        this.updateVariablesValue(obj.inside[1].inside[i], indexF, e.target.value, 0)
+                                                                                        /*this.updateArrayIndex(obj.inside[1], i - 1, indexF, e.target.value)*/
+
+
+
+                                                                                    }}
+                                                                                    value={obj.inside[1].inside[i].value}
+
+                                                                                />)
+                                                                            case ("floatInput"): return (<input />)
+                                                                            case ("charInput"): return (<input />)
+                                                                            case ("arithmatic"): return (arithmatic(obj.inside[1].inside[i], indexF))
+                                                                            default: return obj.inside[1].inside[i].hasOwnProperty("refId") ?
+                                                                                this.findObjectWithID(obj.inside[1].inside[i].refId, indexF).type
+                                                                                : <p>{"   "}</p>
+                                                                        }
+                                                                    })()
+                                                                }
+
+                                                            </div>)
+
+                                                        }
+                                                        return null
+                                                    }) : <p>{"   "}</p>
+
+                                                return tmp
+                                            }
+                                        )()
+                                            : <p>{"   "}</p>
+                                    }
+
+                            }
+                        })()
+                    }
+
+
+                </div>
+                ;
+            </div>)
+        }
+
+
 
         const cif = (obj, indexF) => {
-
+            const id = this.Uid()
             return (
                 <div>
-                    if(
-                    <input
-                        onChange={(e) => {
-                            this.variableName(e);
-                            this.adjustInputWidth(e);
+                    <div className="h-7 flex rounded-lg">
+                        <p className="inline-block">if(</p>
+                        <div className="border-2 border-slate-100">{conditional(obj.inside[0], indexF)}</div>
+                        <p className="inline-block">){"{"}</p>
+                    </div>
+                    <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
+                        id={id}
+                        onDragOver={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragOver(e, id)
+                            }
                         }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    <select className="appearance-none">
-                        <option>{'=='}</option>
-                        <option>{'<='}</option>
-                        <option>{'>='}</option>
-                        <option>{'<'}</option>
-                        <option>{'>'}</option>
-                        <option>{'!='}</option>
-                    </select>
-                    <input
-                        onChange={(e) => {
-                            this.intValue(e);
-                            this.adjustInputWidth(e);
+                        onDrop={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDrop(e, obj, indexF, id, true)
+                            }
                         }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    ){"{"}
-                    {showInside(obj, indexF)}
-
-                    <button
-                        className="font-bold text-cyan-800 text-xl block"
-                        onClick={(e) => {
-                            let data = this.createItem(this.state.value)     //create an item to be inserted
-                            this.insertItem(obj, indexF, data)
-                        }}
-                    >
-                        +
-                    </button>
+                        onDragLeave={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragLeave(e, id)
+                            }
+                        }}>
+                        {showInside(obj, indexF, 1)}
+                    </div>
                     {"}"}
                 </div>)
         }
 
         const celse = (obj, indexF) => {
+            const id = this.Uid()
             return (
                 <div>
                     else{'{'}
-                    {showInside(obj, indexF)}
 
-                    <button
-                        className="font-bold text-cyan-800 text-xl block"
-                        onClick={(e) => {
-                            let data = this.createItem(this.state.value)     //create an item to be inserted
-                            this.insertItem(obj, indexF, data)
+                    <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
+                        id={id}
+                        onDragOver={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragOver(e, id)
+                            }
                         }}
-                    >
-                        +
-                    </button>
+                        onDrop={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDrop(e, obj, indexF, id, true)
+                            }
+                        }}
+                        onDragLeave={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragLeave(e, id)
+                            }
+                        }}>
+                        {showInside(obj, indexF, 0)}
+                    </div>
                     {'}'}
                 </div>
             )
@@ -917,86 +4697,40 @@ class Code extends React.Component {
 
 
         const cfor = (obj, indexF) => {
+            const id = this.Uid()
             return (
                 <div>
-                    for(
-                    <input
-                        onChange={(e) => {
-                            //this.variableName(e);
-                            this.adjustInputWidth(e);
-                        }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    =
-                    <input
-                        onChange={(e) => {
-                            //this.variableName(e);
-                            this.adjustInputWidth(e);
-                        }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    ;
-                    <input
-                        onChange={(e) => {
-                            this.variableName(e);
-                            this.adjustInputWidth(e);
-                        }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    <select className="appearance-none">
-                        <option>==</option>
-                        <option>{'<='}</option>
-                        <option>{'>='}</option>
-                        <option>{'<'}</option>
-                        <option>{'>'}</option>
-                        <option>{'!='}</option>
-                    </select>
-                    <input
-                        onChange={(e) => {
-                            this.intValue(e);
-                            this.adjustInputWidth(e);
-                        }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    ;
-                    <input
-                        onChange={(e) => {
-                            this.variableName(e);
-                            this.adjustInputWidth(e);
-                        }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    <select className="appearance-none">
-                        <option>==</option>
-                        <option>{'+='}</option>
-                        <option>{'-='}</option>
-                        <option>{'*='}</option>
-                        <option>{'/='}</option>
-                        <option>{'%='}</option>
-                        <option>{'++'}</option>
-                        <option>{'++'}</option>
-                        <option>{'--'}</option>
-                    </select>
-                    <input
-                        onChange={(e) => {
-                            this.intValue(e);
-                            this.adjustInputWidth(e);
-                        }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    ){'{'}
+                    <div className="h-7 flex rounded-lg">
+                        for(
+                        <div className="border-2 border-slate-100">{assignment(obj.inside[0], indexF)}</div>
 
-                    {showInside(obj, indexF)}
+                        <div className="border-2 border-slate-100">{conditional(obj.inside[1], indexF)}</div>
+                        ;
+                        <div className="border-2 border-slate-100">{assignment(obj.inside[2], indexF)}</div>
+                        ){'{'}</div>
 
-                    <button
-                        className="font-bold text-cyan-800 text-xl block"
-                        onClick={(e) => {
-                            let data = this.createItem(this.state.value)     //create an item to be inserted
-                            this.insertItem(obj, indexF, data)
+                    <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
+                        id={id}
+                        onDragOver={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragOver(e, id)
+                            }
                         }}
-                    >
-                        +
-                    </button>
+                        onDrop={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDrop(e, obj, indexF, id, true)
+                            }
+                        }}
+                        onDragLeave={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragLeave(e, id)
+                            }
+                        }}>
+                        {showInside(obj, indexF, 3)}
+                    </div>
                     {'}'}
                 </div>)
         }
@@ -1007,318 +4741,737 @@ class Code extends React.Component {
 
 
         const cwhile = (obj, indexF) => {
+            const id = this.Uid()
             return (
                 <div>
-                    while(
-                    <input
-                        onChange={(e) => {
-                            this.variableName(e);
-                            this.adjustInputWidth(e);
+                    <div className="h-7 flex rounded-lg">
+                        while(
+                        <div className="border-2 border-slate-100">{conditional(obj.inside[0], indexF)}</div>
+                        ){'{'}</div>
+                    <div className="bg-slate-200 my-1 ml-5 mr-0 min-h-5"
+                        id={id}
+                        onDragOver={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragOver(e, id)
+                            }
                         }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    <select className="appearance-none">
-                        <option>==</option>
-                        <option>{'<='}</option>
-                        <option>{'>='}</option>
-                        <option>{'<'}</option>
-                        <option>{'>'}</option>
-                        <option>{'!='}</option>
-                    </select>
-                    <input
-                        onChange={(e) => {
-                            this.intValue(e);
-                            this.adjustInputWidth(e);
+                        onDrop={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDrop(e, obj, indexF, id, true)
+                            }
                         }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    ){'{'}
-                    {showInside(obj, indexF)}
+                        onDragLeave={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragLeave(e, id)
+                            }
+                        }}>
+                        {showInside(obj, indexF, 1)}
+                    </div>
 
-                    <button
-                        className="font-bold text-cyan-800 text-xl block"
-                        onClick={(e) => {
-                            let data = this.createItem(this.state.value)     //create an item to be inserted
-                            this.insertItem(obj, indexF, data)
-                        }}
-                    >
-                        +
-                    </button>
                     {'}'}
                 </div>
             )
         }
 
         const cdoWhile = (obj, indexF) => {
+            const id = this.Uid()
             return (
                 <div>
                     do{'{'}
-                    {showInside(obj, indexF)}
-
-                    <button
-                        className="font-bold text-cyan-800 text-xl block"
-                        onClick={(e) => {
-                            let data = this.createItem(this.state.value)     //create an item to be inserted
-                            this.insertItem(obj, indexF, data)
+                    <div className="bg-slate-200 my-1 ml-5 mr-0  min-h-5"
+                        id={id}
+                        onDragOver={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragOver(e, id)
+                            }
                         }}
-                    >
-                        +
-                    </button>
+                        onDrop={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDrop(e, obj, indexF, id, true)
+                            }
+                        }}
+                        onDragLeave={(e) => {
+                            const et = this.state.value.elementType
+                            if (et === "variableBtn" || et === "expression" || et === "function" || et === "conditional" || et === "loop") {
+                                this.handleOnDragLeave(e, id)
+                            }
+                        }}>
+                        {showInside(obj, indexF, 1)}
+                    </div>
+
                     {'}'}
                     <br />
-                    while(
-                    <input
-                        onChange={(e) => {
-                            this.variableName(e);
-                            this.adjustInputWidth(e);
-                        }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    <select className="appearance-none">
-                        <option>==</option>
-                        <option>{'<='}</option>
-                        <option>{'>='}</option>
-                        <option>{'<'}</option>
-                        <option>{'>'}</option>
-                        <option>{'!='}</option>
-                    </select>
-                    <input
-                        onChange={(e) => {
-                            this.intValue(e);
-                            this.adjustInputWidth(e);
-                        }}
-                        className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                    />
-                    );
+                    <div className="h-7 flex rounded-lg">
+                        while(
+                        <div className="border-2 border-slate-100">{conditional(obj.inside[0], indexF)}</div>
+                        ){');'}</div>
                 </div>
             )
         }
 
+        /*
+        ********************************************************************************************************************************
+        */
+        const inputField = () => { return { id: this.Uid(), refId: null, dataType: "int", type: "intInput", value: 0, inside: [], indicator: false, elementType: "inputField" } }
 
-
-
-        /**********************************************************************************************************************************/
-
-
+        const assign = (id) => { return { id: id, type: "assignment", sign: "=", inside: [{}, inputField()], indicator: false, elementType: "assignment" } }
+        const condition = (id) => { return { id: id, type: "conditional", sign: "==", inside: [inputField(), inputField()], indicator: false, elementType: "conditional" } }
 
         return (
-            <div className="bg-slate-700  flex">
-                <div className=" p-5  bg-slate-400 w-1/4 h-screen overflow-y-auto no-scrollbar" >
-                    {/*variables */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showDeclareVariable: !prevState.showDeclareVariable }))}>
-                                {this.state.showDeclareVariable ? '-' : '+'}
-                            </button>
-                            <div className="inline">Variable declaration</div>
+            <div className="bg-slate-700  flex ">
+
+                {!this.state.showOutput && (
+                    <div className=" p-5  bg-slate-400 w-1/4 h-screen overflow-y-auto no-scrollbar" >
+                        {/*headers */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showHeaderlist: !prevState.showHeaderlist }))}>
+                                    {this.state.showHeaderlist ? '-' : '+'}
+                                </button>
+                                <div className="inline">Headers</div>
+                            </div>
+                            {
+                                this.state.showHeaderlist && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        {this.state.headers.map((h, i) => {
+                                            const data = { id: this.Uid(), type: h, inside: [], indicator: false, elementType: "header" }
+                                            return (<button title="This is a tooltip" draggable="true"
+                                                className="bg-sky-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    this.handleonDragStart(data, 1)
+                                                }}>{h}</button>)
+                                        })}
+
+                                    </div>
+                                )
+                            }
                         </div>
-                        {
-                            this.state.showDeclareVariable && (
-                                <div className="ml-4 flex-col declareVariable">
-                                    <button draggable="true" onClick={() => { this.setState({ value: "int" }) }}>int</button>
-                                    <button draggable="true" onClick={() => { this.setState({ value: "float" }) }}>float</button>
-                                    <button onClick={() => { this.setState({ value: "char" }) }}>char</button>
-                                </div>
-                            )
-                        }
-                    </div>
-                    {/*Conditionals */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showConditionals: !prevState.showConditionals }))}>
-                                {this.state.showConditionals ? '-' : '+'}
-                            </button>
-                            <div className="inline">Conditional statements</div>
+                        {/*Define section*/}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
+                                <button
+                                    className="font-bold w-3"
+                                    onClick={() => this.setState(prevState => ({ showDefineSection: !prevState.showDefineSection }))}
+                                >
+                                    {this.state.showDefineSection ? '-' : '+'}
+                                </button>
+                                <div className="inline">Define</div>
+                            </div>
+                            {
+                                this.state.showDefineSection && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        <button
+                                            title={`define pi 3.1416;`}
+                                            draggable="true"
+                                            className="bg-cyan-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={
+                                                () => {
+                                                    const data = { id: this.Uid(), refId: null, type: "def" + this.Uid(), value: null, inside: [inputField()], indicator: false, elementType: "defineBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}
+                                        >
+                                            define
+                                        </button>
+                                    </div>
+                                )
+                            }
                         </div>
-                        {
-                            this.state.showConditionals && (
-                                <div className="ml-4 flex-col declareVariable">
-                                    <button onClick={() => { this.setState({ value: "cif" }) }}>if</button>
-                                    <button onClick={() => { this.setState({ value: "celse" }) }}>else</button>
-                                </div>
-                            )
-                        }
-                    </div>
-                    {/*Loops */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showLoops: !prevState.showLoops }))}>
-                                {this.state.showLoops ? '-' : '+'}
-                            </button>
-                            <div className="inline">Loops</div>
+                        {/*variables */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showDeclareVariable: !prevState.showDeclareVariable }))}>
+                                    {this.state.showDeclareVariable ? '-' : '+'}
+                                </button>
+                                <div className="inline">Variable declaration</div>
+                            </div>
+                            {
+                                this.state.showDeclareVariable && (
+                                    <div >
+                                        <div className="ml-4 flex declareVariable">
+                                            <button draggable="true"
+                                                title={`int a = 5`}
+                                                className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={(e) => {
+                                                    e.stopPropagation()
+                                                    const data = { id: this.Uid(), dataType: "int", type: 'var' + this.Uid(), value: 0, inside: [inputField()], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 2)
+                                                }}>int</button>
+                                            <button draggable="true"
+                                                title={`int[5] = {1, 2, 3, 4, 5}`}
+                                                className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.Uid(), dataType: "int", type: 'var' + this.Uid(), value: [], inside: [{}, inputField()], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>int[]</button>
+                                            <button draggable="true"
+                                                title={`int[5][2] = {{1, 2}, {3, 4}, {5, 6}, {7, 8}, {9, 10}}`}
+                                                className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.Uid(), dataType: "int", type: 'var' + this.Uid(), value: [], inside: [{}, inputField(), inputField()], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>int[][]</button>
+                                        </div>
+                                        <div className="ml-4 flex declareVariable">
+                                            <button draggable="true"
+                                                title={`float a = 5.02`}
+                                                className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.Uid(), dataType: "float", type: 'var' + this.Uid(), value: null, inside: [inputField()], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>float</button>
+                                            <button draggable="true"
+                                                title={`float[5] = {1.2, 2.3, 3.5, 4.1, 5.0}`}
+                                                className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.Uid(), dataType: "float", type: 'var' + this.Uid(), value: [], inside: [{}, {}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>float[]</button>
+                                            <button draggable="true"
+                                                title={`float[5][2] = {{1.2, 2.3}, {3.4, 4.1}, {5.2, 6.5}, {7.2, 8.1}, {9.3, 10.4}}`}
+                                                className="bg-purple-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.Uid(), dataType: "float", type: 'var' + this.Uid(), value: [], inside: [{}, {}, {}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>float[][]</button>
+                                        </div>
+                                        <div className="ml-4 flex declareVariable">
+                                            <button draggable="true"
+                                                title={`char = 'a'`}
+                                                className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.Uid(), dataType: "char", type: 'var' + this.Uid(), value: null, inside: [inputField()], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>char</button>
+                                            <button draggable="true"
+                                                title={`char[5] = {'a', 'b', 'c', 'd', 'e'}`}
+                                                className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.Uid(), dataType: "char", type: 'var' + this.Uid(), value: [], inside: [{}, {}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>char[]</button>
+                                            <button draggable="true"
+                                                title={`char[5][2] = {{'a', 'b'}, {'c', 'd'}, {'e', 'f'}, {'g', 'h'}, {'i', 'j'}}`}
+                                                className="bg-green-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                                onDragStart={() => {
+                                                    const data = { id: this.Uid(), dataType: "char", type: 'var' + this.Uid(), value: [], inside: [{}, {}, {}], indicator: false, elementType: "variableBtn" }
+                                                    this.handleonDragStart(data, 1)
+                                                }}>char[][]</button>
+                                        </div>
+                                    </div>
+                                )
+                            }
                         </div>
-                        {
-                            this.state.showLoops && (
-                                <div className="ml-4 flex-col declareVariable">
-                                    <button draggable="true" onDragStart={() => { this.setState({ value: "cfor" }) }}
-                                        onDrag={() => {
+                        {/*constant */}
+                        <div>
+                            <div
 
-                                        }}
-                                    >For</button>
-                                    <button onClick={() => { this.setState({ value: "cwhile" }) }}>While</button>
-                                    <button onClick={() => { this.setState({ value: "cdoWhile" }) }}>Do-While</button>
-                                </div>
-                            )
-                        }
-                    </div>
-                    {/*Functions */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showFunctions: !prevState.showFunctions }))}>
-                                {this.state.showFunctions ? '-' : '+'}
-                            </button>
-                            <div className="inline">Functions</div>
+                                className="font-bold   border-black border-b-2 inline-block mb-2 w-full" >
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showInputFields: !prevState.showInputFields }))}>
+                                    {this.state.showInputFields ? '-' : '+'}
+                                </button>
+                                <div className="inline">Input Fields</div>
+                            </div>
+                            {
+                                this.state.showInputFields && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        <button draggable="true"
+                                            title={`Any input`}
+                                            className="bg-blue-300 p-1 rounded-md border-2 border-slate-600 mx-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.Uid(), refId: null, dataType: "int", type: "intInput", value: 0, inside: [], indicator: false, elementType: "inputField" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>input</button>
+                                    </div>
+                                )
+                            }
+
                         </div>
-                        {
-                            this.state.showFunctions && (
-                                <div className="ml-4 flex-col declareVariable">
-                                    {this.state.functions.map((f, i) => (
-                                        f.name === " " ? null : (
-                                            <button onClick={() => { this.setState({ value: "1" + f.type }) }} key={f.type}>
-                                                Call: {f.returnType} {f.type} ({f.params.map((p, i) => (
-                                                    (i === 0) ? (
-                                                        <span key={i}>{p.type}</span>
-                                                    ) :
-                                                        (
-                                                            <span key={i}>, {p.type}</span>
-                                                        )
-                                                ))})
-                                            </button>)
-                                    ))}
-                                </div>
-                            )
-                        }
-                    </div>
-                    {/*Others */}
-                    <div>
-                        <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
-                            <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showOthers: !prevState.showOthers }))}>
-                                {this.state.showOthers ? '-' : '+'}
-                            </button>
-                            <div className="inline">Others</div>
+                        {/*Conditionals */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showConditionals: !prevState.showConditionals }))}>
+                                    {this.state.showConditionals ? '-' : '+'}
+                                </button>
+                                <div className="inline">Conditional statements</div>
+                            </div>
+                            {
+                                this.state.showConditionals && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        <button draggable="true"
+                                            title={`if ( condition ) {     
+
+}`}
+                                            className="bg-lime-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.Uid(), type: "cif", showOptions: false, inside: [condition(this.Uid())], indicator: false, elementType: "conditional" }
+                                                this.handleonDragStart(data, 4)
+                                            }}>if</button>
+                                        <button draggable="true"
+                                            title={`else {     
+
+}`}
+                                            className="bg-lime-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.Uid(), type: "celse", showOptions: false, inside: [], indicator: false, elementType: "conditional" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>else</button>
+                                    </div>
+                                )
+                            }
                         </div>
-                        {
-                            this.state.showOthers && (
-                                <div className="ml-4 flex-col declareVariable">
-                                    <button onClick={() => { this.setState({ value: "asign" }) }}>Assignment operation</button>
-                                    <button onClick={() => { this.setState({ value: "inc" }) }} >Increment operation</button>
-                                    <button onClick={() => { this.setState({ value: "dec" }) }} >Decrement operation</button>
-                                </div>
-                            )
-                        }
+                        {/*Loops */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showLoops: !prevState.showLoops }))}>
+                                    {this.state.showLoops ? '-' : '+'}
+                                </button>
+                                <div className="inline">Loops</div>
+                            </div>
+                            {
+                                this.state.showLoops && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        <button draggable="true"
+                                            title={`for ( initialization ; condition ; increment/decrement ) {     
+
+}`}
+                                            className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.Uid(), type: "cfor", inside: [assign(this.Uid()), condition(this.Uid()), assign(this.Uid())], indicator: false, elementType: "loop" }
+                                                this.handleonDragStart(data, 6)
+                                            }}>For</button>
+
+                                        <button draggable="true"
+                                            title={`while ( condition ) {     
+
+}`}
+                                            className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.Uid(), type: "cwhile", inside: [condition(this.Uid())], indicator: false, elementType: "loop" }
+                                                this.handleonDragStart(data, 4)
+                                            }}>While</button>
+
+                                        <button draggable="true"
+                                            title={`do{
+
+}
+while ( condition ) ;`}
+                                            className="bg-orange-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.Uid(), type: "cdoWhile", inside: [condition(this.Uid())], indicator: false, elementType: "loop" }
+                                                this.handleonDragStart(data, 4)
+                                            }}>Do-While</button>
+                                    </div>
+                                )
+                            }
+                        </div>
+                        {/*Expressions */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showOthers: !prevState.showOthers }))}>
+                                    {this.state.showOthers ? '-' : '+'}
+                                </button>
+                                <div className="inline">Expressions</div>
+                            </div>
+                            {
+                                this.state.showOthers && (
+                                    <div className="ml-4 flex flex-wrap declareVariable">
+                                        <button draggable="true"
+                                            title={`
+   variable  =  value ;
+or  variable  +=  value ;
+or  variable  -=  value ;
+or  variable  *=  value ;
+or  variable  /=  value ;
+or  variable  ++ ;
+or  variable  -- ;
+`}
+                                            className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.Uid(), type: "assignment", sign: "=", inside: [{}, inputField()], indicator: false, elementType: "expression" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>Assignment</button>
+                                        <button draggable="true"
+                                            title={`
+   variable/value  +  variable/value ;
+or  variable/value  -  variable/value ;
+or  variable/value  *  variable/value ;
+or  variable/value  /  variable/value ;
+or  variable/value  %  variable/value ;
+                                        `}
+                                            className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.Uid(), type: "arithmatic", sign: "+", inside: [inputField(), inputField()], indicator: false, elementType: "expression" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>Arithmatic</button>
+                                        <button draggable="true"
+                                            title={`return  variable/value ;`}
+                                            className="bg-rose-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = { id: this.Uid(), type: "return", sign: "+", inside: [{}], indicator: false, elementType: "expression" }
+                                                this.handleonDragStart(data, 1)
+                                            }}>return</button>
+                                    </div>
+                                )
+                            }
+                        </div>
+
+
+                        {/*Functions */}
+                        <div>
+                            <div className="font-bold   border-black border-b-2 inline-block mb-2 w-full">
+                                <button className="font-bold w-3" onClick={() => this.setState(prevState => ({ showFunctions: !prevState.showFunctions }))}>
+                                    {this.state.showFunctions ? '-' : '+'}
+                                </button>
+                                <div className="inline">Functions</div>
+                            </div>
+
+                            {
+                                this.state.showFunctions && (
+                                    <div className="ml-4 flex flex-wrap declareVariable ">
+                                        <button
+                                            title={`void functionName ( ) {
+
+}`}
+                                            draggable="true"
+                                            className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = {
+                                                    id: this.Uid(),
+                                                    type: 1 + "func" + this.Uid(),
+                                                    returnType: "void",
+                                                    elementType: "functionBtn",
+                                                    defination: true,
+                                                    NumberOfParams: 0,
+                                                    inside: [
+
+                                                    ]
+                                                }
+                                                this.handleonDragStart(data, 1)
+                                            }}
+                                        >
+                                            void
+                                        </button>
+
+                                        <button
+                                            draggable="true"
+                                            title={`int functionName ( ) {
+
+}`}
+                                            className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = {
+                                                    id: this.Uid(),
+                                                    type: 1 + "func" + this.Uid(),
+                                                    returnType: "int",
+                                                    elementType: "functionBtn",
+                                                    defination: true,
+                                                    NumberOfParams: 0,
+                                                    inside: [
+
+                                                    ]
+                                                }
+                                                this.handleonDragStart(data, 1)
+                                            }}
+                                        >
+                                            int
+                                        </button>
+
+                                        <button
+                                            draggable="true"
+                                            title={`char functionName ( ) {
+
+}`}
+                                            className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = {
+                                                    id: this.Uid(),
+                                                    type: 1 + "func" + this.Uid(),
+                                                    returnType: "float",
+                                                    elementType: "functionBtn",
+                                                    defination: true,
+                                                    NumberOfParams: 0,
+                                                    inside: [
+
+                                                    ]
+                                                }
+                                                this.handleonDragStart(data, 1)
+                                            }}
+                                        >
+                                            float
+                                        </button>
+
+                                        <button
+                                            draggable="true"
+                                            title={`char functionName ( ) {
+
+}`}
+                                            className="bg-yellow-300 p-1 rounded-md border-2 border-slate-600 m-2px"
+                                            onDragStart={() => {
+                                                const data = {
+                                                    id: this.Uid(),
+                                                    type: 1 + "func" + this.Uid(),
+                                                    returnType: "char",
+                                                    elementType: "functionBtn",
+                                                    defination: true,
+                                                    NumberOfParams: 0,
+                                                    inside: [
+
+                                                    ]
+                                                }
+                                                this.handleonDragStart(data, 1)
+                                            }}
+                                        >
+                                            char
+                                        </button>
+
+                                        {this.state.functions.inside.map((f, i) => (
+                                            f.name === " " ? null : (
+                                                <button
+                                                    id={f.type}
+                                                    draggable="true"
+                                                    className="bg-yellow-300 p-1 rounded-md border-2 flex border-slate-600 m-2px"
+                                                    onDragStart={() => {
+                                                        const tmp = []
+                                                        for (let i = 0; i < f.inside.length; i++) {
+                                                            const param = {
+                                                                id: this.Uid(),
+                                                                dataType: f.inside[i].dataType,
+                                                                type: null,
+                                                                value: null,
+                                                                inside: [inputField()],
+                                                                indicator: false,
+                                                                elementType: "param"
+                                                            }
+
+                                                            tmp.push(param)
+                                                        }
+                                                        const data = {
+                                                            id: this.Uid(),
+                                                            refId: f.id,
+                                                            type: f.type,
+                                                            elementType: "function",
+                                                            returnType: f.returnType,
+                                                            defination: f.defination,
+                                                            NumberOfParams: f.NumberOfParams,
+                                                            inside: tmp,
+
+                                                        }
+
+
+                                                        this.handleonDragStart(data, f.inside.length + 1)
+                                                    }}
+
+                                                >
+                                                    {f.returnType} {f.type.slice(1)} ({f.inside.map((p, i) => {
+                                                        if (i < f.NumberOfParams) {
+                                                            return (
+                                                                (i === 0) ? (
+                                                                    <span id={i}>{p.dataType}</span>
+                                                                ) :
+                                                                    (
+                                                                        <span id={i}>, {p.dataType}</span>
+                                                                    )
+                                                            )
+                                                        }
+                                                        else {
+                                                            return null
+                                                        }
+                                                    })})
+                                                </button>)
+                                        ))}
+                                    </div>
+                                )
+                            }
+                        </div>
+
                     </div>
-                </div>
+                )}
+
+                <div className="space-y-4 p-10 m-10 mt-0 mb-0 bg-slate-200 w-3/4 h-screen overflow-y-auto no-scrollbar relative parent"
+                    onClick={() => {
+                        singleStep = !singleStep
+                    }}
+                >
+
+                    {this.state.showOutput && (
+                        <div >
+                            <div className="absolute w-2 h-2  bg-black rounded-full cursor"></div>
+                            <div className="absolute w-2 h-2  bg-black rounded-full cursor"></div>
+                            <div className="absolute w-2 h-2  bg-black rounded-full cursor"></div>
+                            <div className="absolute w-2 h-2  bg-black rounded-full cursor"></div>
+
+                            <div className="absolute w-2 h-2  bg-black rounded-full cursor"></div>
+                        </div>
+                    )}
 
 
+                    <div className="flex interactControlled justify-between mx-2 border-b-2 border-black pb-2 relative">
+
+                        <div className="flex box-border">
+                            <input
+                                className="font-bold text-2xl border-b-2 autoAdjust w-[60px] rounded-md bg-slate-50 bg-opacity-40"
+                                defaultValue={"Main"}
+                                onChange={(e) => {
+                                    this.adjustInputWidth()
+                                    this.setState(() => ({ name: e.target.value }))
+                                }}
+                                value={this.state.name}
+                            />
+                            <p className="font-bold text-2xl border-b-2">.c</p>
+                        </div>
+
+                        <button className="text-2xl font-semibold border-2 px-2 border-slate-500 rounded-md relative"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                this.setState((prevState) => {
+                                    return { showFileOptions: !prevState.showFileOptions, showOpenOption: false }
+                                })
+                            }}
+                        >
+                            File
+                            {this.state.showFileOptions && (<div className="absolute left-0 top-full bg-cyan-200 border border-gray-200 rounded-md mt-1 p-2 text-base text-left ">
+                                <button
+                                    className="block"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        this.handleNewButtonClick()
+                                        localStorage.setItem('codeId', this.Uid(8))
+                                        this.setState(() => ({ showFileOptions: false }))
+                                    }}
+                                >New</button>
+
+                                <button
+                                    className="block"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        this.handleOpenButtonClick()
+                                        this.setState(() => {
+                                            return { showFileOptions: false }
+                                        })
+                                    }}
+                                >Open</button>
+
+                                <button
+                                    className="block"
+                                    onClick={() => {
+                                        this.handleSaveButtonClick()
+                                    }}
+                                >
+                                    Save
+                                </button>
 
 
+                                <button
+                                    className="block"
+                                    onClick={(e) => {
+                                        handleButtonClick();
+                                    }}
+                                >
+                                    Upload
+                                </button>
 
-                <div className="space-y-4 p-10 m-10 mt-0 mb-0 bg-slate-200 w-3/4 h-screen overflow-y-auto no-scrollbar">
-                    <p className="font-bold text-2xl border-b-2">Main.c</p>
+                                <input
+                                    type="file"
+                                    id={"fileInput"}
+                                    onChange={this.handleFileChange}
+                                    style={{ display: 'none' }}
+                                    accept=".visc"
+                                />
 
-                    <div className="bg-slate-300 p-4 rounded-lg">
+                                <button className="block" onClick={(e) => {
+                                    this.downloadState()
+                                }}>Download</button>
+
+                                <button
+                                    className="block"
+                                    onClick={(e) => {
+                                        this.handleDeleteButtonClick()
+                                    }}
+                                >
+                                    Delete
+                                </button>
+                            </div>)}
+
+
+                            {this.state.showOpenOption && (<div className="absolute left-0 top-full bg-cyan-200 border border-gray-200 rounded-md mt-1 p-2 text-base text-left">
+                                {this.state.responseData.map((rd) => {
+                                    return (<button onClick={(e) => {
+                                        localStorage.setItem('codeId', rd.codeId)
+                                        this.setState(rd.jsonData)
+                                    }}>{rd.jsonData.name}</button>)
+                                })}
+                            </div>)}
+
+                        </button>
+
+                    </div>
+
+                    <div className=" interactControlled bg-slate-300 p-4 rounded-lg">
                         <p className="text-right">Documentation section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                <p>{`/*`}</p>
-                                <ReactTextareaAutosize className="border-2 w-10/12" />
-                                <p>{`*/`}</p>
+                                <div
+                                    className="bg-blue-200 px-2 rounded-lg  border-gray-400 border-l-2">
+                                    <p>{`/*`}</p>
+                                    <ReactTextareaAutosize className="bg-slate-200 w-full" />
+                                    <p>{`*/`}</p>
+                                </div>
+
                             </code>
                         </pre>
                     </div>
 
-                    <div className="bg-blue-100 p-4 rounded-lg">
+                    <div className=" interactControlled bg-blue-100 p-4 rounded-lg">
                         <p className="text-right">Link section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                {this.state.cheaders.map((h, index) => (
-                                    <p key={index}>#include &lt;{h}&gt;</p>
-                                ))}
+                                {showHeaders()}
                             </code>
                         </pre>
-
-                        <button
-                            className="font-bold text-cyan-800-200 text-xl block"
-                            onClick={this.toggleHeaderSelect}
-                        >
-                            +
-                        </button>
-                        {this.state.showHeaderSelect && (
-                            <select
-                                id="headerSelect"
-                                className="outline-none"
-                                onChange={this.headerSelect}
-                                value={this.state.selectedHeader}
-                            >
-                                {headers.map((h, index) => (
-                                    <option key={index} value={h}>
-                                        {h}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
                     </div>
 
 
-                    <div className="bg-amber-100 p-4 rounded-lg">
+                    <div className=" interactControlled bg-amber-100 p-4 rounded-lg">
                         <p className="text-right">Definition section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                #define
-                                <input onChange={(e) => {
-                                    this.variableName(e);
-                                    this.adjustInputWidth(e)
-                                }} className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2" />
-
-                                <input onChange={(e) => {
-                                    this.floatValue(e);
-                                    this.adjustInputWidth(e)
-                                }} className=" w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2" />;
-                                {this.state.definations.map((d, index) => (
-                                    <div key={index}>
-                                        <code>
-                                            #define
-                                            <input
-                                                onChange={(e) => {
-                                                    this.variableName(e);
-                                                    this.adjustInputWidth(e);
-                                                }}
-                                                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                                            />
-                                            <input
-                                                onChange={(e) => {
-                                                    this.floatValue(e);
-                                                    this.adjustInputWidth(e);
-                                                }}
-                                                className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2"
-                                            />
-                                            ;
-                                        </code>
-                                    </div>
-                                ))}
-
+                                {showDefines()}
                             </code>
                         </pre>
-                        <button onClick={this.addDefination} className="font-bold text-cyan-800-200 text-xl block"> + </button>
                     </div>
 
 
-                    <div className="bg-lime-100 p-4 rounded-lg">
+                    <div className=" interactControlled bg-lime-100 p-4 rounded-lg">
                         <p className="text-right">Function declaration section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                {this.state.functions.map((f, i) => (
-                                    i === 0 ? null :
-                                        f.name === " " ? null :
-                                            (<div>
-                                                {f.returnType} {f.name} ({f.params.map((p, i) => (
-                                                    (i === 0) ? (
-                                                        <span key={i}>{p.type}</span>
-                                                    ) :
-                                                        (
-                                                            <span key={i}>, {p.type}</span>
-                                                        )
-                                                ))});
+                                {this.state.functions.inside.map((f, i) => (
+                                    i === 0 || !f.defination ? null :
+                                        f.name === " " ? null
+                                            :
+                                            (<div
+                                                id={f.id + 1}
+                                                className="bg-blue-200 pl-2 rounded-lg my-1  border-gray-400 border-l-2">
+                                                {f.returnType} {f.type.slice(1)} ({f.inside.map((p, i) => {
+                                                    if (i < f.NumberOfParams) {
+                                                        return (
+                                                            (i === 0) ? (
+                                                                <span id={i}>{p.dataType}</span>
+                                                            ) :
+                                                                (
+                                                                    <span id={i}>, {p.dataType}</span>
+                                                                ))
+                                                    }
+                                                    else {
+                                                        return null
+                                                    }
+
+                                                })});
                                             </div>)
                                 ))}
                             </code>
@@ -1327,368 +5480,271 @@ class Code extends React.Component {
 
 
 
-                    <div className="bg-green-100 p-4 rounded-lg">
+
+                    <div className=" interactControlled bg-green-100 p-4 rounded-lg">
                         <p className="text-right">Global variable section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                int
-                                <input onChange={(e) => {
-                                    this.variableName(e);
-                                    this.adjustInputWidth(e)
-                                }} className="w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2" />
-                                =
-                                <input onChange={(e) => {
-                                    this.intValue(e);
-                                    this.adjustInputWidth(e)
-                                }} className=" w-10 autoAdjust bg-transparent outline-none border-2 border-slate-50 m-2" />;
-
-                                {this.state.gVariables.map((v, i) => {
-                                    switch (v) {
-                                        case "int": return <div>{int}</div>;
-                                        case "float": return <div>{float}</div>;
-                                        case "char": return <div>{char}</div>
-                                        default: return null;
-                                    }
-                                })}
-
+                                {showGVariables()}
                             </code>
                         </pre>
-                        <button className="font-bold text-cyan-800-200 text-xl block" onClick={(e) => {
-                            this.setState((prevState) => ({
-                                showDataTypes: !prevState.showDataTypes,
-                            }));
-                        }}> + </button>
-                        {this.state.showDataTypes && (
-                            <select
-                                id="datatypeSelect"
-                                className="outline-none"
-                                onChange={(e) => this.dataTypeSelect(e)}
-                            /*value={this.state.selectedHeader}*/
-                            >
-                                {dataTypes.map((t, index) => (
-                                    <option key={index} value={t}>
-                                        {t}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
                     </div>
 
-                    {
-                    /*
-                    <div className="bg-green-200 p-4 rounded-lg">
+
+
+                    <div className=" interactControlled bg-green-200 p-4 rounded-lg">
                         <p className="text-right">Main section</p>
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                <p>int main() {"{"}</p>
-                                {this.state.insideMain.map((im, i) => {
-                                    switch (im.type) {
-                                        case "int":
-                                            return <div >{int}</div>;
-                                        case "float":
-                                            return <div>{float}</div>;
-                                        case "char":
-                                            return <div>{char}</div>;
-                                        case "inc":
-                                            return <div>{inc}</div>;
-                                        case "dec":
-                                            return <div>{dec}</div>;
-                                        case "asign":
-                                            return <div>{asign(i)}</div>;
-                                        case "cif":
-                                            return <div className="my-2 p-2 bg-blue-300">{cif(im)}</div>;
-                                        case "celse":
-                                            return <div className="my-2 p-2 bg-blue-300">"celse}</div>;
-                                        case "celseIf":
-                                            return <div className="my-2 p-2 bg-blue-300">{celseIf}</div>
-                                        case "cfor":
-                                            return <div className="my-2 p-2 bg-amber-600">{cfor}</div>;
-                                        case "cwhile":
-                                            return <div className="my-2 p-2 bg-amber-600">{cwhile}</div>;
-                                        case "cdoWhile":
-                                            return <div className="my-2 p-2 bg-amber-600">{cdoWhile}</div>
-                                        default:
-                                            {
-                                                const funcName = im.type;
-                                                if (funcName !== "") {
-                                                    return (
-                                                        <div key={i}>
-                                                            {func(funcName)}
-                                                        </div>
-                                                    );
-                                                }
-                                                else {
-                                                    return null;
-                                                }
-
-                                            }
-                                    }
-                                })}
-                                <button
-                                    className="font-bold text-cyan-800 text-xl block"
-                                    onClick={(e) => {
-                                        this.setState({
-                                            showMainOptions: !this.state.showMainOptions
-                                        });
-                                    }}
-                                >
-                                    +
-                                </button>
-
-
-                                {this.state.showMainOptions && (
-                                    <select
-                                        className="outline-none border-2 w-max"
-                                        onChange={this.addInsideMain}
-                                    >
-                                        <option>Choose an option</option>
-                                        <option value="int">Declare an int variable</option>
-                                        <option value="float">Declare a float variable</option>
-                                        <option value="char">Declare a char variable</option>
-                                        <option value="asign">Assignment operation</option>
-                                        <option value="cif">if</option>
-                                        <option value="celse">else</option>
-                                        <option value="celseIf">else if</option>
-                                        <option value="cfor">For</option>
-                                        <option value="cwhile">While</option>
-                                        <option value="cdoWhile">Do-While</option>
-                                        <option value="inc">Increment operation</option>
-                                        <option value="dec">Decrement operation</option>
-                                        {this.state.functions.map((f, i) => (
-                                            f.name === " " ? null : (
-                                                <option value={"1" + f.name} key={f.name}>
-                                                    Call: {f.returnType} {f.name} ({f.params.map((p, i) => (
-                                                        (i === 0) ? (
-                                                            <span key={i}>{p.type}</span>
-                                                        ) :
-                                                            (
-                                                                <span key={i}>, {p.type}</span>
-                                                            )
-                                                    ))})
-                                                </option>)
-                                        ))}
-                                    </select>
-                                )}
-                                <p>{"}"}</p>
-                            </code>
-                        </pre>
-                    </div>
-                    */}
-                    <div className="bg-green-200 p-4 rounded-lg">
-                        <p className="text-right">Main section</p>
-                        <pre className="bg-white p-2 rounded-md">
-                            <code>
-                                <p key={this.state.functions[0].key}>{subP(this.state.functions[0].key)}</p>
+                                <p id={this.state.functions.inside[0].id}>{subP(this.state.functions.inside[0].id)}</p>
                             </code>
                         </pre>
                     </div>
 
 
-                    <div className="bg-purple-100 p-4 rounded-lg">
+                    <div className=" interactControlled bg-purple-100 p-4 rounded-lg">
                         <p className="text-right">Subprogram section</p>
 
                         <pre className="bg-white p-2 rounded-md">
                             <code>
-                                {this.state.functions.map((f, index) => (
-                                    index === 0 ? null :
-                                        <p key={f.key}>{subP(f.key)}</p>
-                                ))}
+                                {showSubprograms()}
                             </code>
                         </pre>
-                        <button className="font-bold text-cyan-800 text-xl block" onClick={(e) => {
-                            this.setState((prevState) => ({
-                                showFunctionTypes: !prevState.showFunctionTypes
-                            }))
-                        }}> + </button>
-                        {this.state.showFunctionTypes && (
-                            <select onChange={(e) => { this.addFunction(e) }}>
-                                <option value="">Choose return type</option>
-                                <option value="int">int</option>
-                                <option value="bool">bool</option>
-                                <option value="char">char</option>
-                            </select>
-                        )}
                     </div>
+
+
+
+
 
                     <div className="flex justify-center">
-                        <button className="align-middle m-5 border-2 w-24 h-12 bg-lime-200">
-                            Run
+                        <button className="align-middle m-5 border-2 w-24 h-12 bg-lime-200" onClick={(e) => {
+                            e.stopPropagation()
+                            this.handleSimulateButtonClick()
+                        }}>
+                            {this.state.showOutput ? "Stop" : "Run"}
                         </button>
+                        {/* Display response data */}
+
                     </div>
+
+
+
+                    {!this.state.showOutput && (() => {
+                        const id = this.Uid()
+
+                        const handleDragEnter = debounce(() => {
+                            if (document.getElementById(id)) {
+                                document.getElementById(id).style.backgroundColor = "red";
+                            }
+                        }, 100);
+
+                        const handleDragLeave = debounce(() => {
+                            if (document.getElementById(id)) {
+                                document.getElementById(id).style.backgroundColor = "white";
+                            }
+                        }, 100);
+
+                        return (
+                            <div>
+                                <FontAwesomeIcon
+                                    icon={faTrash}
+                                    id={id}
+                                    size="2x"
+                                    className={`fixed bottom-8 right-8 p-3 rounded-full bg-white`}
+                                    onDrop={(e) => {
+                                        this.deleteItem();
+                                        if (document.getElementById(id)) {
+                                            document.getElementById(id).style.backgroundColor = "white";
+                                        }
+                                    }}
+                                    onDragEnter={(e) => {
+                                        e.preventDefault();
+                                        handleDragEnter();
+                                    }}
+                                    onDragLeave={(e) => {
+                                        e.preventDefault();
+                                        handleDragLeave();
+                                    }}
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        if (document.getElementById(id)) {
+                                            document.getElementById(id).style.backgroundColor = "red";
+                                        }
+                                    }}
+                                />
+                            </div>
+                        );
+                    })()}
+
+
+
+
                 </div>
-                {/*          
-                <div id="memory" className="space-y-4 p-10 pb-20  m-10 mt-0 mb-0 bg-slate-200 w-1/2 h-screen">
-                    <p className="font-bold text-2xl border-b-2">Memory</p>
-                    <div className="flex h-full">
-                        <div className="w-1/2 mx-5 mb-10 p-2 h-full bg-cyan-200 rounded-md">
-                            <p className="font-bold text-lg align-middle">data</p>
-                            <div className="overflow-y-auto  max-h-[calc(100%-2rem-2.5rem)] no-scrollbar">
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <label>s</label>
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
 
-                            </div>
+                {
+                /*this.state.showOutput && (
+                    <div className="flex flex-col h-screen w-1/2 flex-grow text-white">
+                        <p>Code:</p>
+                        <div className="h-3/6 w-full bg-cyan-50  p-4 rounded-md font-mono text-black mb-4">
+
+                            <pre className="bg-slate-200 p-1 h-full rounded-md overflow-y-scroll">{this.state.code}</pre>
+
                         </div>
-
-                        <div className="w-1 bg-slate-500"></div>
-
-                        <div className="w-1/2 mx-5 mb-10 p-2 h-full bg-blue-300 rounded-md">
-                            <p className="font-bold text-lg align-middle">stack</p>
-                            <div id="stack" className="overflow-y-auto max-h-[calc(100%-2rem-2.5rem)] no-scrollbar">
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-                                <div className="flex justify-end">
-                                    <input className="border-2 w-3/5 ml-2 px-1 bg-white bg-opacity-40 border-slate-500"></input>
-                                </div>
-
-
-
-                            </div>
+                        <p>Console:</p>
+                        <div className="h-2/6 w-full bg-slate-800 overflow-y-scroll text-slate-50 p-4 border-4 rounded-md font-mono">
+                            <pre>{this.state.responseData}</pre>
                         </div>
                     </div>
-                </div>*/}
+                )*/}
+
+
+                {this.state.showOutput && (
+                    <div className="flex flex-col h-screen w-1/2 flex-grow text-white">
+                        <p>Memory:</p>
+                        <div id="memory" className="h-4/6 py-4 w-full bg-cyan-50  rounded-md font-mono text-black mb-4">
+                            <div className="flex h-full">
+                                <div className="w-1/2 mx-4 p-2  h-full bg-cyan-200 rounded-md">
+                                    <p className="font-bold text-lg align-middle">data</p>
+
+                                    <div id="data" className="flex flex-col p-2 items-end overflow-y-auto max-h-[calc(100%-2.5rem)] no-scrollbar">
+
+                                        {
+                                            (() => {
+                                                const slots = []
+                                                const data = this.state.data
+                                                for (let i = 0; i < 20; i++) {
+                                                    if (i < data.length) {
+                                                        let tempVal = []
+                                                        if (!Array.isArray(data[i].value)) {
+                                                            tempVal = data[i].value
+                                                        }
+                                                        else if (!Array.isArray(data[i].value[0])) {
+                                                            tempVal.push('{')
+                                                            for (let j = 0; j < data[i].value.length; j++) {
+                                                                if (j !== 0) {
+                                                                    tempVal.push(',')
+                                                                }
+                                                                tempVal.push(data[i].value[j])
+
+                                                            }
+                                                            tempVal.push('}')
+                                                        }
+                                                        else if (Array.isArray(data[i].value[0])) {
+                                                            tempVal.push('{')
+                                                            for (let j = 0; j < data[i].value.length; j++) {
+                                                                if (j !== 0) {
+                                                                    tempVal.push(',')
+                                                                }
+                                                                tempVal.push('{')
+                                                                for (let k = 0; k < data[i].value[0].length; k++) {
+                                                                    if (k !== 0) {
+                                                                        tempVal.push(',')
+                                                                    }
+                                                                    tempVal.push(data[i].value[j][k])
+                                                                }
+                                                                tempVal.push('}')
+
+                                                            }
+                                                            tempVal.push('}')
+                                                        }
+                                                        slots.push(<div className="flex mx-1 my-1px w-full">
+                                                            <p className="text-center text-wrap w-3/12 bg-white bg-opacity-40  border-2 border-slate-500 overflow-hidden">{i}</p>
+                                                            <p className="text-center text-wrap w-4/12 bg-white bg-opacity-40 border-x-0 border-2 border-slate-500 overflow-hidden">{data[i].type}</p>
+                                                            <p className="text-center text-wrap w-5/12 bg-white bg-opacity-40  border-2 border-slate-500 overflow-hidden">{tempVal}</p>
+                                                        </div>
+                                                        )
+                                                    }
+                                                    else {
+                                                        slots.push(<div className="flex mx-1 my-1px w-full">
+                                                            <p className="text-center text-wrap w-3/12 bg-white bg-opacity-40  border-2 border-slate-500 overflow-hidden">{i}</p>
+                                                            <p className="text-center text-wrap w-4/12 bg-white bg-opacity-40 border-x-0 border-2 border-slate-500 overflow-hidden"></p>
+                                                            <p className="text-center text-wrap w-5/12 bg-white bg-opacity-40  border-2 border-slate-500 overflow-hidden"> </p>
+                                                        </div>
+                                                        )
+                                                    }
+
+                                                }
+                                                return slots
+                                            })()
+                                        }
+
+
+
+                                    </div>
+
+                                </div>
+
+                                <div className="w-1 bg-slate-500"></div>
+
+                                {(() => {
+                                    return (
+                                        <div className="w-1/2 mx-4 p-2  h-full bg-blue-300 rounded-md relative">
+                                            <p className="font-bold text-lg align-middle">stack</p>
+                                            <div id="stack" className="flex flex-col items-center overflow-y-auto no-scrollbar max-h-[calc(100%-2.5rem)] border-2 border-black border-t-0 absolute bottom-0 w-[calc(100%-1rem)]">
+                                                {this.state.stackFrames.map((frame, index) => (
+                                                    <div key={index} className="flex flex-col w-full mt-2 ">
+                                                        <p className="text-center text-wrap bg-white bg-opacity-40 border-2 border-slate-500">
+                                                            {frame.ret ? frame.ret : null}
+                                                        </p>
+                                                        <p className="text-center text-wrap bg-white bg-opacity-40 border-2 border-slate-500">
+                                                            {frame.args ? frame.type.slice(1) + "(" +
+
+                                                                frame.args.map((arg) => arg.refId ? this.state.data.find((d) => (d.id === arg.refId))?.value
+                                                                    : arg.value).join(",")
+
+                                                                + ")" : null}
+                                                        </p>
+                                                        <p className="text-center text-wrap bg-white bg-opacity-40 border-2 border-slate-500">
+                                                            {frame.localVars ? frame.localVars.map((v) => v.type + " = " + v.value).join(",") : null}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                        </div>
+                                    )
+                                })()
+                                }
+
+
+                            </div>
+                        </div>
+                        {/*
+                        <p>Console:</p>
+                        <div className="h-2/6 w-full bg-slate-800 overflow-y-scroll text-slate-50 p-4 border-4 rounded-md font-mono">
+                           <pre>{this.state.responseData}</pre>
+                        </div>
+                            */}
+                        <p>Console:</p>
+                        {(() => {
+                            const handleKeyDown = (event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+
+                                    const values = event.target.value.split("\n").pop().split(" ");
+
+                                    consoleInputs = [...values]
+
+                                    consoleRef.current.value = event.target.value + "\n"
+
+                                }
+                            }
+
+
+                            return (<div className="h-2/6 w-full overflow-y-hidden text-slate-50 border-4 rounded-md font-mono">
+                                <ReactTextareaAutosize
+                                    ref={consoleRef}
+                                    className="bg-slate-800 p-1 w-full min-h-full"
+                                    onKeyDown={(e) => { handleKeyDown(e) }}
+
+                                />
+                            </div>)
+                        })()}
+
+
+                    </div>
+                )}
+
             </div>
         );
     }
